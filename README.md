@@ -1,2 +1,2 @@
-# xwhy
-XWhy: eXplain why with smile, Statistical Model-agnostic Interpretability with Local Explanations
+# X-Why
+XWhy: eXplain Why with smile, Statistical Model-agnostic Interpretability with Local Explanations
