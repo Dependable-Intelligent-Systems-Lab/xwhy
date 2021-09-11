@@ -1,4 +1,4 @@
-# Tutorials and API
+# Tutorials and APIs
 
 ## Text Classification
 
