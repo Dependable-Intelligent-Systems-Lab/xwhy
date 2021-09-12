@@ -20,3 +20,9 @@ pip install smile
 ```
 ex.
 ```
+ 
+## Citations
+It would be appreciated a citation to our paper as follows if you use X-Why for your research:
+
+ 
+## Acknowledgment
