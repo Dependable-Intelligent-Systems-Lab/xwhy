@@ -26,3 +26,4 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 
  
 ## Acknowledgment
+This project is supported by the [Secure and Safe Multi-Robot Systems (SESAME)](https://www.sesame-project.org) H2020 Project under Grant Agreement 101017258.
