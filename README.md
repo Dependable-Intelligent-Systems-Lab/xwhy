@@ -23,7 +23,16 @@ ex.
  
 ## Citations
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
-
+```
+@article{Aslansefat2020SafeML,
+   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Papadopoulos}, Yiannis},
+   title   = "{SMILE: Statistical Model-agnostic Interpretability with Local Explanations}",
+   journal = {arXiv e-prints},
+   year    = {2021},
+   url     = {https://arxiv.org/abs/...},
+   eprint  = {},
+}
+```
  
 ## Acknowledgment
 This project is supported by the [Secure and Safe Multi-Robot Systems (SESAME)](https://www.sesame-project.org) H2020 Project under Grant Agreement 101017258.
