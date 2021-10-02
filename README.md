@@ -18,7 +18,9 @@ pip install smile
 
 ## Simple Example
 ```
-ex.
+import xwhy
+
+
 ```
  
 ## Citations
