@@ -13,7 +13,7 @@ XWhy: eXplain Why with SMILE -- Statistical Model-agnostic Interpretability with
 
 ## Installation
 ```
-pip install smile
+pip install xwhy
 ```
 
 ## Simple Example
