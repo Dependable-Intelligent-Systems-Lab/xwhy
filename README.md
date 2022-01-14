@@ -27,7 +27,7 @@ import xwhy
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
 ```
 @article{Aslansefat2021Xwhy,
-   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Papadopoulos}, Yiannis},
+   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker and {Papadopoulos}, Yiannis},
    title   = "{SMILE: Statistical Model-agnostic Interpretability with Local Explanations}",
    journal = {arXiv e-prints},
    year    = {2021},
