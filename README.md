@@ -19,8 +19,6 @@ pip install xwhy
 ## Simple Example
 ```
 import xwhy
-
-
 ```
  
 ## Citations
