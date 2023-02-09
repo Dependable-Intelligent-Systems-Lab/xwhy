@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+import sklearn
+import sklearn.metrics
+from sklearn.linear_model import LinearRegression
 
 def Wasserstein_Dist(XX, YY):
     '''
