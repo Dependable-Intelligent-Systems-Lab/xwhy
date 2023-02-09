@@ -19,6 +19,20 @@ pip install xwhy
 ## Simple Example
 ```
 import xwhy
+import xgboost
+
+# train an XGBoost model
+X, y = xwhy.datasets.boston()
+model = xgboost.XGBRegressor().fit(X, y)
+
+# explain the model's predictions using xwhy
+# (same syntax works for LightGBM, CatBoost, scikit-learn, transformers, Spark, etc.)
+explainer = xwhy.Explainer(model)
+xwhy_values = explainer(X)
+
+# visualize the first prediction's explanation
+xwhy.plots.waterfall(xwhy_values[0])
+
 ```
  
 ## Citations
