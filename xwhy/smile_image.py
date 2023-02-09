@@ -10,6 +10,14 @@ from sklearn.linear_model import LinearRegression
 
 def Wasserstein_Dist(XX, YY):
   
+    '''
+    Wasserstein_Dist_PVal is for Wasserstein distance measure with Boostrap-based p-value calculation.
+    The p-Value can be used to validate statistical distance measures.
+    
+    XX: The first input vector. It should be a numpy array with length of n.
+    YY: The second input vector. It should be a numpy array with lenght of m.
+    '''
+  
     import numpy as np
     nx = len(XX)
     ny = len(YY)
