@@ -71,7 +71,7 @@ def  Wasserstein_Dist_PVal(XX, YY):
 
 def Wasserstein_Dist_Image(img1, img2):
     if img1.shape[0] != img2.shape[0] or img1.shape[1] != img2.shape[1]:
-        pritn('input images should have the same size')
+        print('input images should have the same size')
     else:
         WD = []
         for ii in range(3):
@@ -83,9 +83,9 @@ def Wasserstein_Dist_Image(img1, img2):
             
     return sum(WD)
   
-def xwhy_image2(X_input, model, perturbations=perturbations, num_perturb = 150, kernel_width = 0.25):
+def xwhy_image2(X_input, model, perturbations, num_perturb = 150, kernel_width = 0.25):
     
-    superpixels = skimage.segmentation.quickshift(Xi, kernel_size=4,max_dist=200, ratio=0.2)
+    superpixels = skimage.segmentation.quickshift(X_input, kernel_size=4,max_dist=200, ratio=0.2)
     num_superpixels = np.unique(superpixels).shape[0]
     #perturbations = np.random.binomial(1, 0.5, size=(num_perturb, num_superpixels))
     
@@ -102,10 +102,10 @@ def xwhy_image2(X_input, model, perturbations=perturbations, num_perturb = 150, 
     predictions = []
     WD_dist = []
     for pert in perturbations:
-        perturbed_img = perturb_image(Xi,pert,superpixels)
-        pred = inceptionV3_model.predict(perturbed_img[np.newaxis,:,:,:])
+        perturbed_img = perturb_image(X_input,pert,superpixels)
+        pred = model.predict(perturbed_img[np.newaxis,:,:,:])
         predictions.append(pred)
-        WD_dist = Wasserstein_Dist_Image(Xi, perturbed_img)
+        WD_dist = Wasserstein_Dist_Image(X_input, perturbed_img)
         
 
     predictions = np.array(predictions)
@@ -115,6 +115,10 @@ def xwhy_image2(X_input, model, perturbations=perturbations, num_perturb = 150, 
     
     
     weights = np.sqrt(np.exp(-(WD_dist**2)/kernel_width**2)) #Kernel function
+    
+    preds = model.predict(X_input[np.newaxis,:,:,:])
+    decode_predictions(preds)
+    top_pred_classes = preds[0].argsort()[-5:][::-1]
     
     class_to_explain = top_pred_classes[0]
     simpler_model = LinearRegression()
