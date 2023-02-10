@@ -72,7 +72,7 @@ def r_eigenv(G_i, G_j):
     
     return max(temp), max(WD)
 
-def xwhy_graph_edges(X_input_graph, model=model, num_perturb = 50, kernel_width = 0.25, num_top_features = 10, eps=1):    
+def xwhy_graph_edges(X_input_graph, model, num_perturb = 50, kernel_width = 0.25, num_top_features = 10, eps=1):    
     #num_perturb = 5000
     
     num_uniqe_words = len(X_input_graph.edges)
