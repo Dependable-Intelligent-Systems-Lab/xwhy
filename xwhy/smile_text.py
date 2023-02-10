@@ -19,7 +19,9 @@ import re
 import nltk
 from nltk.tokenize import TweetTokenizer
 
-def xwhy_text(X_input_text, model, perturbations=perturbations, embd= embedding_google, num_perturb = 50, kernel_width = 0.25, num_top_features = 10, eps=0.5):
+# embd = embedding_google
+
+def xwhy_text(X_input_text, model, perturbations, embd, num_perturb = 50, kernel_width = 0.25, num_top_features = 10, eps=0.5):
     
 #     # NLP pre-processing
 #     # remove urls, handles, and the hashtag from hashtags 
