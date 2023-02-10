@@ -70,7 +70,7 @@ def  Wasserstein_Dist_PVal(XX, YY):
 
     return pVal, WD
 
-def WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
+def WasserstainLIME(X_input, model = model, num_perturb = 500, kernel_width2 = 0.2):
     
     '''
     WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
@@ -108,7 +108,7 @@ def WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
     except ValueError as ve:
         print(ve)
     
-    X_lime = np.random.normal(0,1,size=(num_perturb,X.shape[1]))
+    X_lime = np.random.normal(0,1,size=(num_perturb,X_input.shape[1]))
     
     Xi2 = np.zeros((100,2))
     Xi2[:,0] = X_input[0] + np.random.normal(0,0.05,100)
@@ -124,7 +124,7 @@ def WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
         df2 = pd.DataFrame()
         df2['x1'] = temp1
         df2['x2'] = temp2
-        temp3 = classifier.predict(df2)
+        temp3 = model.predict(df2)
         y_lime2[ind] = np.argmax(np.bincount(temp3))
         WD1 = Wasserstein_Dist(Xi2[:,0], df2[:]['x1'])
         WD2 = Wasserstein_Dist(Xi2[:,1], df2[:]['x2'])
