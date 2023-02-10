@@ -70,7 +70,7 @@ def  Wasserstein_Dist_PVal(XX, YY):
 
     return pVal, WD
 
-def WasserstainLIME(X_input, model = model, num_perturb = 500, kernel_width2 = 0.2):
+def WasserstainLIME(X_input, model, num_perturb = 500, kernel_width2 = 0.2):
     
     '''
     WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
