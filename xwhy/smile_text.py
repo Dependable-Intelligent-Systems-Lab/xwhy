@@ -63,7 +63,7 @@ def xwhy_text(X_input_text, model, perturbations=perturbations, embd= embedding_
 #     cleaned_words = clean_text(X_input_text)
 
     wod = X_input_text.split()
-# #     words = pp_text
+
     wod = [word.strip('-.,!;()[]@><:') for word in wod]
 #     wod = [word.replace("'s", '') for word in wod]
     wod = [word.replace(".", '') for word in wod]
@@ -78,7 +78,7 @@ def xwhy_text(X_input_text, model, perturbations=perturbations, embd= embedding_
         if word not in unique:
             unique.append(word)
 
-    #sort
+    # Sorting the Unique Values
     unique.sort()
     
     #num_perturb = 150
@@ -104,14 +104,6 @@ def xwhy_text(X_input_text, model, perturbations=perturbations, embd= embedding_
     WD_dist = np.array(WD_dist) 
     
     weights = np.sqrt(np.exp(-((eps*WD_dist)**2)/kernel_width**2)) #Kernel function
-    
-    print(perturbations.shape)
-    
-#     print(predictions.shape)
-    
-    print(weights.shape)
-    
-    print(predictions[:,:,0].shape)
                 
     class_to_explain = 0
     simpler_model = LinearRegression()
