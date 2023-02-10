@@ -1,5 +1,6 @@
 # This file is a modified copy of SHAP package.py with some modification
 # source: https://github.com/slundberg/shap/blob/master/shap/datasets.py
+
 import pandas as pd
 import numpy as np
 import sklearn.datasets
@@ -205,7 +206,8 @@ def corrgroups60(display=False):
 
 
 def independentlinear60(display=False):
-    """ A simulated dataset with tight correlations among distinct groups of features.
+    """ 
+    A simulated dataset with tight correlations among distinct groups of features.
     """
 
     # set a constant seed
@@ -233,13 +235,15 @@ def independentlinear60(display=False):
 
 
 def a1a():
-    """ A sparse dataset in scipy csr matrix format.
+    """
+    A sparse dataset in scipy csr matrix format.
     """
     return sklearn.datasets.load_svmlight_file(cache(github_data_url + 'a1a.svmlight'))
 
 
 def rank():
-    """ Ranking datasets from lightgbm repository.
+    """ 
+    Ranking datasets from lightgbm repository.
     """
     rank_data_url = 'https://raw.githubusercontent.com/Microsoft/LightGBM/master/examples/lambdarank/'
     x_train, y_train = sklearn.datasets.load_svmlight_file(cache(rank_data_url + 'rank.train'))
