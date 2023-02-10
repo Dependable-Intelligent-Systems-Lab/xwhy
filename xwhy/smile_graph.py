@@ -12,6 +12,7 @@ from Watts_Strogatz import watts_strogatz_graph
 from Erdos_Renyi import erdos_renyi_graph
 
 from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import normalize
 
 import graph_nets
 from graph_nets.graphs import GraphsTuple
@@ -117,8 +118,6 @@ def xwhy_graph_edges(X_input_graph, model, num_perturb = 50, kernel_width = 0.25
     
     # https://stackoverflow.com/questions/39626401/how-to-get-odds-ratios-and-other-related-features-with-scikit-learn
     odds = np.exp(coeff2)
-    
-    from sklearn.preprocessing import normalize
 
     Bounded_coeff = 2*(normalize(coeff[:,np.newaxis], axis=0).ravel()+1)
     
