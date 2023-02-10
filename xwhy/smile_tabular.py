@@ -71,16 +71,48 @@ def  Wasserstein_Dist_PVal(XX, YY):
     return pVal, WD
 
 def WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
+    
+    '''
+    WasserstainLIME(X_input, num_perturb = 500, kernel_width2 = 0.2):
 
-    num_perturb = 500
+    X_input: The input feature data for the WassersteinLIME function. It should be a 1D numpy array with two elements.
+    
+    kernel_width2: The kernel width parameter for the Wasserstein distance calculation. It determines the size of the 
+                   region around the original feature data that is considered for the linear regression model. Larger 
+                   values of kernel_width2 result in a wider region and more perturbations being included in the explanation,
+                   while smaller values result in a more localized explanation. The default value is 0.2.
+
+    This function uses Wasserstein distance to generate local explanations for a binary classifier. 
+    It creates num_perturb number of perturbed versions of the input feature data, and for each perturbation 
+    it predicts the class probabilities, computes the Wasserstein distances between the original 
+    and perturbed feature data, and uses the distances to weight a linear regression model that explains the binary predictions. 
+    The function returns the perturbed feature data, binary predictions, weight of each perturbation, 
+    coefficients of the linear regression model, and the predictions of the linear regression model.
+    '''
+    
+    try:
+        if not isinstance(X_input, np.ndarray) or X_input.ndim != 2:
+            raise TypeError("X_input must be a 2-dimensional array.")
+    except TypeError as te:
+        print(te)
+    
+    try:
+        if not isinstance(num_perturb, int):
+            raise ValueError("num_perturb must be an integer.")
+    except ValueError as ve:
+        print(ve)
+        
+    try:
+        if not np.isscalar(kernel_width2):
+            raise ValueError("kernel_width2 must be a scalar.")
+    except ValueError as ve:
+        print(ve)
+    
     X_lime = np.random.normal(0,1,size=(num_perturb,X.shape[1]))
     
     Xi2 = np.zeros((100,2))
-    #Xi = np.array([0.8,-0.7]) 
     Xi2[:,0] = X_input[0] + np.random.normal(0,0.05,100)
     Xi2[:,1] = X_input[1] + np.random.normal(0,0.05,100)
-
-    #kernel_width2 = 0.75
 
     y_lime2  = np.zeros((num_perturb,1))
     WD       = np.zeros((num_perturb,1))
