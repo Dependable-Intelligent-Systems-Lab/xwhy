@@ -13,6 +13,10 @@ from Erdos_Renyi import erdos_renyi_graph
 
 from sklearn.linear_model import LinearRegression
 
+import graph_nets
+from graph_nets.graphs import GraphsTuple
+import graph_attribution as gatt
+
 def Wasserstein_Dist(cdfX, cdfY):
   
     Res = 0
