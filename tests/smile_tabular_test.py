@@ -2,6 +2,7 @@ import unittest
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression
+from xwhy import smile_tabular
 
 class TestWassersteinDist(unittest.TestCase):
     def test_distance_calculation(self):
@@ -22,7 +23,7 @@ class TestWassersteinDist(unittest.TestCase):
         num_perturb = 500
         kernel_width2 = 0.2
 
-        X_lime, y_lime2, weights2, y_linmodel2, coef = WasserstainLIME(X_input, model, num_perturb, kernel_width2)
+        X_lime, y_lime2, weights2, y_linmodel2, coef = smile_tabular.WasserstainLIME(X_input, model, num_perturb, kernel_width2)
 
         # check if X_lime has the correct shape
         assert X_lime.shape == (num_perturb, X_input.shape[1])
