@@ -3,72 +3,81 @@ import pandas as pd
 import sklearn
 import sklearn.metrics
 from sklearn.linear_model import LinearRegression
+import SafeML 
 
-def Wasserstein_Dist(XX, YY):
+def WasserstainLIME2(X_input, model, num_perturb = 500, L_num_perturb = 100, kernel_width2 = 0.75, epsilon = 0.1):
     '''
-    Wasserstein_Dist_PVal is for Wasserstein distance measure with Boostrap-based p-value calculation.
-    The p-Value can be used to validate statistical distance measures.
+    WasserstainLIME is a statistical version of LIME (local interpretable model-agnostic explanations) 
+    in which instead of Euclidean distance, the ECDF-based distance is used.
     
-    XX: The first input vector. It should be a numpy array with length of n.
-    YY: The second input vector. It should be a numpy array with lenght of m.
-    '''
-
-    import numpy as np
-    nx = len(XX)
-    ny = len(YY)
-    n = nx + ny
-
-    XY = np.concatenate([XX,YY])
-    X2 = np.concatenate([np.repeat(1/nx, nx), np.repeat(0, ny)])
-    Y2 = np.concatenate([np.repeat(0, nx), np.repeat(1/ny, ny)])
-
-    S_Ind = np.argsort(XY)
-    XY_Sorted = XY[S_Ind]
-    X2_Sorted = X2[S_Ind]
-    Y2_Sorted = Y2[S_Ind]
-
-    Res = 0
-    E_CDF = 0
-    F_CDF = 0
-    power = 1
-
-    for ii in range(0, n-2):
-        E_CDF = E_CDF + X2_Sorted[ii]
-        F_CDF = F_CDF + Y2_Sorted[ii]
-        height = abs(F_CDF-E_CDF)
-        width = XY_Sorted[ii+1] - XY_Sorted[ii]
-        Res = Res + (height ** power) * width;  
- 
-    return Res
-
-def  Wasserstein_Dist_PVal(XX, YY):
-    '''
-    Wasserstein_Dist_PVal is for Wasserstein distance measure with Boostrap-based p-value calculation.
-    The p-Value can be used to validate statistical distance measures.
+    X_input: should be a numpy array that represents one point in a n-dimensional space.
     
-    XX: The first input vector. It should be a numpy array with length of n.
-    YY: The second input vector. It should be a numpy array with lenght of m.
+    num_perturb: Is the number of perturbations that the algorithm uses.
+    
+    L_num_perturb: Is the number of perturbations in the local areas that the algorithm uses.
+    
+    kernel_width: Is the Kernel Width. When the decision space is very dynamic, the kernel width should be low like 0.2, 
+    otherwise kernel with around 0.75 would be ideal.
+    
+    model: It is the trained model that can be for a classification or regression. 
+    
+    epsilon: It is used to normalize the WD values.
+    
     '''
     
-    import random
-    nboots = 1000
-    WD = Wasserstein_Dist(XX,YY)
-    na = len(XX)
-    nb = len(YY)
-    n = na + nb
-    comb = np.concatenate([XX,YY])
-    reps = 0
-    bigger = 0
-    for ii in range(1, nboots):
-        e = random.sample(range(n), na)
-        f = random.sample(range(n), nb)
-        boost_WD = Wasserstein_Dist(comb[e],comb[f]);
-        if (boost_WD > WD):
-            bigger = 1 + bigger
-            
-    pVal = bigger/nboots;
+    X_input = (X_input - np.mean(X_input,axis=0)) / np.std(X_input,axis=0) #Standarization of data
 
-    return pVal, WD
+    X_lime = np.random.normal(0,1,size=(num_perturb,X_input.shape[0]))
+    
+    Xi2 = np.zeros((L_num_perturb,X_input.shape[0]))
+    
+    for jj in range(X_input.shape[0]):
+        Xi2[:,jj] = X_input[jj] + np.random.normal(0,0.05,L_num_perturb)
+
+    y_lime2  = np.zeros((num_perturb,1))
+    WD       = np.zeros((num_perturb,1))
+    weights2 = np.zeros((num_perturb,1))
+    
+    for ind, ii in enumerate(X_lime):
+        
+        df2 = pd.DataFrame()
+        
+        for jj in range(X_input.shape[0]):
+            temp1 = ii[jj] + np.random.normal(0,0.3,L_num_perturb)
+            df2[len(df2.columns)] = temp1
+
+        temp3 = model.predict(df2.to_numpy())
+
+        y_lime2[ind] = np.mean(temp3)  # For classification: np.argmax(np.bincount(temp3))
+        
+        WD1 = np.zeros((X_input.shape[0],1))
+        
+        df2 = df2.to_numpy()
+        
+        for kk in range(X_input.shape[0]):
+            #print( df2.shape)
+            WD1[kk] = SafeML.Wasserstein_Dist(Xi2[:,kk], df2[:,kk])
+        
+        #print(WD1)
+        #print(ind)
+        WD[ind] = sum(WD1)
+        #print(WD)
+    
+        weights2[ind] = np.sqrt(np.exp(-((epsilon*WD[ind])**2)/(kernel_width2**2))) 
+        #print(weights2[ind])
+        
+        del df2
+    
+    weights2 = weights2.flatten()
+    #print(weights2)
+    
+    simpler_model2 = LinearRegression() 
+    simpler_model2.fit(X_lime, y_lime2, sample_weight=weights2)
+    y_linmodel2 = simpler_model2.predict(X_lime)
+    y_linmodel2 = y_linmodel2 < 0.5 #Conver to binary class
+    y_linmodel2 = y_linmodel2.flatten()
+    
+    return X_lime, y_lime2, weights2, y_linmodel2, simpler_model2.coef_.flatten()
 
 def WasserstainLIME(X_input, model, num_perturb = 500, kernel_width2 = 0.2):
     
@@ -126,8 +135,8 @@ def WasserstainLIME(X_input, model, num_perturb = 500, kernel_width2 = 0.2):
         df2['x2'] = temp2
         temp3 = model.predict(df2)
         y_lime2[ind] = np.argmax(np.bincount(temp3))
-        WD1 = Wasserstein_Dist(Xi2[:,0], df2[:]['x1'])
-        WD2 = Wasserstein_Dist(Xi2[:,1], df2[:]['x2'])
+        WD1 = SafeML.Wasserstein_Dist(Xi2[:,0], df2[:]['x1'])
+        WD2 = SafeML.Wasserstein_Dist(Xi2[:,1], df2[:]['x2'])
         WD[ind] = sum([WD1, WD2])
     
         weights2[ind] = np.sqrt(np.exp(-(WD[ind]**2)/(kernel_width2**2))) 
