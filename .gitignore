@@ -127,3 +127,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Files needed to run the examples, can be redownloaded at runtime
+examples/Fooling-LIME-SHAP/*

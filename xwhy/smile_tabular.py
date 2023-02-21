@@ -3,6 +3,7 @@ import pandas as pd
 import sklearn
 import sklearn.metrics
 from sklearn.linear_model import LinearRegression
+from SafeML.Wasserstein_Dist_PVal import Wasserstein_Dist
 import SafeML 
 
 def WasserstainLIME2(X_input, model, num_perturb = 500, L_num_perturb = 100, kernel_width2 = 0.75, epsilon = 0.1):
@@ -56,7 +57,7 @@ def WasserstainLIME2(X_input, model, num_perturb = 500, L_num_perturb = 100, ker
         
         for kk in range(X_input.shape[0]):
             #print( df2.shape)
-            WD1[kk] = SafeML.Wasserstein_Dist(Xi2[:,kk], df2[:,kk])
+            WD1[kk] = Wasserstein_Dist(Xi2[:,kk], df2[:,kk])
         
         #print(WD1)
         #print(ind)
@@ -135,8 +136,8 @@ def WasserstainLIME(X_input, model, num_perturb = 500, kernel_width2 = 0.2):
         df2['x2'] = temp2
         temp3 = model.predict(df2)
         y_lime2[ind] = np.argmax(np.bincount(temp3))
-        WD1 = SafeML.Wasserstein_Dist(Xi2[:,0], df2[:]['x1'])
-        WD2 = SafeML.Wasserstein_Dist(Xi2[:,1], df2[:]['x2'])
+        WD1 = Wasserstein_Dist(Xi2[:,0], df2[:]['x1'])
+        WD2 = Wasserstein_Dist(Xi2[:,1], df2[:]['x2'])
         WD[ind] = sum([WD1, WD2])
     
         weights2[ind] = np.sqrt(np.exp(-(WD[ind]**2)/(kernel_width2**2))) 
