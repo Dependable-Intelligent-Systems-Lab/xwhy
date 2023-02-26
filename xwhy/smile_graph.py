@@ -55,7 +55,7 @@ def r_eigenv(G_i, G_j):
             cdf_dist = f.cdf_dist(vri, vrj)
             temp.append(cdf_dist)
     
-    #Compute empirical CDF
+    # Compute empirical CDF
     step = 0.005
     x=np.arange(0, 1, step)
     cdf_grid_Gip = f.cdf(len(r_eigenv_Gi[r][1]),x,
