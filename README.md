@@ -10,7 +10,7 @@ XWhy: eXplain Why with SMILE -- Statistical Model-agnostic Interpretability with
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
 
 
-
+<!--
 ## Installation
 ```
 pip install xwhy
@@ -34,12 +34,13 @@ xwhy_values = explainer(X)
 xwhy.plots.waterfall(xwhy_values[0])
 
 ```
+-->
  
 ## Citations
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
 ```
 @article{Aslansefat2021Xwhy,
-   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker and {Papadopoulos}, Yiannis},
+   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker, {Akram} Mohammed Naveed, {Sorokos} Ioannis and {Papadopoulos}, Yiannis},
    title   = "{SMILE: Statistical Model-agnostic Interpretability with Local Explanations}",
    journal = {arXiv e-prints},
    year    = {2021},
