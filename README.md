@@ -50,7 +50,7 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 ```
  
 ## Acknowledgment
-This project is supported by the [Secure and Safe Multi-Robot Systems (SESAME)](https://www.sesame-project.org) H2020 Project under Grant Agreement 101017258.
+<p align="justify">This project is supported by the <a href = "https://www.sesame-project.org"><b>Secure and Safe Multi-Robot Systems (SESAME)</b></a> H2020 Project under Grant Agreement 101017258.</p>
 
 ## Awards
 <a href = "https://www.turing.ac.uk/post-doctoral-enrichment-awards-pdea">Post-Doctoral Enrichment Award from the Alan Turing Institute</a>
