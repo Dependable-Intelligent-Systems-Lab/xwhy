@@ -9,6 +9,8 @@ XWhy: eXplain Why with SMILE -- Statistical Model-agnostic Interpretability with
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
 
+## Abstract
+<p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains.</p>
 
 <!--
 ## Installation
@@ -35,6 +37,8 @@ xwhy.plots.waterfall(xwhy_values[0])
 
 ```
 -->
+ 
+ 
  
 ## Citations
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
