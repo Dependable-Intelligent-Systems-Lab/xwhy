@@ -1,5 +1,5 @@
 ## White-Box Testing and Benchmark Functions
-<p align="justified">White-box testing is a software testing technique that examines the internal structure and logic of a system. When it comes to testing model-agnostic explainability methods like LIME, SHAP, and SMILE, white-box testing plays a crucial role in ensuring their correctness and effectiveness.</p>
+<p align="justify">White-box testing is a software testing technique that examines the internal structure and logic of a system. When it comes to testing model-agnostic explainability methods like LIME, SHAP, and SMILE, white-box testing plays a crucial role in ensuring their correctness and effectiveness.</p>
 <p align="justified">In the context of explainability methods, white-box testing involves verifying the accuracy of the underlying algorithms and evaluating their performance in generating meaningful explanations (local sensitivity). It entails examining the internal mechanisms of these methods, such as the local feature importance calculations and interpretability models they employ. Thoroughly testing these components is essential for assessing the consistency and trustworthiness of the explanations produced.
 <p align="justified">To perform white-box testing for xwhy, the following benchmark functions can be utilized to evaluate the robustness and validity of the explainability methods:</p>
 
