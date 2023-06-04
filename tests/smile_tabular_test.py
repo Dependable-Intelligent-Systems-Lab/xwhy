@@ -1,8 +1,6 @@
 import unittest
 import numpy as np
-#import pytest
 from sklearn.linear_model import LinearRegression
-#import os
 import sys
 
 sys.path.append(".")
@@ -14,7 +12,6 @@ class TestWassersteinDist(unittest.TestCase):
         X_input = np.array([[1, 2]])
         model = LinearRegression()
         num_perturb = 500
-        #kernel_width2 = 0.2
 
         X_lime, y_lime2, weights2, y_linmodel2, coef = smile_tabular.WasserstainLIME2(X_input, model, num_perturb)
 
