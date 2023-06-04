@@ -12,12 +12,12 @@ XWhy: eXplain Why with <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic 
 ## Abstract
 <p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains.</p>
 
-<!--
+
 ## Installation
 ```
 pip install xwhy
 ```
-
+<!--
 ## Simple Example
 ```
 import xwhy
