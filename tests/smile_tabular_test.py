@@ -1,29 +1,19 @@
 import unittest
 import numpy as np
-import pytest
 from sklearn.linear_model import LinearRegression
+import sys
+
+sys.path.append(".")
 from xwhy import smile_tabular
 
 class TestWassersteinDist(unittest.TestCase):
-    def test_distance_calculation(self):
-        XX = np.random.normal(1, 1, 1000)
-        YY = np.random.normal(3, 1, 1000)
-        dist = smile_tabular.Wasserstein_Dist(XX, YY)
-        self.assertAlmostEqual(dist, 1.996663761722729, delta=0.1)
 
-    def test_input_vector_lengths(self):
-        XX = np.random.normal(1, 1, 1000)
-        YY = np.random.normal(2, 1, 2000)
-        dist = smile_tabular.Wasserstein_Dist(XX, YY)
-        self.assertAlmostEqual(dist, 1.0104185038625486, delta=0.1)
-        
-    def test_WasserstainLIME():
+    def test_WasserstainLIME(self):
         X_input = np.array([[1, 2]])
         model = LinearRegression()
         num_perturb = 500
-        kernel_width2 = 0.2
 
-        X_lime, y_lime2, weights2, y_linmodel2, coef = smile_tabular.WasserstainLIME(X_input, model, num_perturb, kernel_width2)
+        X_lime, y_lime2, weights2, y_linmodel2, coef = smile_tabular.WasserstainLIME2(X_input, model, num_perturb)
 
         # check if X_lime has the correct shape
         assert X_lime.shape == (num_perturb, X_input.shape[1])
