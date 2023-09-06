@@ -1,6 +1,7 @@
 # SMILE Example for Image Explainability
 * [InceptionV3 Image Classification](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Image_Classification_Examples/xwhy-for-image-classification.ipynb)
 * [Skin Cancer Detection using EfficientNet](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Image_Classification_Examples/XWhy-for-Image-Classification%20%5BSkin%20Cancer%20with%20EfficientNet%5D.ipynb)
+* Aerial Semantic Segmentation (Aeroscapes) [Will be added soon...]
 
 # SMILE Example for NLP Explainability
 * [Atheism and Christianity Classification](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/NLP_Examples/x-why-for-text.ipynb)
