@@ -3,8 +3,8 @@
  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
  <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard - \Python Style Guide"></a> 
  
-# X-Why
-XWhy: eXplain Why with <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
+# Explaining black boxes with a <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
+
  
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
@@ -45,7 +45,7 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 ```
 @article{Aslansefat2021Xwhy,
    author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker, {Akram} Mohammed Naveed, {Sorokos} Ioannis and {Papadopoulos}, Yiannis},
-   title   = "{SMILE: Statistical Model-agnostic Interpretability with Local Explanations}",
+   title   = "{<b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations}",
    journal = {arXiv e-prints},
    year    = {2021},
    url     = {https://arxiv.org/abs/...},
