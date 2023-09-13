@@ -3,14 +3,13 @@
  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
  <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard - \Python Style Guide"></a> 
  
-# X-Why
-XWhy: eXplain Why with <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
+# Explaining black boxes with a <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
  
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
 
 ## Abstract
-<p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains.</p>
+<p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains</p>
 
 
 ## Installation
@@ -45,7 +44,7 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 ```
 @article{Aslansefat2021Xwhy,
    author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker, {Akram} Mohammed Naveed, {Sorokos} Ioannis and {Papadopoulos}, Yiannis},
-   title   = "{SMILE: Statistical Model-agnostic Interpretability with Local Explanations}",
+   title   = "{Explaining black boxes with a SMILE: Statistical Mode-agnostic Interpretability with Local Explanations}",
    journal = {arXiv e-prints},
    year    = {2021},
    url     = {https://arxiv.org/abs/...},
