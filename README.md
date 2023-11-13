@@ -42,13 +42,12 @@ xwhy.plots.waterfall(xwhy_values[0])
 ## Citations
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
 ```
-@article{Aslansefat2021Xwhy,
-   author  = {{Aslansefat}, Koorosh and {Hashemian}, Mojgan and {Martin}, Walker, {Akram} Mohammed Naveed, {Sorokos} Ioannis and {Papadopoulos}, Yiannis},
-   title   = "{Explaining black boxes with a SMILE: Statistical Mode-agnostic Interpretability with Local Explanations}",
-   journal = {arXiv e-prints},
-   year    = {2021},
-   url     = {https://arxiv.org/abs/...},
-   eprint  = {},
+@article{aslansefat2023explaining,
+  title={Explaining black boxes with a SMILE: Statistical Model-agnostic Interpretability with Local Explanations},
+  author={Aslansefat, Koorosh and Hashemian, Mojgan and Walker, Martin and Akram, Mohammed Naveed and Sorokos, Ioannis and Papadopoulos, Yiannis},
+  journal={IEEE Software},
+  year={2023},
+  publisher={IEEE}
 }
 ```
  
