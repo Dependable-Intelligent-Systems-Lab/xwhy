@@ -17,7 +17,7 @@ def imagenet50(display=False, resolution=224):
     """ This is a set of 50 images representative of ImageNet images.
     This dataset was collected by randomly finding a working ImageNet link and then pasting the
     original ImageNet image into Google image search restricted to images licensed for reuse. A
-    similar image (now with rights to reuse) was downloaded as a rough replacment for the original
+    similar image (now with rights to reuse) was downloaded as a rough replacement for the original
     ImageNet image. The point is to have a random sample of ImageNet for use as a background
     distribution for explaining models trained on ImageNet data.
     Note that because the images are only rough replacements the labels might no longer be correct.
