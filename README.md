@@ -36,8 +36,9 @@ xwhy.plots.waterfall(xwhy_values[0])
 
 ```
 -->
- 
- 
+
+## Publications 
+[1] Aslansefat, K., Hashemian, M., Walker, M., Akram, M. N., Sorokos, I., & Papadopoulos, Y. (2023). Explaining black boxes with a SMILE: Statistical Model-agnostic Interpretability with Local Explanations. IEEE Software. [DOI: 10.1109/MS.2023.3321282](https://doi.org/10.1109/MS.2023.3321282), [Arxiv](https://arxiv.org/abs/2311.07286), [Worktribe](https://hull-repository.worktribe.com/output/4415493/explaining-black-boxes-with-a-smile-statistical-model-agnostic-interpretability-with-local-explanations). 
  
 ## Citations
 It would be appreciated a citation to our paper as follows if you use X-Why for your research:
