@@ -60,3 +60,7 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 
 ## Contribution 
 If you are interested in contributing to this project, please check the [contribution guidelines](https://github.com/koo-ec/xwhy/blob/main/docs/contribute/contributing.md).
+
+## Contributors
+
+[![xwhy contributors](https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy&max=2000)]([https://github.com/langchain-ai/langchain](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy)https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors)
