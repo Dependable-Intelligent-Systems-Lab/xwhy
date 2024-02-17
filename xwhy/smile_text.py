@@ -19,60 +19,11 @@ import re
 import nltk
 from nltk.tokenize import TweetTokenizer
 
-# embd = embedding_google
-
 def xwhy_text(X_input_text, model, perturbations, embd, num_perturb = 50, kernel_width = 0.25, num_top_features = 10, eps=0.5):
     
-#     # NLP pre-processing
-#     # remove urls, handles, and the hashtag from hashtags 
-#     # (taken from https://stackoverflow.com/questions/8376691/how-to-remove-hashtag-user-link-of-a-tweet-using-regular-expression)
-#     def remove_urls(text):
-#         new_text = ' '.join(re.sub("(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)"," ",text).split())
-#         return new_text
-
-#     # make all text lowercase
-#     def text_lowercase(text): 
-#         return text.lower()
-
-#     # remove numbers
-#     def remove_numbers(text): 
-#         result = re.sub(r'\d+', '', text) 
-#         return result
-
-#     # remove punctuation
-#     def remove_punctuation(text): 
-#         translator = str.maketrans('', '', string.punctuation)
-#         return text.translate(translator)
-
-#     # function for all pre-processing steps
-#     def preprocessing(text):
-#         text = text_lowercase(text)
-#         text = remove_urls(text)
-#         text = remove_numbers(text)
-#         text = remove_punctuation(text)
-#         return text
-
-#     # pre-processing the text body column
-#     pp_text = []
-#     for text_data in X_input_text:
-#         # check if string
-#         if isinstance(text_data, str):
-#             pp_text_data = preprocessing(text_data)
-#             pp_text.append(pp_text_data)
-#         # if not string
-#         else:
-#             pp_text.append(np.NaN)
-#     cleaned_words = clean_text(X_input_text)
-
     wod = X_input_text.split()
 
     wod = [word.strip('-.,!;()[]@><:') for word in wod]
-#     wod = [word.replace("'s", '') for word in wod]
-    wod = [word.replace(".", '') for word in wod]
-    wod = [word.replace("-", '') for word in wod]
-#     words = [word.replace(":", '') for word in words]
-#     words = [word.replace(">", '') for word in words]
-    
 
     #finding unique
     unique = []
