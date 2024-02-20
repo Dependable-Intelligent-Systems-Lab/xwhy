@@ -79,6 +79,9 @@ def xwhy_text(X_input_text, model, perturbations, embd, num_perturb = 50, kernel
     return coeff3, coeff, odds, top_features, wod
 
 def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, max_word_per_line=20, word_spacing=20, score_fontsize=10):
+
+    import matplotlib.pyplot as plt
+    
     fig = plt.figure(figsize=(width, height))
 
     ax = plt.gca()
@@ -128,10 +131,8 @@ def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, 
 
     if verbose == 0:
         ax.axis('off')
-
-# shap_values = Similarities.copy()
-
-plot_text_heatmap(
-    "What is the Meaning of Life?".split(' '),
-    np.array(shap_values)
-)
+    
+    plot_text_heatmap(
+        "What is the Meaning of Life?".split(' '),
+        np.array(shap_values)
+    )
