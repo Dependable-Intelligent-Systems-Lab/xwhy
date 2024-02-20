@@ -77,3 +77,61 @@ def xwhy_text(X_input_text, model, perturbations, embd, num_perturb = 50, kernel
     odds = np.exp(coeff2)
      
     return coeff3, coeff, odds, top_features, wod
+
+def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, max_word_per_line=20, word_spacing=20, score_fontsize=10):
+    fig = plt.figure(figsize=(width, height))
+
+    ax = plt.gca()
+
+    ax.set_title(title, loc='left')
+
+    cmap = plt.cm.ScalarMappable(cmap=cm.bwr)
+    cmap.set_clim(0, 1)
+
+    canvas = ax.figure.canvas
+    t = ax.transData
+
+    normalized_scores = 0.5 * scores / np.max(np.abs(scores)) + 0.5
+
+    loc_y = -0.2
+
+    for i, (token, score) in enumerate(zip(words, scores)):
+        *rgb, _ = cmap.to_rgba(normalized_scores[i], bytes=True)
+        color = '#%02x%02x%02x' % tuple(rgb)
+
+        # Draw the word
+        text = ax.text(0.0, loc_y, token,
+                       bbox={
+                           'facecolor': color,
+                           'pad': 5.0,
+                           'linewidth': 1,
+                           'boxstyle': 'round,pad=0.5'
+                       }, transform=t, fontsize=14)
+
+        text.draw(canvas.get_renderer())
+        ex = text.get_window_extent()
+
+        # Draw the score beneath the word
+        score_text = ax.text(0.01, loc_y -1, f"{score:.2f}",
+                             transform=t, fontsize=score_fontsize, ha='center')
+
+        score_text.draw(canvas.get_renderer())
+        ex_score = score_text.get_window_extent()
+
+        # Check if a new line is needed
+        if (i+1) % max_word_per_line == 0:
+            loc_y = loc_y -  2.5
+            t = ax.transData
+        else:
+            # Increase the horizontal space between words
+            t = transforms.offset_copy(text._transform, x=ex.width + word_spacing, units='dots')
+
+    if verbose == 0:
+        ax.axis('off')
+
+# shap_values = Similarities.copy()
+
+plot_text_heatmap(
+    "What is the Meaning of Life?".split(' '),
+    np.array(shap_values)
+)
