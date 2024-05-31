@@ -6,17 +6,17 @@ Thanks for contributing to our project. Before you submit your pull request, ple
 - [ ] Bugfix
 - [ ] Feature
 - [ ] Code style update (formatting, local variables)
-- [ ] Refactoring (no functional changes, no api changes)
+- [ ] Refactoring (no functional changes, no API changes)
 - [ ] Build related changes
 - [ ] CI related changes
 - [ ] Documentation content changes
 - [ ] Other... Please describe:
 
 ## PR Purpose
-What is the current behavior? 
+What is the current behaviour? 
 Link to any existing Issues/PRs:
 
-What is the new behavior?
+What is the new behaviour?
 Resolves #...
 
 ## Are there any specific instructions or things that should be known prior to reviewing?
@@ -27,7 +27,7 @@ Resolves #...
 - [ ] I have read the [CONTRIBUTING](CONTRIBUTING.md) doc
 - [ ] I have checked that unit tests pass locally with my changes
 - [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] I have added necessary documentation (if appropriate)
+- [ ] I have added the necessary documentation (if appropriate)
 - [ ] Any dependent changes have been merged and published in downstream modules
 
 ---
