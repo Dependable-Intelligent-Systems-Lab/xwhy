@@ -3,7 +3,7 @@
  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
  <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard - \Python Style Guide"></a> 
  
-# Explaining black boxes with a <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
+# Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations
  
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
