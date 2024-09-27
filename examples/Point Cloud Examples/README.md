@@ -16,3 +16,42 @@
 - [Notebook 2](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
 - [Notebook 3](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
 
+# Related Works
+| Method                  | Ex. Type | Learning | Task | Approach | Flow     | Dataset                                     |
+|-------------------------|----------|----------|------|----------|----------|---------------------------------------------|
+| PointHop [[1]]          | ML       | Yes      | PC   | MS       | Forward  | Modelnet40 [[2]]                            |
+| Non-Contribution Factors [[3]] | IL       | No       | PC   | MS       | Backward | Modelnet40 [[2]]                            |
+| LIME [[4]]              | IL       | Yes      | PC   | MA       | Forward  | Modelnet40 [[2]]                            |
+| Gradient-Based [[5]]    | IL       | No       | PC/VD| MS       | Backward | Modelnet40 [[2]]                            |
+| BubblEX [[6]]           | IL       | No       | PC   | MA       | Backward | Modelnet40 [[2]], ScanObjectNN [[7]]        |
+| AM [[8]]                | ML       | Yes      | PC   | MS       | Backward | ModelNet40 [[2]], ShapeNet [[9]]            |
+| DAM [[10]]              | ML       | Yes      | PC   | MS       | Backward | ModelNet40 [[2]], ShapeNet [[9]]            |
+| FBI [[11]]              | IL       | No       | PC   | MA       | Forward  | ModelNet40 [[2]], ModelNet-C [[12]], ScanObjectNN [[7]] |
+| <b>SMILE (Our Method)</b>   | IL       | Yes      | PC   | MA       | Forward  | ModelNet40 [[2]]                            |
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# References
+1. Zhang, M., et al. (2020). *PointHop: An explainable machine learning method for point cloud classification*. IEEE Transactions on Multimedia, 22(7), 1744-1755.
+2. Wu, Z., et al. (2015). *3D ShapeNets: A deep representation for volumetric shapes*. In 2015 IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
+3. Liang, A., Zhang, H., & Hua, H. (2022). *Point Cloud Saliency Maps Based on Non-Contribution Factors*. Neurocomputing, 194-198.
+4. Tan, H., & Kotthaus, H. (2022). *Surrogate model-based explainability methods for point cloud nns*. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.
+5. Gupta, A., Watson, S., & Yin, H. (2020). *3D point cloud feature explanations using gradient-based methods*. In 2020 International Joint Conference on Neural Networks (IJCNN). IEEE.
+6. Matrone, F., et al. (2022). *BubblEX: An Explainable Deep Learning Framework for Point-Cloud Classification*. IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing, 15, 1-18.
+7. Uy, M. A., et al. (2019). *Revisiting point cloud classification: A new benchmark dataset and classification model on real-world data*. In Proceedings of the IEEE/CVF International Conference on Computer Vision.
+8. Tan, H. (2023). *Visualizing global explanations of point cloud dnns*. In Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision.
+9. Chang, A. X., et al. (2015). *ShapeNet: An information-rich 3d model repository*. arXiv preprint arXiv:1512.03012.
+10. Tan, H. (2024). *DAM: Diffusion Activation Maximization for 3D Global Explanations*. arXiv preprint arXiv:2401.14938.
+11. Levi, M. Y., & Gilboa, G. (2024). *Fast and Simple Explainability for Point Cloud Networks*. arXiv preprint arXiv:2403.07706.
+12. Ren, J. L., Pan, & Liu, Z. (2022). *Benchmarking and analyzing point cloud classification under corruptions*. In International Conference on Machine Learning. PMLR.
