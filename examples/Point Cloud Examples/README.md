@@ -42,17 +42,8 @@ Try the code on Google Colab: [![Open In Colab](https://colab.research.google.co
 | <b>SMILE (Our Method)</b>   | IL       | Yes      | PC   | MA       | Forward  | ModelNet40 [[2]]                            |
 
 
-
-
-
-
-
-
-
-
-
-
-
+# Acknowledgments 
+The financial support from the Secure and Safe Multi-Robot Systems (SESAME) H2020 Project, under Grant Agreement 101017258, is gratefully acknowledged. Further appreciation is extended to the University of Hull and Dock Robotics Ltd for their invaluable technical and administrative contributions.
 
 # References
 1. Zhang, M., et al. (2020). *PointHop: An explainable machine learning method for point cloud classification*. IEEE Transactions on Multimedia, 22(7), 1744-1755.
