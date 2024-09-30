@@ -15,18 +15,17 @@
 
 <p align="center">
  <img src="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Figures/PC_SMILE.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
+<p align="center">SMILE flowchart for explaining point cloud classification</p>
 
 ## Sample Results
 <p align="center">
  <img src="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Figures/Screenshot%202024-09-27%20230842.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
-
+<p align="center">Saliency Maps obtained by LIME, Kernel SHAP and SMILE-WD with different numbers of clusters</p>
 
 # Point Cloud Examples
 Try the code on Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ORrCAyQSRmtv08SHtnf_LzQnfm76Wzqz?usp=sharing)
 
-- [Notebook 1](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
-- [Notebook 2](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
-- [Notebook 3](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
+- [Example Notebook]([https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Notebooks/SMILE_Point_Cloud_K1.ipynb))
 
 # Related Works
 | Method                  | Ex. Type | Learning | Task | Approach | Flow     | Dataset                                     |
@@ -40,7 +39,6 @@ Try the code on Google Colab: [![Open In Colab](https://colab.research.google.co
 | DAM [[10]]              | ML       | Yes      | PC   | MS       | Backward | ModelNet40 [[2]], ShapeNet [[9]]            |
 | FBI [[11]]              | IL       | No       | PC   | MA       | Forward  | ModelNet40 [[2]], ModelNet-C [[12]], ScanObjectNN [[7]] |
 | <b>SMILE (Our Method)</b>   | IL       | Yes      | PC   | MA       | Forward  | ModelNet40 [[2]]                            |
-
 
 # Acknowledgments 
 The financial support from the Secure and Safe Multi-Robot Systems (SESAME) H2020 Project, under Grant Agreement 101017258, is gratefully acknowledged. Further appreciation is extended to the University of Hull and Dock Robotics Ltd for their invaluable technical and administrative contributions.
