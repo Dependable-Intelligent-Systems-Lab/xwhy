@@ -27,6 +27,9 @@ Try the code on Google Colab: [![Open In Colab](https://colab.research.google.co
 
 - [Example Notebook]([https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Notebooks/SMILE_Point_Cloud_K1.ipynb))
 
+## Video Explanation
+For a detailed explanation, check out my video on YouTube: [Watch here](https://www.youtube.com/watch?v=AzYz-JUJTxs&t=80s).
+
 # Related Works
 | Method                  | Ex. Type | Learning | Task | Approach | Flow     | Dataset                                     |
 |-------------------------|----------|----------|------|----------|----------|---------------------------------------------|
