@@ -30,9 +30,12 @@ Try the code on Google Colab: [![Open In Colab](https://colab.research.google.co
 ## Video Explanation
 For a detailed explanation, check out my video on YouTube: [Watch here](https://www.youtube.com/watch?v=AzYz-JUJTxs&t=80s).
 
-<a href="https://www.youtube.com/watch?v=AzYz-JUJTxs" target="_blank">
-    <img src="https://img.youtube.com/vi/AzYz-JUJTxs/0.jpg" width="720" alt="YouTube Video, SMILE Explainability"/>
-</a>
+<p align="center">
+    <a href="https://www.youtube.com/watch?v=AzYz-JUJTxs" target="_blank">
+        <img src="https://img.youtube.com/vi/AzYz-JUJTxs/0.jpg" width="450" alt="YouTube Video, SMILE Explainability for Point Cloud"/>
+    </a>
+</p>
+
 
 
 # Related Works
