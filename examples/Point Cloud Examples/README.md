@@ -25,7 +25,7 @@
 # Point Cloud Examples
 Try the code on Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ORrCAyQSRmtv08SHtnf_LzQnfm76Wzqz?usp=sharing)
 
-- [Example Notebook]([https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Notebooks/SMILE_Point_Cloud_K1.ipynb))
+- [Notebook 1](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Notebooks/SMILE_Point_Cloud_K1.ipynb)
 - [Notebook 2 on Kaggle](https://www.kaggle.com/code/mohammadahmadi66/point-cloud-explainability-with-smile)
 
 
