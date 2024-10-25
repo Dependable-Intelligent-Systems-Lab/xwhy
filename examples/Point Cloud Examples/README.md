@@ -25,12 +25,8 @@
 # Point Cloud Examples
 Try the code on Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ORrCAyQSRmtv08SHtnf_LzQnfm76Wzqz?usp=sharing)
 
-
-- [Notebook 1](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
-- [Notebook 2 on Kaggle](https://www.kaggle.com/code/mohammadahmadi66/point-cloud-explainability-with-smile)
-- [Notebook 3](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
-
 - [Example Notebook]([https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/examples/Point%20Cloud%20Examples/Notebooks/SMILE_Point_Cloud_K1.ipynb))
+- [Notebook 2 on Kaggle](https://www.kaggle.com/code/mohammadahmadi66/point-cloud-explainability-with-smile)
 
 
 ## Video Explanation
@@ -63,8 +59,8 @@ If you find **SMILE for Point Cloud** helpful in your research, please consider 
 
 ```bibtex
 @article{smile2024pointcloud,
-  title={SMILE: Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations},
-  author={Ahmadi, Seyed Mohammad and Aslansefat, Kooroosh and Valcarce-Dineiro, Ruben and Barnfather, Joshua},
+  title={Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations},
+  author={Ahmadi, Seyed Mohammad and Aslansefat, Koorosh and Valcarce-Dineiro, Ruben and Barnfather, Joshua},
   journal={arXiv  preprint arXiv:2410.15374},
   year={2024}
   DOI: [Arxiv](https://arxiv.org/abs/2410.15374)
