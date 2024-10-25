@@ -47,16 +47,16 @@ For a detailed explanation, check out my video on YouTube: [Watch here](https://
 
 
 # Citation
-If you find SMILE for Point Cloud helpful in your research, please consider citing our work:
+If you find **SMILE for Point Cloud** helpful in your research, please consider citing our work:
 
+```bibtex
 @article{smile2024pointcloud,
   title={SMILE: Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations},
   author={Ahmadi, Seyed Mohammad and Aslansefat, Kooroosh and Valcarce-Dineiro, Ruben and Barnfather, Joshua},
-  journal={arXiv preprint arXiv:2410.15374},
+  journal={arXiv  preprint arXiv:2410.15374},
   year={2024}
+  DOI: [Arxiv](https://arxiv.org/abs/2410.15374)
 }
-
-
 
 
 
