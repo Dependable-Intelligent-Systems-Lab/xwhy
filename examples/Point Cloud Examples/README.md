@@ -25,7 +25,7 @@
 Try the code on Google Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1ORrCAyQSRmtv08SHtnf_LzQnfm76Wzqz?usp=sharing)
 
 - [Notebook 1](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
-- [Notebook 2](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
+- [Notebook 2 on Kaggle](https://www.kaggle.com/code/mohammadahmadi66/point-cloud-explainability-with-smile)
 - [Notebook 3](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples/Notebooks)
 
 ## Video Explanation
@@ -46,10 +46,15 @@ For a detailed explanation, check out my video on YouTube: [Watch here](https://
 
 
 
+# Citation
+If you find SMILE for Point Cloud helpful in your research, please consider citing our work:
 
-
-
-
+@article{smile2024pointcloud,
+  title={SMILE: Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations},
+  author={Ahmadi, Seyed Mohammad and Aslansefat, Kooroosh and Valcarce-Dineiro, Ruben and Barnfather, Joshua},
+  journal={arXiv preprint arXiv:2410.15374},
+  year={2024}
+}
 
 
 
