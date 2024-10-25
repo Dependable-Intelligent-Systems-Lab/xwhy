@@ -3,7 +3,7 @@
  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT">
  <a href="https://standardjs.com"><img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" alt="Standard - \Python Style Guide"></a> 
  
-# Explaining black boxes with a <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
+# XWhy: eXplain Why with a <b>SMILE</b> -- <b>S</b>tatistical <b>M</b>odel-agnostic <b>I</b>nterpretability with <b>L</b>ocal <b>E</b>xplanations
  
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
@@ -11,6 +11,8 @@
 ## Abstract
 <p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains</p>
 
+## News
+The SMILE approach has been extended for <b>Point Cloud Explainability</b>. Please check out the examples [here](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples).
 
 ## Installation
 ```
