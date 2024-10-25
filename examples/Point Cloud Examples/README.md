@@ -57,7 +57,7 @@ If you find **SMILE for Point Cloud** helpful in your research, please consider 
   year={2024}
   DOI: [Arxiv](https://arxiv.org/abs/2410.15374)
 }
-
+```
 
 
 
