@@ -187,7 +187,7 @@
       </div>
     </div>
     <!--/ Abstract. -->
-
+<!--
 <section class="section" id="BibTeX">
   <div class="container is-max-desktop content">
     <h2 class="title">BibTeX</h2>
@@ -201,6 +201,36 @@
 } </code></pre>
   </div>
 </section>
+    -->
+
+<section class="section" id="BibTeX">
+  <div class="container is-max-desktop content">
+    <h2 class="title">BibTeX</h2>
+    <div class="box">
+      <pre>
+        <code id="citation-code">
+@article{aslansefat2023explaining,
+  title={Explaining black boxes with a SMILE: Statistical Model-agnostic Interpretability with Local Explanations},
+  author={Aslansefat, Koorosh and Hashemian, Mojgan and Walker, Martin and Akram, Mohammed Naveed and Sorokos, Ioannis and Papadopoulos, Yiannis},
+  journal={IEEE Software},
+  year={2023},
+  publisher={IEEE}
+}
+        </code>
+      </pre>
+      <button class="button is-primary is-small" onclick="copyCitation()">Copy Citation</button>
+    </div>
+  </div>
+</section>
+
+<script>
+  function copyCitation() {
+    const citationText = document.getElementById("citation-code").innerText;
+    navigator.clipboard.writeText(citationText).then(() => {
+      alert("Citation copied to clipboard!");
+    });
+  }
+</script>    
 
 <!-- Button to Forward to Another Page with a Logo -->
 <section class="section">
