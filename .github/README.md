@@ -13,9 +13,9 @@
 <p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains</p>
 
 ## News
-* The SMILE approach has been extended for <b>LLM Explainability</b> by . [Arxiv](https://arxiv.org/pdf/2505.21657v1), [Youtube](https://www.youtube.com/watch?v=pJePjOb2Tj4).
-* The SMILE approach has been extended for <b>Point Cloud Explainability</b>. Please check out the examples [here](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples). [Arxiv](https://arxiv.org/abs/2410.15374), [Youtube](https://www.youtube.com/watch?v=AzYz-JUJTxs).
-* The SMILE approach has been extended for <b>Instruction-based Image Editing Explainability</b>. [Arxiv](https://www.arxiv.org/abs/2412.16277), [Youtube](https://www.youtube.com/watch?v=0QTf2qasrgM&t).
+* The SMILE approach has been extended for <b>LLM Explainability</b> by Zeinab Dehghani et al. [Arxiv](https://arxiv.org/pdf/2505.21657v1), [Youtube](https://www.youtube.com/watch?v=pJePjOb2Tj4).
+* The SMILE approach has been extended for <b>Point Cloud Explainability</b> by Seyed Mohammad Ahmadi et al. Please check out the examples [here](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/tree/main/examples/Point%20Cloud%20Examples). [Arxiv](https://arxiv.org/abs/2410.15374), [Youtube](https://www.youtube.com/watch?v=AzYz-JUJTxs).
+* The SMILE approach has been extended for <b>Instruction-based Image Editing Explainability</b> by Zeinab Dehghani et al. [Arxiv](https://www.arxiv.org/abs/2412.16277), [Youtube](https://www.youtube.com/watch?v=0QTf2qasrgM&t).
 
 ## Installation
 ```
