@@ -28,36 +28,41 @@ def WasserstainLIME2(X_input, model, num_perturb = 500, L_num_perturb = 100, ker
     
     X_input = (X_input - np.mean(X_input,axis=0)) / np.std(X_input,axis=0) #Standarization of data
 
-    X_lime = np.random.normal(0,1,size=(num_perturb,X_input.shape[0]))
-    
-    Xi2 = np.zeros((L_num_perturb,X_input.shape[0]))
-    
-    for jj in range(X_input.shape[0]):
-        Xi2[:,jj] = X_input[jj] + np.random.normal(0,0.05,L_num_perturb)
+    # number of features for the single input instance
+    n_features = X_input.shape[1]
+
+    # generate random perturbations around the standardized input
+    X_lime = np.random.normal(0, 1, size=(num_perturb, n_features))
+
+    # create local perturbations for computing the Wasserstein distances
+    Xi2 = np.zeros((L_num_perturb, n_features))
+
+    for jj in range(n_features):
+        Xi2[:, jj] = X_input[0, jj] + np.random.normal(0, 0.05, L_num_perturb)
 
     y_lime2  = np.zeros((num_perturb,1))
     WD       = np.zeros((num_perturb,1))
     weights2 = np.zeros((num_perturb,1))
     
     for ind, ii in enumerate(X_lime):
-        
+
         df2 = pd.DataFrame()
-        
-        for jj in range(X_input.shape[0]):
-            temp1 = ii[jj] + np.random.normal(0,0.3,L_num_perturb)
+
+        for jj in range(n_features):
+            temp1 = ii[jj] + np.random.normal(0, 0.3, L_num_perturb)
             df2[len(df2.columns)] = temp1
 
         temp3 = model.predict(df2.to_numpy())
 
         y_lime2[ind] = np.mean(temp3)  # For classification: np.argmax(np.bincount(temp3))
         
-        WD1 = np.zeros((X_input.shape[0],1))
+        WD1 = np.zeros((n_features, 1))
         
         df2 = df2.to_numpy()
-        
-        for kk in range(X_input.shape[0]):
+
+        for kk in range(n_features):
             #print( df2.shape)
-            WD1[kk] = Wasserstein_Dist(Xi2[:,kk], df2[:,kk])
+            WD1[kk] = Wasserstein_Dist(Xi2[:, kk], df2[:, kk])
         
         #print(WD1)
         #print(ind)
