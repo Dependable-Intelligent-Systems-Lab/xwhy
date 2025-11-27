@@ -1,0 +1,7 @@
+{
+    "python.testing.pytestArgs": [
+        "xwhy"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
