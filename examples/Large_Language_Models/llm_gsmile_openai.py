@@ -288,6 +288,9 @@ def query_gpt_for_perturbations(
 # Word2Vec model
 # --------------------------------------------------------------------------- #
 
+# TODO: anything you want to do
+# Improving and using better Word2Vec Models and also giving user an option to have preference on this
+
 def load_google_news_vectors():
     # First try gensim downloader (fastest & simplest)
     try:
@@ -336,6 +339,10 @@ def clean_text(text: str) -> str:
     cleaned = re.sub(r"[^\w\s]", "", text.lower())
     return cleaned.strip()
 
+# TODO: anything you want to do
+# Removing the word "safe" from the function
+# Adding More statistical distances here
+# As Statistical distance measures are the code for SMILE, we can consider a separate class for them.
 
 def safe_wmdistance(model, text1: str, text2: str) -> float:
     """Compute Word Mover's Distance using only in-vocabulary cleaned words.
@@ -411,6 +418,9 @@ def normalize_similarities(wmd_scores: list) -> list:
 # Regression
 # --------------------------------------------------------------------------- #
 
+# TODO: anything you want to do
+# This part can be extended to cover other types of LIME, like BayLIME
+
 def fit_weighted_regression(
     perturbations: list,
     similarities: list,
@@ -419,7 +429,7 @@ def fit_weighted_regression(
     """Fit weighted linear regression using WMD distances.
 
     Args:
-        perturbations (list): List of binary perturbation vector
+        perturbations (list): List of binary perturbation vectors
             (Perturbations)
         similarities (list): List of (text, similarity).
         wmd_scores (list): List of (text, distance).
