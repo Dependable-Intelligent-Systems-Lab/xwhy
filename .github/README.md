@@ -69,4 +69,8 @@ If you are interested in contributing to this project, please check the [contrib
 
 ## Contributors
 
-[![xwhy contributors](https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy&max=2000)]([https://github.com/langchain-ai/langchain](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy)https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors)
+<a href="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
