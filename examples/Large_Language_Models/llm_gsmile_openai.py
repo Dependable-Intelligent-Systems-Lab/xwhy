@@ -378,8 +378,8 @@ def compute_wmd_scores(model, original: str, gpt_pairs: list) -> list:
         list: List of (perturbed_text, distance).
     """
     scores = []
-    for text, resp in gpt_pairs:
-        dist = safe_wmdistance(model, original, resp)
+    for text, _ in gpt_pairs:
+        dist = safe_wmdistance(model, original, text)
         scores.append((text, dist))
     return scores
 
