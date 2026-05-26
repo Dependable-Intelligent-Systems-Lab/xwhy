@@ -81,6 +81,7 @@ def xwhy_text(X_input_text, model, perturbations, embd, num_perturb = 50, kernel
 def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, max_word_per_line=20, word_spacing=20, score_fontsize=10):
 
     import matplotlib.pyplot as plt
+    from matplotlib import transforms
     
     fig = plt.figure(figsize=(width, height))
 
@@ -88,7 +89,7 @@ def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, 
 
     ax.set_title(title, loc='left')
 
-    cmap = plt.cm.ScalarMappable(cmap=cm.bwr)
+    cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)
     cmap.set_clim(0, 1)
 
     canvas = ax.figure.canvas
@@ -131,8 +132,3 @@ def plot_text_heatmap(words, scores, title="", width=10, height=0.4, verbose=0, 
 
     if verbose == 0:
         ax.axis('off')
-    
-    plot_text_heatmap(
-        "What is the Meaning of Life?".split(' '),
-        np.array(shap_values)
-    )
