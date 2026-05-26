@@ -15,7 +15,7 @@ dependencies = [
     "pandas>=3.0.2",
     "plotly>=6.7.0",
     "pot>=0.9.6.post1",
-    "requests>=2.33.1",
+    "requests>=2.34.2",
     "scikit-learn>=1.8.0",
     "shap>=0.51.0",
 ]
