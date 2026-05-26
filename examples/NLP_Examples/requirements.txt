@@ -1,0 +1,16 @@
+pandas~=3.0.2
+numpy~=2.4.4
+scikit-learn~=1.8.0
+plotly~=6.7.0
+matplotlib~=3.10.8
+nltk~=3.9.4
+gensim~=4.4.0
+lime~=0.2.0.1
+requests~=2.33.1
+pot~=0.9.6.post1
+shap~=0.51.0
+
+
+# notebook
+nbformat~=5.10.4
+ipywidgets~=8.1.8
