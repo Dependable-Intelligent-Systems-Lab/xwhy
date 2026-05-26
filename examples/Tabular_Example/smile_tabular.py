@@ -9,7 +9,8 @@ Original file is located at
 # SMILE: Statistical Model-agnostic Interpretability with Local Explanations
 """
 
-!pip install -q pandas numpy matplotlib scikit-learn plotly shap lime xgboost
+# Colab setup command from the source notebook:
+# !pip install -q pandas numpy matplotlib scikit-learn plotly shap lime xgboost
 
 import numpy as np
 import pandas as pd

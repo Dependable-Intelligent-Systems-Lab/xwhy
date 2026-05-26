@@ -187,8 +187,8 @@ def perturb_graph_edge(input_graph, perturbation):
     
     return perturbed_graph
 
-  
- def explain_graph_nodes(input_graph, model, num_perturbations=5000, kernel_width=0.25, num_top_features=10, epsilon=1, remove_zero_degree_nodes=False):
+
+def explain_graph_nodes(input_graph, model, num_perturbations=5000, kernel_width=0.25, num_top_features=10, epsilon=1, remove_zero_degree_nodes=False):
     """
     This function explains the contribution of each node to the prediction of a given graph-based model. 
     It uses a white-box model interpretation method XWhy to calculate the contribution of each node by 
@@ -226,24 +226,24 @@ def perturb_graph_edge(input_graph, perturbation):
     if not isinstance(epsilon, (int, float)) or epsilon <= 0:
         raise ValueError("The epsilon must be a positive number.")  
     
-    num_uniqe_nodes = len(X_input_graph.nodes)
+    num_uniqe_nodes = len(input_graph.nodes)
 
-    perturbations = np.random.binomial(1, 0.5, size=(num_perturb, num_uniqe_nodes))
+    perturbations = np.random.binomial(1, 0.5, size=(num_perturbations, num_uniqe_nodes))
         
     predictions = []
     WD_dist = []
     for pert in perturbations:
-        p_graph = perturb_graph_node(X_input_graph, pert)
+        p_graph = perturb_graph_node(input_graph, pert)
         if len(p_graph.nodes) != 0:
             pred = model.predict(graph_nets.utils_np.networkxs_to_graphs_tuple([p_graph]))
             predictions.append(pred)
-            Sscore, WD_score = r_eigenv(X_input_graph, p_graph)
+            Sscore, WD_score = r_eigenv(input_graph, p_graph)
             WD_dist.append(WD_score)
 
     predictions = np.array(predictions)   
     WD_dist = np.array(WD_dist) 
     
-    weights = np.sqrt(np.exp(-((eps*WD_dist)**2)/kernel_width**2)) #Kernel function
+    weights = np.sqrt(np.exp(-((epsilon*WD_dist)**2)/kernel_width**2)) #Kernel function
                 
     class_to_explain = 0
     simpler_model = LinearRegression()

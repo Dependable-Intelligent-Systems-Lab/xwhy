@@ -51,7 +51,6 @@ from sklearn.metrics import (
 from scipy.stats import wasserstein_distance
 from gensim.models import KeyedVectors
 import gensim.downloader as api
-from img2img_turbo import run_inference_paired
 from google import genai
 from google.genai import types
 from openai import OpenAI
@@ -66,6 +65,20 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+
+def _load_img2img_turbo_inference():
+    try:
+        from img2img_turbo import run_inference_paired
+    except ImportError as exc:
+        raise RuntimeError(
+            "The I2I-Turbo generation path requires img2img-turbo, which is not "
+            "installed by default because img2img-turbo 0.0.1 pins "
+            "transformers < 4.58 and conflicts with the security-patched "
+            "transformers 5.x dependency set."
+        ) from exc
+
+    return run_inference_paired
 
 
 # --------------------------------------------------------------------------- #
@@ -1371,6 +1384,7 @@ def _generate_single_image(
     try:
         gen_img_flag = True
         cost = 0.0  # Initialize cost for local models
+        run_inference_paired = _load_img2img_turbo_inference()
         run_inference_paired(
             model_name=model_name,
             input_image=input_image_path,
