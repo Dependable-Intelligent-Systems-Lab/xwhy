@@ -1,0 +1,45 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Dependencies
+        run: uv sync --group dev
+
+      - name: Ruff Check
+        run: uv run ruff check src
+
+      - name: Ruff Format
+        run: uv run ruff format --check src
+
+      - name: Run Tests
+        run: uv run pytest
+
+      - name: Generate Coverage Report
+        run: uv run coverage xml
