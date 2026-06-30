@@ -1,3 +1,44 @@
 [build-system]
-requires = ["setuptools", "wheel", "oldest-supported-numpy"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "xwhy"
+version = "0.0.1"
+description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Mojgan Hashemian" },
+    { name = "Koorosh Aslansefat", email = "koo.ec2008@gmail.com" },
+    { name = "Hamed Daneshvar" },
+    { name = "Mohammad Naveed Akram" },
+    { name = "Ioannis Sorokos" },
+    { name = "Martin Walker" },
+    { name = "Yiannis Papadopoulos" },
+]
+maintainers = [
+    { name = "Koorosh Aslansefat", email = "koo.ec2008@gmail.com" },
+    { name = "Hamed Daneshvar" },
+]
+
+
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "coverage[toml]>=7.14.3",
+    "ruff>=0.15.20",
+    "pre-commit>=4.6.0",
+]
+
+[tool.ruff]
+
+[tool.pytest.ini_options]
+
+[tool.coverage.run]
+
+[tool.coverage.report]
