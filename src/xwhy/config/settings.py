@@ -1,11 +1,30 @@
-"""Global settings class."""
+"""Application settings."""
+
+from pathlib import Path
+
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from xwhy.config.env import load_environment
+
+load_environment()
 
 
-class Settings:
-    """Global settings placeholder."""
+class Settings(BaseSettings):
+    """Global application settings."""
 
-    def __init__(self) -> None:
-        """Initialize the settings."""
-        # No real settings
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-        pass
+    embedding_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "xwhy" / "embeddings",
+    )
+
+    openai_api_key: str | None = None
+
+    gemini_api_key: str | None = None
+
+    huggingface_token: str | None = None

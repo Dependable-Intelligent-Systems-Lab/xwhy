@@ -43,7 +43,17 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-dependencies = []
+dependencies = [
+    "openai~=2.44.0",
+    "numpy~=2.5.0",
+    "matplotlib~=3.11.0",
+    "scikit-learn~=1.9.0",
+    "gensim~=4.4.0",
+    "pot~=0.9.6.post1",
+    "python-dotenv~=1.2.2",
+    "requests~=2.34.2",
+    "pydantic-settings~=2.14.2",
+]
 
 [project.urls]
 Homepage = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"
