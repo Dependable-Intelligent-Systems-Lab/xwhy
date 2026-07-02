@@ -1,4 +1,4 @@
-"""Core abstractions for xwhy."""
+"""Configuration objects."""
 
 from xwhy.explainers.image import ImageExplainer
 from xwhy.explainers.llm import LLMExplainer
