@@ -37,6 +37,9 @@ test-config:
 test-providers:
     uv run pytest tests/providers
 
+test-embeddings:
+    uv run pytest tests/embeddings
+
 test-cov:
     uv run pytest --cov
 

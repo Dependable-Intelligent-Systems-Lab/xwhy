@@ -1,15 +1,19 @@
 """Base embedding abstractions."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 
 class BaseEmbedding(ABC):
-    """Base class for embeddings component.
-
-    Full implementation in later phases.
-    """
+    """Base class for all embedding implementations."""
 
     @abstractmethod
-    def __placeholder_method__(self, *args: object, **kwargs: object) -> None:
-        """Implement this method in subclasses."""
-        raise NotImplementedError("To be implemented in later phases.")
+    def load(self) -> object:
+        """Load embedding model into memory."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def encode(self, text: str) -> list[float]:
+        """Encode text into vector representation."""
+        raise NotImplementedError
