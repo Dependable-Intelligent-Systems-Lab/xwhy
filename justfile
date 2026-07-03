@@ -40,6 +40,9 @@ test-providers:
 test-embeddings:
     uv run pytest tests/embeddings
 
+test-perturbation:
+    uv run pytest tests/perturbation
+
 test-cov:
     uv run pytest --cov
 

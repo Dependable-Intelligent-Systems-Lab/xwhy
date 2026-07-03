@@ -1,15 +1,28 @@
 """Base perturbation abstractions."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 
 
 class BasePerturbation(ABC):
-    """Base class for perturbation component.
-
-    Full implementation in later phases.
-    """
+    """Abstract base class for perturbation strategies."""
 
     @abstractmethod
-    def __placeholder_method__(self, *args: object, **kwargs: object) -> None:
-        """Implement this method in subclasses."""
-        raise NotImplementedError("To be implemented in later phases.")
+    def generate(
+        self,
+        *,
+        text: str,
+        num_perturbations: int = 64,
+    ) -> tuple[list[str], list[tuple[int, ...]]]:
+        """Generate perturbed samples."""
+
+    @abstractmethod
+    def apply_mask(
+        self,
+        *,
+        words: Sequence[str],
+        mask: Sequence[int],
+    ) -> list[str]:
+        """Apply a perturbation mask."""
