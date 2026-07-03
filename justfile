@@ -34,6 +34,9 @@ test:
 test-config:
     uv run pytest tests/config
 
+test-providers:
+    uv run pytest tests/providers
+
 test-cov:
     uv run pytest --cov
 
