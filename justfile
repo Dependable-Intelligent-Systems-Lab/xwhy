@@ -43,6 +43,9 @@ test-embeddings:
 test-perturbation:
     uv run pytest tests/perturbation
 
+test-distance:
+    uv run pytest tests/distance
+
 test-cov:
     uv run pytest --cov
 
