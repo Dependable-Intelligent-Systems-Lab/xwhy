@@ -46,6 +46,12 @@ test-perturbation:
 test-distance:
     uv run pytest tests/distance
 
+test-surrogate:
+    uv run pytest tests/surrogate
+
+test-metrics:
+    uv run pytest tests/metrics
+
 test-cov:
     uv run pytest --cov
 
