@@ -52,6 +52,9 @@ test-surrogate:
 test-metrics:
     uv run pytest tests/metrics
 
+test-visualization:
+    uv run pytest tests/visualization
+
 test-cov:
     uv run pytest --cov
 

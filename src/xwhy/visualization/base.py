@@ -1,15 +1,26 @@
-"""Base visualization abstractions."""
+"""Base interfaces for visualization components."""
 
-from abc import ABC, abstractmethod
+import abc
+from collections.abc import Sequence
+
+import numpy as np
 
 
-class BaseVisualization(ABC):
-    """Base class for visualization component.
+class BaseTextVisualizer(abc.ABC):
+    """Abstract base class for text visualizations."""
 
-    Full implementation in later phases.
-    """
+    @abc.abstractmethod
+    def plot(
+        self,
+        words: Sequence[str],
+        scores: np.ndarray,
+        **kwargs: object,
+    ) -> None:
+        """Plot the text visualization.
 
-    @abstractmethod
-    def __placeholder_method__(self, *args: object, **kwargs: object) -> None:
-        """Implement this method in subclasses."""
-        raise NotImplementedError("To be implemented in later phases.")
+        Args:
+            words: Sequence of text tokens.
+            scores: Array of per-token scores.
+            **kwargs: Additional backend-specific plotting arguments.
+
+        """
