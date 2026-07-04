@@ -2,7 +2,7 @@
 
 from xwhy.core.config import ExplainerConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.result import XWhyResult
+from xwhy.core.result import BaseXWhyResult
 
 
 class TabularExplainer(BaseExplainer):
@@ -20,7 +20,7 @@ class TabularExplainer(BaseExplainer):
         self,
         instance: object,
         **kwargs: object,
-    ) -> XWhyResult:
+    ) -> BaseXWhyResult:
         """Generate an explanation for the given input instance.
 
         Args:

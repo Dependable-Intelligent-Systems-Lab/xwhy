@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 
-from xwhy.core.result import XWhyResult
+from xwhy.core.result import BaseXWhyResult
 
 
 class ExplanationPipeline(ABC):
@@ -12,6 +12,6 @@ class ExplanationPipeline(ABC):
     """
 
     @abstractmethod
-    def run(self, instance: object, **kwargs: object) -> XWhyResult:
+    def run(self, instance: object, **kwargs: object) -> BaseXWhyResult:
         """Run the full explanation pipeline."""
         raise NotImplementedError("Subclasses must implement run method.")

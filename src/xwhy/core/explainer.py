@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 from xwhy.core.config import ExplainerConfig
-from xwhy.core.result import XWhyResult
+from xwhy.core.result import BaseXWhyResult
 
 
 class BaseExplainer(ABC):
@@ -15,6 +15,6 @@ class BaseExplainer(ABC):
         self.config = config or ExplainerConfig()
 
     @abstractmethod
-    def explain(self, instance: object, **kwargs: object) -> XWhyResult:
+    def explain(self, instance: object, **kwargs: object) -> BaseXWhyResult:
         """Generate explanation for the given instance."""
         raise NotImplementedError("Subclasses must implement explain method.")
