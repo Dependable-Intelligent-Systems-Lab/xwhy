@@ -116,14 +116,6 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             text=prompt, num_perturbations=num_perturbations
         )
 
-        # logger.info("Querying provider for perturbed responses...")
-        # gpt_pairs = score_perturbations(
-        #     provider=self.provider,
-        #     model=model_name,
-        #     perturbations=perturbed_texts,
-        #     temperature=temperature,
-        # )
-
         logger.info("Loading embedding model...")
         embedding = EmbeddingFactory.create(embedding=embedding_type)
         embedding_model = embedding.load()
@@ -131,7 +123,6 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
 
         logger.info("Computing WMD scores...")
         wmd_distance = WMDDistance()
-        # perturbed_texts = [pert_text for pert_text, _ in gpt_pairs]
         wmd_scores = wmd_distance.compute_batch(
             model=embedding_model,
             original=original_output,
