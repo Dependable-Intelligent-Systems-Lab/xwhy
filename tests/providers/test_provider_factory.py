@@ -11,6 +11,8 @@ from xwhy.providers.types import ProviderType
 
 def test_register_and_create_provider() -> None:
     """Register and create a provider successfully."""
+    ProviderFactory.clear()
+
     ProviderFactory.register(
         provider=ProviderType.OPENAI,
         provider_cls=OpenAIProvider,
@@ -28,6 +30,8 @@ def test_register_and_create_provider() -> None:
 
 def test_register_duplicate_provider() -> None:
     """Raise an error for duplicate provider registration."""
+    ProviderFactory.clear()
+
     ProviderFactory.register(
         provider=ProviderType.OPENAI,
         provider_cls=OpenAIProvider,
@@ -50,6 +54,6 @@ def test_create_unknown_provider() -> None:
         match="Unsupported provider",
     ):
         ProviderFactory.create(
-            provider=ProviderType.OPENAI,
+            provider="non_existent_provider",  # type: ignore[arg-type]
             client=object(),
         )

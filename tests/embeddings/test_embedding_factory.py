@@ -11,6 +11,8 @@ from xwhy.embeddings.word2vec import Word2VecEmbedding
 
 def test_register_and_create_embedding() -> None:
     """Register and create embedding successfully."""
+    EmbeddingFactory.clear()
+
     EmbeddingFactory.register(
         embedding=EmbeddingType.GLOVE,
         embedding_cls=Word2VecEmbedding,
@@ -35,12 +37,8 @@ def test_register_duplicate_embedding() -> None:
 
 def test_unsupported_embedding_raises() -> None:
     """Test that unsupported embedding type raises ValueError."""
-
-    class FakeType(str):
-        pass
-
     with pytest.raises(ValueError, match="Unsupported embedding"):
         EmbeddingFactory.create(
-            embedding=FakeType("unknown"),  # type: ignore[arg-type]
+            embedding="non_existent_embedding",  # type: ignore[arg-type]
             settings=object(),
         )
