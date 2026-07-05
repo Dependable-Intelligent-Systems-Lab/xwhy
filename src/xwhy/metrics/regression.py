@@ -25,11 +25,15 @@ class RegressionMetricResult:
         lines = [
             "-" * 80,
             "Fidelity Metrics:",
-            f"  Weighted MSE:     {self.weighted_mse:.4f}",
-            f"  Weighted MAE:     {self.weighted_mae:.4f}",
-            f"  Weighted R²:      {self.weighted_r2:.4f}",
-            f"  Adj Weighted R²:  {self.weighted_adj_r2:.4f}",
-            f"  Mean Loss:        {self.mean_loss:.4f}",
+            f"  Mean Squared Error (MSE)            {self.weighted_mse:.4f}",
+            f"  Mean Absolute Error (MAE)           {self.weighted_mae:.4f}",
+            f"  Mean Loss (Lm)                      {self.mean_loss:.4f}",
+            f"  Mean L1 Loss                        {self.mean_l1_loss:.4f}",
+            f"  Mean L2 Loss                        {self.mean_l2_loss:.4f}",
+            f"  Weighted L1 Loss                    {self.weighted_l1_norm:.4f}",
+            f"  Weighted L2 Loss                    {self.weighted_l2_norm:.4f}",
+            f"  Weighted R-squared (R²ω)            {self.weighted_r2:.4f}",
+            f"  Weighted Adjusted R-squared (R^²ω)  {self.weighted_adj_r2:.4f}",
             "-" * 80,
         ]
         return "\n".join(lines)
