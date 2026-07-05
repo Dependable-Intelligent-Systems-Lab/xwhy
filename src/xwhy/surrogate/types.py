@@ -1,5 +1,7 @@
 """Surrogate model types definitions."""
 
+from __future__ import annotations
+
 from enum import StrEnum
 
 
@@ -16,3 +18,15 @@ class SurrogateType(StrEnum):
     RANDOMFOREST = "randomforest"
     GRADIENT_BOOSTING = "gradientboosting"
     XGBOOST = "xgboost"
+
+    @classmethod
+    def from_str(cls, value: str | SurrogateType) -> SurrogateType:
+        """Safely convert a string or enum instance to SurrogateType."""
+        try:
+            return cls(value)
+        except ValueError as err:
+            valid_options = [item.value for item in cls]
+            raise ValueError(
+                f"'{value}' is not a valid SurrogateType. "
+                f"Please choose from: {valid_options}"
+            ) from err
