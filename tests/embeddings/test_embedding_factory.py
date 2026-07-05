@@ -13,9 +13,12 @@ def test_register_and_create_embedding() -> None:
     """Register and create embedding successfully."""
     EmbeddingFactory.clear()
 
+    def _builder(**kwargs: object) -> Word2VecEmbedding:
+        return Word2VecEmbedding(settings=kwargs['settings']) # type: ignore
+
     EmbeddingFactory.register(
         embedding=EmbeddingType.GLOVE,
-        embedding_cls=Word2VecEmbedding,
+        builder=_builder,
     )
 
     embedding = EmbeddingFactory.create(
@@ -28,10 +31,17 @@ def test_register_and_create_embedding() -> None:
 
 def test_register_duplicate_embedding() -> None:
     """Ensure duplicate registration raises error."""
+    EmbeddingFactory.clear()
+
+    EmbeddingFactory.register(
+        embedding=EmbeddingType.WORD2VEC,
+        builder=lambda **kwargs: Word2VecEmbedding(settings=kwargs['settings']), # type: ignore
+    )
+
     with pytest.raises(ValueError, match="already registered"):
         EmbeddingFactory.register(
             embedding=EmbeddingType.WORD2VEC,
-            embedding_cls=Word2VecEmbedding,
+            builder=lambda **kwargs: Word2VecEmbedding(settings=kwargs['settings']), # type: ignore
         )
 
 
