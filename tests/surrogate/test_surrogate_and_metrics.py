@@ -1,4 +1,5 @@
 """Unit tests for surrogate models."""
+
 import numpy as np
 import pytest
 from sklearn.linear_model import LinearRegression

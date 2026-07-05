@@ -1,4 +1,5 @@
 """Unit tests for metrics models."""
+
 import numpy as np
 
 from xwhy.metrics.regression import RegressionMetrics

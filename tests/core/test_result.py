@@ -15,6 +15,7 @@ class ConcreteResult(BaseXWhyResult):
 
     pass
 
+
 @pytest.fixture
 def mock_metrics() -> RegressionMetricResult:
     """Fixture to provide a dummy metric result."""
@@ -30,6 +31,7 @@ def mock_metrics() -> RegressionMetricResult:
         weighted_l2_norm=0.05,
     )
 
+
 def test_base_result_initialization(mock_metrics: RegressionMetricResult) -> None:
     """Verify BaseXWhyResult initializes correctly."""
     coeffs = np.array([0.1, 0.2])
@@ -39,6 +41,7 @@ def test_base_result_initialization(mock_metrics: RegressionMetricResult) -> Non
     assert result.metrics == mock_metrics
     assert result.raw_data == {}  # Check default factory
 
+
 def test_text_result_initialization(mock_metrics: RegressionMetricResult) -> None:
     """Verify TextXWhyResult initializes with correct defaults."""
     coeffs = np.array([0.1, 0.2])
@@ -47,11 +50,12 @@ def test_text_result_initialization(mock_metrics: RegressionMetricResult) -> Non
         coefficients=coeffs,
         metrics=mock_metrics,
         original_output="test case",
-        words=words
+        words=words,
     )
 
     assert result.original_output == "test case"
     assert result.words == words
+
 
 @patch("xwhy.core.result.TextVisualizerFactory")
 def test_text_result_heatmap_success(
@@ -64,29 +68,25 @@ def test_text_result_heatmap_success(
 
     coeffs = np.array([0.1, 0.2])
     words = ["a", "b"]
-    result = TextXWhyResult(
-        coefficients=coeffs,
-        metrics=mock_metrics,
-        words=words
-    )
+    result = TextXWhyResult(coefficients=coeffs, metrics=mock_metrics, words=words)
 
     # Execute
     result.heatmap(
         title="Custom Title",
         backend=TextVisualizerType.NATIVE_HEATMAP,
-        custom_kwarg=123
+        custom_kwarg=123,
     )
 
     # Verify Factory interaction
-    mock_factory.create.assert_called_once_with(method=TextVisualizerType.NATIVE_HEATMAP)
+    mock_factory.create.assert_called_once_with(
+        method=TextVisualizerType.NATIVE_HEATMAP
+    )
 
     # Verify Visualizer.plot interaction
     mock_visualizer.plot.assert_called_once_with(
-        words=words,
-        scores=coeffs,
-        title="Custom Title",
-        custom_kwarg=123
+        words=words, scores=coeffs, title="Custom Title", custom_kwarg=123
     )
+
 
 @patch("xwhy.core.result.TextVisualizerFactory")
 def test_text_result_heatmap_default_args(
@@ -97,27 +97,24 @@ def test_text_result_heatmap_default_args(
     mock_factory.create.return_value = mock_visualizer
 
     result = TextXWhyResult(
-        coefficients=np.array([0.0]),
-        metrics=mock_metrics,
-        words=[]
+        coefficients=np.array([0.0]), metrics=mock_metrics, words=[]
     )
 
     result.heatmap()
 
     # Verify defaults
-    mock_factory.create.assert_called_once_with(method=TextVisualizerType.NATIVE_HEATMAP)
-    mock_visualizer.plot.assert_called_once_with(
-        words=[],
-        scores=np.array([0.0]),
-        title="Text Heatmap"
+    mock_factory.create.assert_called_once_with(
+        method=TextVisualizerType.NATIVE_HEATMAP
     )
+    mock_visualizer.plot.assert_called_once_with(
+        words=[], scores=np.array([0.0]), title="Text Heatmap"
+    )
+
 
 def test_raw_data_mutation() -> None:
     """Verify raw_data can be updated."""
     result = ConcreteResult(
-        coefficients=np.array([0]),
-        metrics=MagicMock(),
-        raw_data={"key": "value"}
+        coefficients=np.array([0]), metrics=MagicMock(), raw_data={"key": "value"}
     )
     result.raw_data["new"] = "data"
     assert result.raw_data["new"] == "data"

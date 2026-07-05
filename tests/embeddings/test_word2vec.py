@@ -177,9 +177,7 @@ def test_download_file_failure(
     """Test download failure cleanup."""
     embedding = create_embedding()
 
-    mock_get.side_effect = requests.exceptions.RequestException(
-        "network error"
-    )
+    mock_get.side_effect = requests.exceptions.RequestException("network error")
 
     path = Path("/tmp/fake.bin")
 

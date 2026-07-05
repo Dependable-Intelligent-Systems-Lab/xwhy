@@ -52,7 +52,8 @@ def test_explain_success_best_surrogate(
 
     # Perturbation mock
     mock_perturbation.return_value.generate.return_value = (
-        ["res1"], [np.array([1, 0])]
+        ["res1"],
+        [np.array([1, 0])],
     )
 
     # Embedding mock
@@ -104,7 +105,8 @@ def test_explain_success_default_surrogate(
 
     # Setup basics
     mock_perturbation.return_value.generate.return_value = (
-        ["res1"], [np.array([1, 0])]
+        ["res1"],
+        [np.array([1, 0])],
     )
 
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
@@ -121,7 +123,8 @@ def test_explain_success_default_surrogate(
     # Assertions
     assert "surrogate_method" in result.raw_data
     assert result.raw_data["surrogate_method"] == SurrogateType.LIME
-    assert not mock_trainer.find_best.called # Should not search for best
+    assert not mock_trainer.find_best.called  # Should not search for best
+
 
 def test_run_invalid_input() -> None:
     """Ensure run raises TypeError for non-string inputs."""

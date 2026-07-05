@@ -7,7 +7,7 @@ import pytest
 from xwhy.config.settings import Settings
 
 
-def test_default_embedding_cache_dir() ->None:
+def test_default_embedding_cache_dir() -> None:
     """Default embedding cache directory should be configured."""
     settings = Settings()
 
