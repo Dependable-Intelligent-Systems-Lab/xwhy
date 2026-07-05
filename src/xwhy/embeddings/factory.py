@@ -6,19 +6,12 @@ from typing import ClassVar
 
 from xwhy.embeddings.base import BaseEmbedding
 from xwhy.embeddings.types import EmbeddingType
-from xwhy.embeddings.word2vec import Word2VecEmbedding
 
 
 class EmbeddingFactory:
     """Factory for creating embedding implementations."""
 
-    _base_registry: ClassVar[dict[EmbeddingType, type[BaseEmbedding]]] = {
-        EmbeddingType.WORD2VEC: Word2VecEmbedding,
-    }
-
-    _registry: ClassVar[dict[EmbeddingType, type[BaseEmbedding]]] = (
-        _base_registry.copy()
-    )
+    _registry: ClassVar[dict[EmbeddingType, type[BaseEmbedding]]] = {}
 
     @classmethod
     def register(
@@ -52,4 +45,4 @@ class EmbeddingFactory:
     @classmethod
     def clear(cls) -> None:
         """Reset registry to defaults."""
-        cls._registry = cls._base_registry.copy()
+        cls._registry.clear()
