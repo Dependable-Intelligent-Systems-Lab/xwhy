@@ -10,7 +10,7 @@ def test_score_perturbations() -> None:
     """Test score_perturbations with a mocked provider."""
     # Create a mock provider inheriting from BaseProvider
     mock_provider = MagicMock(spec=BaseProvider)
-    
+
     # Configure the mock score method to return predictable values
     mock_provider.score.side_effect = ["0.8", "0.2"]
 

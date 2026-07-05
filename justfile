@@ -55,6 +55,12 @@ test-metrics:
 test-visualization:
     uv run pytest tests/visualization
 
+test-explainers:
+    uv run pytest tests/explainers
+
+test-core:
+    uv run pytest tests/core
+
 test-cov:
     uv run pytest --cov
 

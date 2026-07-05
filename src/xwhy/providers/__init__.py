@@ -8,6 +8,7 @@
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.openai import OpenAIProvider
+from xwhy.providers.resolver import ProviderResolver
 from xwhy.providers.types import ProviderType
 from xwhy.providers.utils import score_perturbations
 
@@ -15,6 +16,7 @@ __all__ = [
     "BaseProvider",
     "OpenAIProvider",
     "ProviderFactory",
+    "ProviderResolver",
     "ProviderType",
     "score_perturbations",
 ]
