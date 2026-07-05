@@ -143,7 +143,7 @@ class TextPerturbation(BasePerturbation):
                 responses.append(corpus)
                 perturbations.append(mask)
 
-                logger.info(
+                logger.debug(
                     "Perturbation: %s, Perturbed Text: %s",
                     mask,
                     corpus,
@@ -164,7 +164,7 @@ class TextPerturbation(BasePerturbation):
             responses.append(corpus)
             perturbations.append(mask)
 
-            logger.info(
+            logger.debug(
                 "Perturbation (reused): %s, Perturbed Text: %s",
                 mask,
                 corpus,

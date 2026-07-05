@@ -4,6 +4,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
 from xwhy.surrogate.base import BaseSurrogate
 from xwhy.surrogate.factory import SurrogateFactory
@@ -66,6 +67,7 @@ class SurrogateTrainer:
             tuple[BaseSurrogate, float]: Trained model and its weighted R2 score.
 
         """
+        logger.debug(f"  Testing surrogate method: {method}")
         x = np.vstack(perturbations)
         y = np.array([s for _, s in similarities])
         weights = cls.compute_weights(method, wmd_scores, kernel_width)
@@ -116,6 +118,7 @@ class SurrogateTrainer:
         best_score = -float("inf")
         best_method = SurrogateType.XGBOOST
 
+        logger.debug("Starting search for the best surrogate model...")
         for method in SurrogateType:
             try:
                 _, score = cls.fit_and_evaluate(
@@ -127,6 +130,8 @@ class SurrogateTrainer:
                     kernel_width=kernel_width,
                     ridge_alpha=ridge_alpha,
                 )
+
+                logger.debug(f"    {method} R²ω: {score:.4f}")
                 if score > best_score:
                     best_score = score
                     best_method = method

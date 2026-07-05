@@ -51,14 +51,14 @@ class DistanceNormalizer:
             )
 
         for text, similarity in normalized:
-            logger.info(
+            logger.debug(
                 "Perturbed Text: %s",
                 text,
             )
-            logger.info(
+            logger.debug(
                 "Similarity Score: %.4f",
                 similarity,
             )
-            logger.info("-" * 50)
+            logger.debug("-" * 50)
 
         return normalized

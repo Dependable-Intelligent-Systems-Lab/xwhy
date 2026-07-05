@@ -144,17 +144,28 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         sims = DistanceNormalizer.min_max(scores=wmd_scores)
 
         if self.use_best_surrogate:
-            logger.info("Finding best surrogate model...")
-            method, _ = SurrogateTrainer.find_best(
+            logger.info(
+                "Searching for the optimal surrogate model among available"
+                " candidates..."
+            )
+            method, score = SurrogateTrainer.find_best(
                 perturbations=perturbations,
                 similarities=sims,
                 wmd_scores=wmd_scores,
                 seed=seed,
             )
-            logger.info("Fitting best surrogate model: %s", method.value)
+            logger.info(
+                "Optimization complete. Selected surrogate model:"
+                " '%s' (Best Score: %.4f)",
+                method.value,
+                score,
+            )
         else:
             method = self.default_surrogate
-            logger.info("Fitting default surrogate model: %s", method.value)
+            logger.info(
+                "Skipping surrogate search. Using configured default: '%s'",
+                method.value,
+            )
 
         x_matrix = np.vstack(perturbations)
         y_target = np.array([s for _, s in sims])

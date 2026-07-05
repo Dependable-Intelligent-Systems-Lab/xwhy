@@ -70,7 +70,7 @@ class Word2VecEmbedding(BaseEmbedding):
 
         # 1. cache
         if model_path.exists() and not self._force_download:
-            logger.info(f"Loading from cache: {model_path}")
+            logger.debug(f"Loading embedding model from cache: {model_path}")
             self._model = KeyedVectors.load_word2vec_format(
                 str(model_path),
                 binary=model_info["binary"],
@@ -79,7 +79,7 @@ class Word2VecEmbedding(BaseEmbedding):
 
         # 2. gensim
         if model_info["gensim"]:
-            logger.info(f"Loading via gensim: {self._model_name}")
+            logger.debug(f"Loading embedding model via gensim: {self._model_name}")
             try:
                 model = api.load(self._model_name)
 
@@ -99,7 +99,7 @@ class Word2VecEmbedding(BaseEmbedding):
         if self._model_name == "word2vec-google-news-300":
             return self._download_google_news(cache_dir, model_path)
 
-        raise RuntimeError(f"Failed to load model: {self._model_name}")
+        raise RuntimeError(f"Failed to load embedding model: {self._model_name}")
 
     def encode(self, text: str) -> list[float]:
         """Encode text using averaged word vectors."""
@@ -169,14 +169,16 @@ class Word2VecEmbedding(BaseEmbedding):
             requests.exceptions.RequestException: If request fails.
 
         """
-        logger.info("Downloading from %s => %s", url, path)
-
         path.parent.mkdir(parents=True, exist_ok=True)
 
         min_expected_size = 100 * 1024 * 1024
         downloaded_size = 0
 
         try:
+            logger.debug(
+                f"Attempting direct download from {url} to {path} using requests..."
+            )
+
             response = requests.get(url, stream=True, timeout=300)
             response.raise_for_status()
 
@@ -191,7 +193,7 @@ class Word2VecEmbedding(BaseEmbedding):
                     f"Downloaded file too small: {downloaded_size / (1024**2):.2f} MB"
                 )
 
-            logger.info(
+            logger.debug(
                 "Download completed: %.2f MB",
                 downloaded_size / (1024**2),
             )
@@ -205,6 +207,6 @@ class Word2VecEmbedding(BaseEmbedding):
     @staticmethod
     def _extract_gzip(src: Path, dst: Path) -> None:
         """Extract gzip file."""
-        logger.info("Extracting %s...", src)
+        logger.debug("Extracting %s...", src)
         with gzip.open(src, "rb") as f_in, dst.open("wb") as f_out:
             shutil.copyfileobj(f_in, f_out)

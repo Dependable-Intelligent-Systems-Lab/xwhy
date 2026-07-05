@@ -76,7 +76,7 @@ class OpenAIProvider(BaseProvider):
             return response.choices[0].text.strip()
 
         except Exception as exc:
-            logger.error(f"OpenAI request failed: {exc}")
+            logger.error("OpenAI request failed: %s", exc)
             return ""
 
     def answer(
