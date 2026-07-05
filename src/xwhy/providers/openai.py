@@ -1,5 +1,7 @@
 """OpenAI provider implementation."""
 
+import re
+
 from openai import OpenAI
 
 from xwhy.logger import logger
@@ -76,6 +78,31 @@ class OpenAIProvider(BaseProvider):
             return response.choices[0].text.strip()
 
         except Exception as exc:
+            error_msg = str(exc)
+
+            if (
+                "max_output_tokens" in error_msg
+                and "integer below minimum value" in error_msg
+            ):
+                match = re.search(r"Expected a value >= (\d+)", error_msg)
+
+                if match:
+                    required_min = int(match.group(1))
+                    logger.warning(
+                        "Dynamic fix applied: max_tokens=%d is too low for model '%s'. "
+                        "Retrying automatically with required minimum: %d.",
+                        max_tokens,
+                        model,
+                        required_min,
+                    )
+
+                    return self._generate(
+                        prompt=prompt,
+                        model=model,
+                        max_tokens=required_min,
+                        temperature=temperature,
+                    )
+
             logger.error("OpenAI request failed: %s", exc)
             return ""
 
@@ -111,7 +138,7 @@ class OpenAIProvider(BaseProvider):
         prompt: str,
         *,
         model: str = "gpt-3.5-turbo-instruct",
-        max_tokens: int = 10,
+        max_tokens: int = 16,
         temperature: float = 0.0,
     ) -> str:
         """Generate a numeric score.
@@ -128,11 +155,23 @@ class OpenAIProvider(BaseProvider):
             Returns ``"0"`` if generation fails.
 
         """
+        final_prompt = f"{prompt}\nRespond with a single number only. No explanation."
+
+        logger.debug("Score prompt sent to model: %s", final_prompt)
+
         result = self._generate(
-            prompt=(f"{prompt}\nRespond with a single number only. No explanation."),
+            prompt=final_prompt,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
         )
 
-        return result if result else "0"
+        logger.debug("Raw output from _generate in score(): %r", result)
+
+        if not result:
+            logger.warning(
+                "Model returned empty result for scoring. Defaulting to '0'."
+            )
+            return "0"
+
+        return result

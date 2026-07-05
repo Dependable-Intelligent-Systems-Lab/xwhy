@@ -16,7 +16,6 @@ from xwhy.perturbation.text import TextPerturbation
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.resolver import ProviderResolver
 from xwhy.providers.types import ProviderType
-from xwhy.providers.utils import score_perturbations
 from xwhy.surrogate.factory import SurrogateFactory
 from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
@@ -104,7 +103,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         embedding_type = EmbeddingType.from_str(embedding_type)
 
         logger.info("Querying provider for original response...")
-        original = self.provider.answer(
+        original_output = self.provider.answer(
             prompt=prompt,
             model=model_name,
             max_tokens=max_tokens,
@@ -113,18 +112,17 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
 
         logger.info("Generating perturbations...")
         text_perturbation = TextPerturbation(seed=seed)
-        responses, perturbations = text_perturbation.generate(
+        perturbed_texts, binary_masks = text_perturbation.generate(
             text=prompt, num_perturbations=num_perturbations
         )
 
-        logger.info("Querying provider for perturbed responses...")
-        gpt_pairs = score_perturbations(
-            provider=self.provider,
-            model=model_name,
-            perturbations=responses,
-            max_tokens=10,
-            temperature=temperature,
-        )
+        # logger.info("Querying provider for perturbed responses...")
+        # gpt_pairs = score_perturbations(
+        #     provider=self.provider,
+        #     model=model_name,
+        #     perturbations=perturbed_texts,
+        #     temperature=temperature,
+        # )
 
         logger.info("Loading embedding model...")
         embedding = EmbeddingFactory.create(embedding=embedding_type)
@@ -133,10 +131,10 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
 
         logger.info("Computing WMD scores...")
         wmd_distance = WMDDistance()
-        perturbed_texts = [pert_text for _, pert_text in gpt_pairs]
+        # perturbed_texts = [pert_text for pert_text, _ in gpt_pairs]
         wmd_scores = wmd_distance.compute_batch(
             model=embedding_model,
-            original=original,
+            original=original_output,
             perturbed_texts=perturbed_texts,
         )
 
@@ -149,7 +147,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 " candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                perturbations=perturbations,
+                perturbations=binary_masks,
                 similarities=sims,
                 wmd_scores=wmd_scores,
                 seed=seed,
@@ -167,7 +165,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 method.value,
             )
 
-        x_matrix = np.vstack(perturbations)
+        x_matrix = np.vstack(binary_masks)
         y_target = np.array([s for _, s in sims])
         weights = SurrogateTrainer.compute_weights(method, wmd_scores)
 
@@ -186,7 +184,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         )
 
         raw_data = {
-            "gpt_pairs": gpt_pairs,
+            "perturbed_texts": perturbed_texts,
             "wmd_scores": wmd_scores,
             "similarities": sims,
             "weights": weights,
@@ -198,7 +196,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             raw_data["surrogate_method"] = method
 
         return TextXWhyResult(
-            original_output=original,
+            original_output=original_output,
             words=prompt.split(),
             coefficients=coeffs,
             metrics=metrics,

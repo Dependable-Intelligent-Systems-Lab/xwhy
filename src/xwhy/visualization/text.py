@@ -1,5 +1,6 @@
 """Native matplotlib text visualization implementations."""
 
+import math
 from collections.abc import Sequence
 
 import matplotlib.pyplot as plt
@@ -18,7 +19,7 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
         scores: np.ndarray,
         title: str = "",
         width: float = 10.0,
-        height: float = 0.4,
+        height: float = 0.5,
         verbose: int = 0,
         max_word_per_line: int = 20,
         word_spacing: int = 20,
@@ -45,9 +46,13 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
             **kwargs: Additional ignored arguments for interface compatibility.
 
         """
-        _ = plt.figure(figsize=(width, height))
+        num_lines = math.ceil(len(words) / max_word_per_line)
+        dynamic_height = max(2.0, num_lines * height * 2.5)
+
+        _ = plt.figure(figsize=(width, dynamic_height))
         ax = plt.gca()
-        ax.set_title(title, loc="left")
+
+        ax.set_title(title, loc="left", pad=10)
 
         # Color map normalization
         cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)
@@ -61,7 +66,7 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
         canvas = ax.figure.canvas
         transform = ax.transData
 
-        y = -0.2  # starting y
+        y = 0.0
 
         for i, (word, score, ns) in enumerate(
             zip(words, scores, normalized, strict=False)
@@ -89,7 +94,7 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
             # draw numeric score under token
             score_txt = ax.text(
                 0.01,
-                y - 1.0,
+                y - 0.5,
                 f"{score:.2f}",
                 transform=transform,
                 fontsize=score_fontsize,
@@ -108,10 +113,14 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
                     units="dots",
                 )
 
+        ax.set_ylim(y - 1.5, 0.5)
+        ax.set_xlim(0, 1)
+
         if verbose == 0:
             ax.axis("off")
 
         if save_path:
             plt.savefig(save_path, bbox_inches="tight")
 
+        plt.tight_layout()
         plt.show()

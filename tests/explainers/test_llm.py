@@ -30,7 +30,6 @@ def explainer(mock_provider: MagicMock) -> LLMExplainer:
 
 
 @patch("xwhy.explainers.llm.TextPerturbation")
-@patch("xwhy.explainers.llm.score_perturbations")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
 @patch("xwhy.explainers.llm.WMDDistance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
@@ -44,7 +43,6 @@ def test_explain_success_best_surrogate(
     mock_normalizer: MagicMock,
     mock_wmd: MagicMock,
     mock_embedding_factory: MagicMock,
-    mock_score_pert: MagicMock,
     mock_perturbation: MagicMock,
     explainer: LLMExplainer,
 ) -> None:
@@ -56,7 +54,6 @@ def test_explain_success_best_surrogate(
     mock_perturbation.return_value.generate.return_value = (
         ["res1"], [np.array([1, 0])]
     )
-    mock_score_pert.return_value = [("input", "response")]
 
     # Embedding mock
     mock_emb_model = MagicMock()
@@ -85,7 +82,6 @@ def test_explain_success_best_surrogate(
 
 
 @patch("xwhy.explainers.llm.TextPerturbation")
-@patch("xwhy.explainers.llm.score_perturbations")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
 @patch("xwhy.explainers.llm.WMDDistance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
@@ -99,7 +95,6 @@ def test_explain_success_default_surrogate(
     mock_normalizer: MagicMock,
     mock_wmd: MagicMock,
     mock_embedding_factory: MagicMock,
-    mock_score_pert: MagicMock,
     mock_perturbation: MagicMock,
     explainer: LLMExplainer,
 ) -> None:
@@ -111,7 +106,7 @@ def test_explain_success_default_surrogate(
     mock_perturbation.return_value.generate.return_value = (
         ["res1"], [np.array([1, 0])]
     )
-    mock_score_pert.return_value = [("input", "response")]
+
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
     mock_wmd.return_value.compute_batch.return_value = np.array([0.5])
     mock_normalizer.min_max.return_value = [("val", 0.5)]

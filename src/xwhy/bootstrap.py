@@ -4,6 +4,7 @@ from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.linear_model import BayesianRidge, LinearRegression, Ridge
 from xgboost import XGBRegressor
 
+from xwhy.config import settings
 from xwhy.embeddings.factory import EmbeddingFactory
 from xwhy.embeddings.types import EmbeddingType
 from xwhy.embeddings.word2vec import Word2VecEmbedding
@@ -22,22 +23,24 @@ def _build_openai_provider() -> BaseProvider:
     """Instantiate an OpenAI provider using configuration settings."""
     from openai import OpenAI
 
-    from xwhy.config import settings
-
     client = OpenAI(api_key=settings.openai_api_key)
     return ProviderFactory.create(provider=ProviderType.OPENAI, client=client)
 
 
 def _build_word2vec(**kwargs: object) -> Word2VecEmbedding:
-    return Word2VecEmbedding(model_name="word2vec-google-news-300", **kwargs)
+    return Word2VecEmbedding(
+        model_name="word2vec-google-news-300", settings=settings, **kwargs
+    )
 
 
 def _build_glove(**kwargs: object) -> Word2VecEmbedding:
-    return Word2VecEmbedding(model_name="glove.840B.300d", **kwargs)
+    return Word2VecEmbedding(model_name="glove.840B.300d", settings=settings, **kwargs)
 
 
 def _build_paragram(**kwargs: object) -> Word2VecEmbedding:
-    return Word2VecEmbedding(model_name="paragram_300_sl999", **kwargs)
+    return Word2VecEmbedding(
+        model_name="paragram_300_sl999", settings=settings, **kwargs
+    )
 
 
 def _build_glm_ols(**kwargs: object) -> LinearRegressionSurrogate:

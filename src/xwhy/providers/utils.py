@@ -11,7 +11,7 @@ def score_perturbations(
     *,
     model: str,
     perturbations: Sequence[str],
-    max_tokens: int = 10,
+    max_tokens: int = 16,
     temperature: float = 0.0,
 ) -> list[tuple[str, str]]:
     """Query a provider for each perturbed text and return input/output pairs.

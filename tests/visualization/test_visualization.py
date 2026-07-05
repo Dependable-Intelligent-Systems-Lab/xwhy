@@ -21,7 +21,6 @@ def test_native_heatmap_visualizer(mock_savefig: object, mock_show: object) -> N
     words = ["This", "is", "a", "test"]
     scores = np.array([0.1, -0.5, 0.8, 0.0])
 
-    # اجرا در حافظه (Agg backend)
     visualizer.plot(words=words, scores=scores, title="Test Plot", verbose=1)
 
     assert mock_show.called  # type: ignore
