@@ -151,8 +151,14 @@ class TextPerturbation(BasePerturbation):
 
             attempts += 1
 
+        unique_masks_list = list(unique_masks)
+
+        if not unique_masks_list:
+            return responses, perturbations
+
         while len(responses) < num_perturbations:
-            mask = tuple(self._rng.choice(list(unique_masks)))
+            idx = int(self._rng.integers(len(unique_masks_list)))
+            mask = unique_masks_list[idx]
 
             perturbed = self.apply_mask(
                 words=words,

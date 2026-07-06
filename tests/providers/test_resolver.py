@@ -1,6 +1,7 @@
 """Unit tests for provider resolver."""
 
 from collections.abc import Iterator
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -12,7 +13,14 @@ from xwhy.providers.types import ProviderType
 class MockProvider(BaseProvider):
     """Implement a concrete BaseProvider for testing."""
 
-    def answer(self, prompt: str) -> str:
+    def answer(
+        self,
+        prompt: str,
+        *,
+        model: str = "gpt-3.5",
+        max_tokens: int = 10,
+        temperature: float = 0.0,
+    ) -> str:
         """Return a dummy response for testing purposes."""
         return "mock_response"
 
@@ -31,21 +39,25 @@ def clean_registry() -> Iterator[None]:
 
 def test_resolve_with_instance() -> None:
     """Verify that an instance is returned directly."""
-    instance = MockProvider()
+    instance = MockProvider(client=MagicMock())
     result = ProviderResolver.resolve(instance)
     assert result is instance
 
 
 def test_resolve_success_with_enum() -> None:
     """Verify successful resolution using a registered ProviderType."""
-    ProviderResolver.register(ProviderType.OPENAI, MockProvider)
+    ProviderResolver.register(
+        ProviderType.OPENAI, lambda: MockProvider(client=MagicMock())
+    )
     result = ProviderResolver.resolve(ProviderType.OPENAI)
     assert isinstance(result, MockProvider)
 
 
 def test_resolve_success_with_string() -> None:
     """Verify successful resolution using a string identifier."""
-    ProviderResolver.register(ProviderType.OPENAI, MockProvider)
+    ProviderResolver.register(
+        ProviderType.OPENAI, lambda: MockProvider(client=MagicMock())
+    )
     result = ProviderResolver.resolve("openai")
     assert isinstance(result, MockProvider)
 
@@ -65,7 +77,9 @@ def test_resolve_fails_with_invalid_type() -> None:
 
 def test_register_and_clear() -> None:
     """Verify registration and clearing works correctly."""
-    ProviderResolver.register(ProviderType.OPENAI, MockProvider)
+    ProviderResolver.register(
+        ProviderType.OPENAI, lambda: MockProvider(client=MagicMock())
+    )
 
     # Check registration worked
     assert ProviderResolver.resolve(ProviderType.OPENAI) is not None

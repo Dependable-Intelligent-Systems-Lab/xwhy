@@ -38,7 +38,7 @@ class SurrogateTrainer:
             return np.ones(n_samples)
 
         dvals = np.array([d for _, d in wmd_scores])
-        return np.sqrt(np.exp(-(dvals**2) / (kernel_width**2)))  # type: ignore
+        return np.sqrt(np.exp(-(dvals**2) / (kernel_width**2)))
 
     @classmethod
     def fit_and_evaluate(

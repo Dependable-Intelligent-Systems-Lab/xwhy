@@ -125,9 +125,9 @@ def test_generate_reuses_masks_when_unique_exhausted() -> None:
 
     fake_rng = MagicMock()
 
-    fake_rng.choice.side_effect = fake_choice
+    fake_rng.integers.return_value = 0
 
-    fake_rng.choice.return_value = np.array([1, 0, 0])
+    fake_rng.binomial.return_value = [1, 0, 0]
 
     with patch.object(perturbation, "_rng", fake_rng):
         texts, masks = perturbation.generate(

@@ -1,6 +1,6 @@
 """Unit tests for the visualization module."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import matplotlib
 
@@ -28,10 +28,13 @@ def test_native_heatmap_visualizer(mock_savefig: object, mock_show: object) -> N
     plt.close("all")
 
 
+@patch("xwhy.visualization.text.plt.close")
 @patch("xwhy.visualization.text.plt.show")
 @patch("xwhy.visualization.text.plt.savefig")
 def test_native_heatmap_visualizer_save_path(
-    mock_savefig: object, mock_show: object
+    mock_savefig: MagicMock,
+    mock_show: MagicMock,
+    mock_close: MagicMock
 ) -> None:
     """Test saving functionality of NativeHeatmapVisualizer."""
     visualizer = TextVisualizerFactory.create(TextVisualizerType.NATIVE_HEATMAP)
@@ -40,10 +43,11 @@ def test_native_heatmap_visualizer_save_path(
 
     visualizer.plot(words=words, scores=scores, save_path="dummy.png", verbose=0)
 
-    mock_savefig.assert_called_once_with("dummy.png", bbox_inches="tight")  # type: ignore
-    assert mock_show.called  # type: ignore
+    mock_savefig.assert_called_once_with("dummy.png", bbox_inches="tight")
 
-    plt.close("all")
+    assert not mock_show.called
+
+    assert mock_close.called
 
 
 def test_visualizer_factory_invalid() -> None:

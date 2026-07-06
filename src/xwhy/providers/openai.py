@@ -59,23 +59,21 @@ class OpenAIProvider(BaseProvider):
         """
         try:
             if self._is_reasoning_model(model):
-                response = self._client.responses.create(
+                reasoning_response = self._client.responses.create(
                     model=model,
                     input=prompt,
                     max_output_tokens=max_tokens,
                     reasoning={"effort": "low"},
                 )
+                return reasoning_response.output_text.strip()
 
-                return response.output_text.strip()
-
-            response = self._client.completions.create(
+            completion_response = self._client.completions.create(
                 model=model,
                 prompt=prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-
-            return response.choices[0].text.strip()
+            return completion_response.choices[0].text.strip()
 
         except Exception as exc:
             error_msg = str(exc)

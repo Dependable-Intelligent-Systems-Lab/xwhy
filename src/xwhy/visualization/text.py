@@ -119,8 +119,10 @@ class NativeHeatmapVisualizer(BaseTextVisualizer):
         if verbose == 0:
             ax.axis("off")
 
+        plt.tight_layout()
+
         if save_path:
             plt.savefig(save_path, bbox_inches="tight")
-
-        plt.tight_layout()
-        plt.show()
+            plt.close()
+        else:
+            plt.show()

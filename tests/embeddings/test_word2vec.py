@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
+from xwhy.config import Settings
 from xwhy.embeddings.word2vec import Word2VecEmbedding
 
 
@@ -70,7 +72,7 @@ def create_embedding(force_download: bool = False) -> Word2VecEmbedding:
 
     """
     return Word2VecEmbedding(
-        settings=DummySettings(),
+        settings=cast(Settings, DummySettings()),
         force_download=force_download,
     )
 
@@ -103,21 +105,20 @@ def test_load_from_gensim(
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_load_from_cache(
     mock_kv_load: MagicMock,
-    tmp_path: pytest.TempPathFactory,
+    tmp_path: Path,
 ) -> None:
     """Test loading from cache path."""
     mock_kv_load.return_value = MagicMock()
 
     embedding = Word2VecEmbedding(
-        settings=DummySettings(),
+        settings=cast(Settings, DummySettings()),
         force_download=False,
     )
 
-    cache_dir = tmp_path
-    embedding._settings.embedding_cache_dir = cache_dir
+    embedding._settings.embedding_cache_dir = tmp_path
 
-    model_path = cache_dir / "GoogleNews-vectors-negative300.bin"
-    model_path.write_text("dummy")  # مهم: exists
+    model_path = tmp_path / "GoogleNews-vectors-negative300.bin"
+    model_path.write_text("dummy", encoding="utf-8")
 
     embedding._MODEL_FILE_MAP["word2vec-google-news-300"]["gensim"] = False
 
@@ -134,7 +135,7 @@ def test_encode_returns_vector() -> None:
     """Test encode logic."""
     embedding = create_embedding()
 
-    class FakeVector(list):
+    class FakeVector(list[float]):
         def tolist(self) -> list[float]:
             return list(self)
 

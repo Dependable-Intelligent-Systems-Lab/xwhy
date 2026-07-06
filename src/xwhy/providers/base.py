@@ -13,6 +13,16 @@ class BaseProvider(ABC):
     Concrete implementations must implement both ``answer`` and ``score``.
     """
 
+    def __init__(self, client: object) -> None:
+        """Initialize the provider with a client.
+
+        Args:
+            client: The initialized provider client (e.g., OpenAI client,
+                    HuggingFace client).
+
+        """
+        self.client = client
+
     @abstractmethod
     def answer(
         self,

@@ -43,6 +43,7 @@ class Word2VecEmbedding(BaseEmbedding):
         settings: Settings,
         model_name: str = "word2vec-google-news-300",
         force_download: bool = False,
+        **kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize Word2Vec embedding backend."""
         self._settings = settings

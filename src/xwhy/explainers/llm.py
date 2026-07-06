@@ -1,5 +1,7 @@
 """LLM explainer implementation."""
 
+from typing import Any
+
 import numpy as np
 
 from xwhy.core.config import ExplainerConfig
@@ -52,7 +54,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         self.use_best_surrogate = use_best_surrogate
         self.default_surrogate = SurrogateType.from_str(default_surrogate)
 
-    def run(self, instance: object, **kwargs: object) -> TextXWhyResult:
+    def run(self, instance: Any, **kwargs: Any) -> TextXWhyResult:  # noqa: ANN401
         """Run the full explanation pipeline (ExplanationPipeline implementation).
 
         Args:
@@ -132,13 +134,17 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         logger.info("Normalizing similarities...")
         sims = DistanceNormalizer.min_max(scores=wmd_scores)
 
+        masks_as_arrays: list[np.ndarray] = [
+            np.array(m, dtype=int) for m in binary_masks
+        ]
+
         if self.use_best_surrogate:
             logger.info(
                 "Searching for the optimal surrogate model among available"
                 " candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                perturbations=binary_masks,
+                perturbations=masks_as_arrays,
                 similarities=sims,
                 wmd_scores=wmd_scores,
                 seed=seed,
@@ -156,7 +162,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 method.value,
             )
 
-        x_matrix = np.vstack(binary_masks)
+        x_matrix = np.vstack(masks_as_arrays)
         y_target = np.array([s for _, s in sims])
         weights = SurrogateTrainer.compute_weights(method, wmd_scores)
 

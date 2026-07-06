@@ -131,4 +131,4 @@ def test_run_invalid_input() -> None:
     with patch("xwhy.explainers.llm.ProviderResolver.resolve"):
         explainer = LLMExplainer(provider="openai")
         with pytest.raises(TypeError, match="requires a string instance"):
-            explainer.run(123)  # type: ignore
+            explainer.run(123)
