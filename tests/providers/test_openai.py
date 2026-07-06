@@ -1,6 +1,6 @@
 """Tests for the OpenAI provider."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -77,3 +77,55 @@ def test_is_reasoning_model(
 ) -> None:
     """Reasoning models should be correctly detected."""
     assert OpenAIProvider._is_reasoning_model(model) is expected
+
+
+def test_generate_regex_dynamic_fix() -> None:
+    """Test that regex correctly extracts min token requirement and retries."""
+    client = MagicMock()
+    provider = OpenAIProvider(client)
+
+    error_message = (
+        "Error: max_output_tokens is an integer below minimum value. "
+        "Expected a value >= 50"
+    )
+    client.completions.create.side_effect = [
+        Exception(error_message),
+        MagicMock(choices=[MagicMock(text="fixed_response")]),
+    ]
+
+    result = provider._generate(
+        prompt="test", model="gpt-3.5-turbo-instruct", max_tokens=10, temperature=0.0
+    )
+
+    assert result == "fixed_response"
+
+    assert client.completions.create.call_count == 2
+
+    retry_call = client.completions.create.call_args_list[1]
+    assert retry_call.kwargs["max_tokens"] == 50
+
+
+def test_generate_regex_no_match_fallback() -> None:
+    """Return empty string when regex matching fails."""
+    client = MagicMock()
+
+    error_message = "Error: max_output_tokens is an integer below minimum "
+    "value. Expected a value."
+    client.completions.create.side_effect = Exception(error_message)
+
+    provider = OpenAIProvider(client)
+
+    with patch("xwhy.providers.openai.logger") as mock_logger:
+        result = provider._generate(
+            prompt="test",
+            model="gpt-3.5-turbo-instruct",
+            max_tokens=10,
+            temperature=0.0,
+        )
+
+        assert result == ""
+
+        assert client.completions.create.call_count == 1
+
+        mock_logger.error.assert_called()
+        mock_logger.warning.assert_not_called()

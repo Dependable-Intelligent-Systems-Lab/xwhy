@@ -23,8 +23,8 @@ class EmbeddingType(StrEnum):
         try:
             return cls(value)
         except ValueError as err:
-            valid_options = [item.value for item in cls]
+            valid_options = ", ".join([item.value for item in cls])
             raise ValueError(
                 f"'{value}' is not a valid EmbeddingType. "
-                f"Please choose from: {valid_options}"
+                f"Supported options are: [{valid_options}]"
             ) from err

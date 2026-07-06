@@ -1,5 +1,6 @@
 """Tests for the LLM explainer module."""
 
+import re
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -132,3 +133,27 @@ def test_run_invalid_input() -> None:
         explainer = LLMExplainer(provider="openai")
         with pytest.raises(TypeError, match="requires a string instance"):
             explainer.run(123)
+
+
+def test_run_raises_type_error_for_non_string_instance(explainer: LLMExplainer) -> None:
+    """Test that run method raises TypeError when instance is not a string."""
+    invalid_inputs = [123, ["prompt"], None, {"text": "hello"}]
+
+    for invalid_input in invalid_inputs:
+        with pytest.raises(
+            TypeError, match=re.escape("LLMExplainer requires a string instance.")
+        ):
+            explainer.run(invalid_input)
+
+
+def test_run_calls_explain_for_string_instance(explainer: LLMExplainer) -> None:
+    """Test that run method calls explain correctly with valid string."""
+    mock_result = MagicMock(spec=TextXWhyResult)
+
+    with patch.object(explainer, "explain", return_value=mock_result) as mock_explain:
+        instance = "test prompt"
+        result = explainer.run(instance, extra_param=1)
+
+        mock_explain.assert_called_once_with(instance, extra_param=1)
+
+        assert result == mock_result

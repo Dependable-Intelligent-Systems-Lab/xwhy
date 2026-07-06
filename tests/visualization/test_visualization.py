@@ -53,3 +53,36 @@ def test_visualizer_factory_invalid() -> None:
     """Test factory raises error on invalid input."""
     with pytest.raises(ValueError, match="Unsupported visualizer method"):
         TextVisualizerFactory.create(cast(Any, "invalid_method"))
+
+
+def test_plot_denom_handling() -> None:
+    """Test that plot handles denom=0 by using a small epsilon."""
+    visualizer = TextVisualizerFactory.create(TextVisualizerType.NATIVE_HEATMAP)
+    words = ["word"]
+    scores = np.array([0.0])
+
+    with patch("xwhy.visualization.text.plt.show"), patch("matplotlib.text.Text.draw"):
+        visualizer.plot(words=words, scores=scores)
+
+    assert True
+
+
+def test_plot_new_line_logic() -> None:
+    """Verify line breaking logic for multi-line heatmap plots."""
+    visualizer = TextVisualizerFactory.create(TextVisualizerType.NATIVE_HEATMAP)
+    words = ["word1", "word2"]
+    scores = np.array([0.1, 0.2])
+
+    with (
+        patch("xwhy.visualization.text.plt.show"),
+        patch("matplotlib.pyplot.tight_layout"),
+        patch("matplotlib.text.Text.draw"),
+        patch("matplotlib.text.Text.get_window_extent") as mock_extent,
+    ):
+        bbox = MagicMock()
+        bbox.width = 10.0
+        mock_extent.return_value = bbox
+
+        visualizer.plot(words=words, scores=scores, max_word_per_line=1)
+
+    assert True

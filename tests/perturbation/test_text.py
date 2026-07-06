@@ -200,3 +200,26 @@ def test_apply_mask_returns_empty_when_no_candidates() -> None:
     )
 
     assert result == []
+
+
+def test_generate_returns_early_if_no_masks_found() -> None:
+    """Test that generate returns empty responses if no valid masks can be created."""
+    perturber = TextPerturbation()
+
+    perturber._rng = MagicMock()
+
+    perturber._rng.binomial.return_value = np.array([0])
+
+    text = "hello"
+    num_perturbations = 5
+
+    responses, perturbations = perturber.generate(
+        text=text, num_perturbations=num_perturbations
+    )
+
+    assert len(responses) == 0
+    assert len(perturbations) == 0
+
+    assert perturber._rng.binomial.call_count >= (
+        num_perturbations * perturber._MAX_ATTEMPT_FACTOR
+    )
