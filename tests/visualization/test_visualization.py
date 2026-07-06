@@ -1,5 +1,6 @@
 """Unit tests for the visualization module."""
 
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import matplotlib
@@ -32,9 +33,7 @@ def test_native_heatmap_visualizer(mock_savefig: object, mock_show: object) -> N
 @patch("xwhy.visualization.text.plt.show")
 @patch("xwhy.visualization.text.plt.savefig")
 def test_native_heatmap_visualizer_save_path(
-    mock_savefig: MagicMock,
-    mock_show: MagicMock,
-    mock_close: MagicMock
+    mock_savefig: MagicMock, mock_show: MagicMock, mock_close: MagicMock
 ) -> None:
     """Test saving functionality of NativeHeatmapVisualizer."""
     visualizer = TextVisualizerFactory.create(TextVisualizerType.NATIVE_HEATMAP)
@@ -53,4 +52,4 @@ def test_native_heatmap_visualizer_save_path(
 def test_visualizer_factory_invalid() -> None:
     """Test factory raises error on invalid input."""
     with pytest.raises(ValueError, match="Unsupported visualizer method"):
-        TextVisualizerFactory.create("invalid_method")  # type: ignore
+        TextVisualizerFactory.create(cast(Any, "invalid_method"))

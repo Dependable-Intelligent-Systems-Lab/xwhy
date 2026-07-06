@@ -25,6 +25,15 @@ update:
 
 
 # =============================================================================
+# Development
+# =============================================================================
+
+dev:
+    uv run ruff check src tests
+    uv run mypy src tests
+    uv run pytest
+
+# =============================================================================
 # Tests
 # =============================================================================
 
@@ -64,14 +73,17 @@ test-core:
 test-cov:
     uv run pytest --cov
 
+test-html:
+    uv run pytest
+    uv run coverage html
+
 
 # =============================================================================
 # Ruff
 # =============================================================================
 
 lint:
-    uv run ruff check src
-    uv run ruff check tests
+    uv run ruff check src tests
 
 lint-src:
     uv run ruff check src
@@ -80,8 +92,7 @@ lint-tests:
     uv run ruff check tests
 
 lint-fix:
-    uv run ruff check src --fix
-    uv run ruff check tests --fix
+    uv run ruff check src tests --fix
 
 
 # =============================================================================
@@ -89,12 +100,23 @@ lint-fix:
 # =============================================================================
 
 format:
-    uv run ruff format src
-    uv run ruff format tests
+    uv run ruff format src tests
 
 format-check:
-    uv run ruff format src --check
-    uv run ruff format tests --check
+    uv run ruff format src tests --check
+
+# =============================================================================
+# Mypy
+# =============================================================================
+
+mypy:
+    uv run mypy src tests
+
+mypy-src:
+    uv run mypy src
+
+mypy-tests:
+    uv run mypy tests
 
 
 # =============================================================================

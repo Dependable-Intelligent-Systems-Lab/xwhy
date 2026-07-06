@@ -1,5 +1,5 @@
-# Only run hooks on Python source files under src/
-files: ^src/
+# Only run hooks on Python source files under src/ and tests
+files: ^(src|tests)/
 
 repos:
   # General hooks
@@ -23,3 +23,23 @@ repos:
         args: [--fix]
 
       - id: ruff-format
+
+  # Mypy (Static Type Checking) - Local execution via uv
+  - repo: local
+    hooks:
+      - id: mypy-check
+        name: mypy
+        entry: uv run mypy src tests
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Pytest (Testing)
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest
+        entry: uv run pytest tests
+        language: system
+        pass_filenames: false
+        always_run: true
