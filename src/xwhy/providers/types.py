@@ -16,11 +16,11 @@ class ProviderType(StrEnum):
     """
 
     OPENAI = "openai"
+    GEMINI = "gemini"
 
     # ------------------------------------------------------------------
     # TODO: Enable when implementations are added.
     #
-    # GEMINI = "gemini"
     # HUGGINGFACE = "huggingface"
     # ANTHROPIC = "anthropic"
     # OLLAMA = "ollama"

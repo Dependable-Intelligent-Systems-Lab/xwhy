@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from xwhy.bootstrap import (
+    _build_gemini_provider,
     _build_glove,
     _build_openai_provider,
     _build_paragram,
@@ -33,6 +34,32 @@ def test_build_openai_provider(
     mock_openai_class.assert_called_once()
     mock_factory_create.assert_called_once_with(
         provider=pytest.importorskip("xwhy.providers.types").ProviderType.OPENAI,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
+# Gemini Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("google.genai.Client")
+def test_build_gemini_provider(
+    mmock_gemini_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify that Google provider builder instantiates client and factory correctly."""
+    mock_client_instance = MagicMock()
+    mmock_gemini_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    result = _build_gemini_provider()
+
+    mmock_gemini_class.assert_called_once()
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.GEMINI,
         client=mock_client_instance,
     )
     assert result is mock_provider_instance

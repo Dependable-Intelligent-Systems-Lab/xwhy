@@ -12,6 +12,7 @@ from xwhy.embeddings.types import EmbeddingType
 from xwhy.embeddings.word2vec import Word2VecEmbedding
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
+from xwhy.providers.gemini import GeminiProvider
 from xwhy.providers.openai import OpenAIProvider
 from xwhy.providers.resolver import ProviderResolver
 from xwhy.providers.types import ProviderType
@@ -27,6 +28,14 @@ def _build_openai_provider() -> BaseProvider:
 
     client = OpenAI(api_key=settings.openai_api_key)
     return ProviderFactory.create(provider=ProviderType.OPENAI, client=client)
+
+
+def _build_gemini_provider() -> BaseProvider:
+    """Instantiate a Gemini provider using configuration settings."""
+    from google import genai
+
+    client = genai.Client(api_key=settings.gemini_api_key)
+    return ProviderFactory.create(provider=ProviderType.GEMINI, client=client)
 
 
 def _build_word2vec(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
@@ -81,6 +90,11 @@ def register_all() -> None:
         provider_cls=OpenAIProvider,
     )
 
+    ProviderFactory.register(
+        provider=ProviderType.GEMINI,
+        provider_cls=GeminiProvider,
+    )
+
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
@@ -88,6 +102,11 @@ def register_all() -> None:
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,
         builder=_build_openai_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.GEMINI,
+        builder=_build_gemini_provider,
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)
