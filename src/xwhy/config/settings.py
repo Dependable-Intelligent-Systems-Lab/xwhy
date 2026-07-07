@@ -23,6 +23,8 @@ class Settings(BaseSettings):
         default=Path.home() / ".cache" / "xwhy" / "embeddings",
     )
 
+    anthropic_api_key: str | None = None
+
     openai_api_key: str | None = None
 
     gemini_api_key: str | None = None

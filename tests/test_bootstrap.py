@@ -66,6 +66,34 @@ def test_build_gemini_provider(
 
 
 # ---------------------------------------------------------------------
+# Anthropic Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("anthropic.Anthropic")
+def test_build_anthropic_provider(
+    mock_anthropic_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify that Anthropic provider builder instantiates client correctly."""
+    mock_client_instance = MagicMock()
+    mock_anthropic_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_anthropic_provider
+
+    result = _build_anthropic_provider()
+
+    mock_anthropic_class.assert_called_once()
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.ANTHROPIC,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
 # Word2Vec/Embeddings Builders Tests
 # ---------------------------------------------------------------------
 @patch("xwhy.bootstrap.Word2VecEmbedding")

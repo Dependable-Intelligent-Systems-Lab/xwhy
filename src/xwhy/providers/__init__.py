@@ -1,9 +1,7 @@
 """Provider implementations."""
 
 # TODO:
-#   * GeminiProvider
 #   * HuggingFaceProvider
-#   * AnthropicProvider
 
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory

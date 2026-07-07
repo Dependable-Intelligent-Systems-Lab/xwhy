@@ -10,6 +10,7 @@ from xwhy.config import settings
 from xwhy.embeddings.factory import EmbeddingFactory
 from xwhy.embeddings.types import EmbeddingType
 from xwhy.embeddings.word2vec import Word2VecEmbedding
+from xwhy.providers.anthropic import AnthropicProvider
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.gemini import GeminiProvider
@@ -20,6 +21,14 @@ from xwhy.surrogate.factory import SurrogateFactory
 from xwhy.surrogate.linear import LinearRegressionSurrogate
 from xwhy.surrogate.tree import TreeBasedSurrogate
 from xwhy.surrogate.types import SurrogateType
+
+
+def _build_anthropic_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider using configuration settings."""
+    from anthropic import Anthropic
+
+    client = Anthropic(api_key=settings.anthropic_api_key)
+    return ProviderFactory.create(provider=ProviderType.ANTHROPIC, client=client)
 
 
 def _build_openai_provider() -> BaseProvider:
@@ -95,6 +104,11 @@ def register_all() -> None:
         provider_cls=GeminiProvider,
     )
 
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC,
+        provider_cls=AnthropicProvider,
+    )
+
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
@@ -107,6 +121,11 @@ def register_all() -> None:
     ProviderResolver.register(
         provider_type=ProviderType.GEMINI,
         builder=_build_gemini_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC,
+        builder=_build_anthropic_provider,
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)
