@@ -94,6 +94,34 @@ def test_build_anthropic_provider(
 
 
 # ---------------------------------------------------------------------
+# HuggingFace Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("huggingface_hub.InferenceClient")
+def test_build_huggingface_provider(
+    mock_huggingface_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify HuggingFace provider initialization."""
+    mock_client_instance = MagicMock()
+    mock_huggingface_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_huggingface_provider
+
+    result = _build_huggingface_provider()
+
+    mock_huggingface_class.assert_called_once()
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.HUGGINGFACE,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
 # Word2Vec/Embeddings Builders Tests
 # ---------------------------------------------------------------------
 @patch("xwhy.bootstrap.Word2VecEmbedding")

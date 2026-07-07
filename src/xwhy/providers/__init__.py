@@ -1,8 +1,5 @@
 """Provider implementations."""
 
-# TODO:
-#   * HuggingFaceProvider
-
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.openai import OpenAIProvider

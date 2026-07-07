@@ -14,6 +14,7 @@ from xwhy.providers.anthropic import AnthropicProvider
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.gemini import GeminiProvider
+from xwhy.providers.huggingface import HuggingFaceProvider
 from xwhy.providers.openai import OpenAIProvider
 from xwhy.providers.resolver import ProviderResolver
 from xwhy.providers.types import ProviderType
@@ -29,6 +30,14 @@ def _build_anthropic_provider() -> BaseProvider:
 
     client = Anthropic(api_key=settings.anthropic_api_key)
     return ProviderFactory.create(provider=ProviderType.ANTHROPIC, client=client)
+
+
+def _build_huggingface_provider() -> BaseProvider:
+    """Instantiate a HuggingFace provider using configuration settings."""
+    from huggingface_hub import InferenceClient
+
+    client = InferenceClient(api_key=settings.huggingface_token)
+    return ProviderFactory.create(provider=ProviderType.HUGGINGFACE, client=client)
 
 
 def _build_openai_provider() -> BaseProvider:
@@ -109,6 +118,11 @@ def register_all() -> None:
         provider_cls=AnthropicProvider,
     )
 
+    ProviderFactory.register(
+        provider=ProviderType.HUGGINGFACE,
+        provider_cls=HuggingFaceProvider,
+    )
+
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
@@ -126,6 +140,11 @@ def register_all() -> None:
     ProviderResolver.register(
         provider_type=ProviderType.ANTHROPIC,
         builder=_build_anthropic_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.HUGGINGFACE,
+        builder=_build_huggingface_provider,
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)
