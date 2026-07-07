@@ -129,3 +129,100 @@ def test_generate_regex_no_match_fallback() -> None:
 
         mock_logger.error.assert_called()
         mock_logger.warning.assert_not_called()
+
+
+def test_openai_provider_reasoning_model_with_temperature() -> None:
+    """Test that reasoning models receive the temperature parameter successfully."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.output_text = "Reasoning output"
+    mock_client.responses.create.return_value = mock_response
+
+    provider = OpenAIProvider(client=mock_client)
+    result = provider.answer(prompt="Test", model="o1-mini", temperature=0.7)
+
+    assert result == "Reasoning output"
+    mock_client.responses.create.assert_called_once_with(
+        model="o1-mini",
+        input="Test",
+        max_output_tokens=200,
+        reasoning={"effort": "low"},
+        temperature=0.7,
+    )
+
+
+def test_openai_provider_reasoning_model_temperature_fallback() -> None:
+    """Test the dynamic fallback when a reasoning model rejects custom temperature."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.output_text = "Fallback success"
+
+    # First call raises temperature error, second call succeeds with temperature=1.0
+    mock_client.responses.create.side_effect = [
+        Exception("The temperature parameter is not supported with this model."),
+        mock_response,
+    ]
+
+    provider = OpenAIProvider(client=mock_client)
+    result = provider.answer(prompt="Test", model="o1-preview", temperature=0.0)
+
+    assert result == "Fallback success"
+    assert mock_client.responses.create.call_count == 2
+
+
+def test_openai_provider_max_tokens_lowercase_regex() -> None:
+    """Test that token limitation errors are handled with the new lowercase regex."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.output_text = "Token fix success"
+
+    mock_client.responses.create.side_effect = [
+        Exception(
+            "max_output_tokens: integer below minimum value. expected a value >= 150"
+        ),
+        mock_response,
+    ]
+
+    provider = OpenAIProvider(client=mock_client)
+    result = provider.answer(prompt="Test", model="o3-mini", max_tokens=10)
+
+    assert result == "Token fix success"
+    assert mock_client.responses.create.call_count == 2
+
+
+def test_openai_provider_temperature_already_one_no_retry() -> None:
+    """Test that no retry occurs if temperature is already 1.0.
+
+    This covers the False branch of 'if temperature != 1.0:'.
+    """
+    mock_client = MagicMock()
+    mock_client.responses.create.side_effect = Exception(
+        "The temperature parameter is not supported with this model."
+    )
+
+    provider = OpenAIProvider(client=mock_client)
+    # Sending temperature=1.0 initially triggers the False branch of the inner IF
+    result = provider.answer(prompt="Test", model="o1-preview", temperature=1.0)
+
+    assert result == ""
+    # Should only call once and fail gracefully without infinite recursion
+    assert mock_client.responses.create.call_count == 1
+
+
+def test_openai_provider_max_tokens_no_regex_match() -> None:
+    """Test that no retry occurs if the token error message format is unexpected.
+
+    This covers the False branch of 'if match:'.
+    """
+    mock_client = MagicMock()
+    mock_client.responses.create.side_effect = Exception(
+        "max_output_tokens: integer below minimum value. unexpected error format."
+    )
+
+    provider = OpenAIProvider(client=mock_client)
+    # The outer IF matches, but the regex search will fail (returning None)
+    result = provider.answer(prompt="Test", model="o3-mini", max_tokens=5)
+
+    assert result == ""
+    # Should skip the retry logic inside 'if match:' and return an empty string
+    assert mock_client.responses.create.call_count == 1

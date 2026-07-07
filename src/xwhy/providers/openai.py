@@ -18,6 +18,7 @@ class OpenAIProvider(BaseProvider):
             client: Configured OpenAI client.
 
         """
+        super().__init__(client)
         self._client = client
 
     @staticmethod
@@ -52,10 +53,6 @@ class OpenAIProvider(BaseProvider):
         Returns:
             Generated text.
 
-        Raises:
-            No exception is propagated. Returns an empty string if an
-            unexpected error occurs.
-
         """
         try:
             if self._is_reasoning_model(model):
@@ -64,8 +61,9 @@ class OpenAIProvider(BaseProvider):
                     input=prompt,
                     max_output_tokens=max_tokens,
                     reasoning={"effort": "low"},
+                    temperature=temperature,
                 )
-                return reasoning_response.output_text.strip()
+                return str(reasoning_response.output_text).strip()
 
             completion_response = self._client.completions.create(
                 model=model,
@@ -73,16 +71,33 @@ class OpenAIProvider(BaseProvider):
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return completion_response.choices[0].text.strip()
+            return str(completion_response.choices[0].text).strip()
 
         except Exception as exc:
-            error_msg = str(exc)
+            error_msg = str(exc).lower()
+
+            if "temperature" in error_msg and (
+                "support" in error_msg or "value" in error_msg or "allowed" in error_msg
+            ):
+                logger.warning(
+                    "Dynamic fix applied: temperature=%f is not supported for model "
+                    "'%s'. Retrying automatically with default temperature (1.0).",
+                    temperature,
+                    model,
+                )
+                if temperature != 1.0:
+                    return self._generate(
+                        prompt=prompt,
+                        model=model,
+                        max_tokens=max_tokens,
+                        temperature=1.0,
+                    )
 
             if (
                 "max_output_tokens" in error_msg
                 and "integer below minimum value" in error_msg
             ):
-                match = re.search(r"Expected a value >= (\d+)", error_msg)
+                match = re.search(r"expected a value >= (\d+)", error_msg)
 
                 if match:
                     required_min = int(match.group(1))
