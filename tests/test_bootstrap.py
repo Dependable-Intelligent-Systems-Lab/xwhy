@@ -122,6 +122,138 @@ def test_build_huggingface_provider(
 
 
 # ---------------------------------------------------------------------
+# Z.ai Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_zai_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify Z.ai provider initialization with correct base_url."""
+    mock_settings.zai_api_key = "dummy_zai_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_zai_provider
+
+    result = _build_zai_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_zai_key", base_url="https://api.z.ai/api/paas/v4/"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.ZAI,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
+# Groq Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_groq_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify Groq provider initialization with correct base_url."""
+    mock_settings.groq_api_key = "dummy_groq_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_groq_provider
+
+    result = _build_groq_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_groq_key", base_url="https://api.groq.com/openai/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.GROQ,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
+# Cohere Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_cohere_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify Cohere provider initialization with correct base_url."""
+    mock_settings.cohere_api_key = "dummy_cohere_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_cohere_provider
+
+    result = _build_cohere_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_cohere_key", base_url="https://api.cohere.ai/compatibility/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.COHERE,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
+# Fireworks AI Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_fireworks_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify Fireworks AI provider initialization with correct base_url."""
+    mock_settings.fireworks_api_key = "dummy_fireworks_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+
+    mock_provider_instance = MagicMock()
+    mock_factory_create.return_value = mock_provider_instance
+
+    from xwhy.bootstrap import _build_fireworks_provider
+
+    result = _build_fireworks_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_fireworks_key", base_url="https://api.fireworks.ai/inference/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.FIREWORKS_AI,
+        client=mock_client_instance,
+    )
+    assert result is mock_provider_instance
+
+
+# ---------------------------------------------------------------------
 # Word2Vec/Embeddings Builders Tests
 # ---------------------------------------------------------------------
 @patch("xwhy.bootstrap.Word2VecEmbedding")

@@ -30,3 +30,11 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = None
 
     huggingface_token: str | None = None
+
+    zai_api_key: str | None = None
+
+    groq_api_key: str | None = None
+
+    cohere_api_key: str | None = None
+
+    fireworks_api_key: str | None = None

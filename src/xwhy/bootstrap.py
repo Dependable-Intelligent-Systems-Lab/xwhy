@@ -48,6 +48,48 @@ def _build_openai_provider() -> BaseProvider:
     return ProviderFactory.create(provider=ProviderType.OPENAI, client=client)
 
 
+def _build_zai_provider() -> BaseProvider:
+    """Instantiate a Z.ai provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.zai_api_key, base_url="https://api.z.ai/api/paas/v4/"
+    )
+    return ProviderFactory.create(provider=ProviderType.ZAI, client=client)
+
+
+def _build_groq_provider() -> BaseProvider:
+    """Instantiate a Groq provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1"
+    )
+    return ProviderFactory.create(provider=ProviderType.GROQ, client=client)
+
+
+def _build_cohere_provider() -> BaseProvider:
+    """Instantiate a Cohere provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.cohere_api_key,
+        base_url="https://api.cohere.ai/compatibility/v1",
+    )
+    return ProviderFactory.create(provider=ProviderType.COHERE, client=client)
+
+
+def _build_fireworks_provider() -> BaseProvider:
+    """Instantiate a Fireworks AI provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.fireworks_api_key,
+        base_url="https://api.fireworks.ai/inference/v1",
+    )
+    return ProviderFactory.create(provider=ProviderType.FIREWORKS_AI, client=client)
+
+
 def _build_gemini_provider() -> BaseProvider:
     """Instantiate a Gemini provider using configuration settings."""
     from google import genai
@@ -123,6 +165,19 @@ def register_all() -> None:
         provider_cls=HuggingFaceProvider,
     )
 
+    compatible_providers = [
+        ProviderType.ZAI,
+        ProviderType.GROQ,
+        ProviderType.COHERE,
+        ProviderType.FIREWORKS_AI,
+    ]
+
+    for provider_type in compatible_providers:
+        ProviderFactory.register(
+            provider=provider_type,
+            provider_cls=OpenAIProvider,
+        )
+
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
@@ -145,6 +200,22 @@ def register_all() -> None:
     ProviderResolver.register(
         provider_type=ProviderType.HUGGINGFACE,
         builder=_build_huggingface_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ZAI, builder=_build_zai_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.GROQ, builder=_build_groq_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.COHERE, builder=_build_cohere_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.FIREWORKS_AI, builder=_build_fireworks_provider
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)

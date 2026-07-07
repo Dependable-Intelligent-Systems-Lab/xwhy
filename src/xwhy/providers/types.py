@@ -10,6 +10,10 @@ class ProviderType(StrEnum):
     GEMINI = "gemini"
     ANTHROPIC = "anthropic"
     HUGGINGFACE = "huggingface"
+    ZAI = "zai"
+    GROQ = "groq"
+    COHERE = "cohere"
+    FIREWORKS_AI = "fireworks-ai"
 
     # ------------------------------------------------------------------
     # TODO: Enable when implementations are added.
