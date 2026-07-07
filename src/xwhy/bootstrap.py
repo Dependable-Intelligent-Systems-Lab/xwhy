@@ -90,6 +90,56 @@ def _build_fireworks_provider() -> BaseProvider:
     return ProviderFactory.create(provider=ProviderType.FIREWORKS_AI, client=client)
 
 
+def _build_grok_provider() -> BaseProvider:
+    """Instantiate a Grok (xAI) provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(api_key=settings.grok_api_key, base_url="https://api.x.ai/v1")
+    return ProviderFactory.create(provider=ProviderType.GROK, client=client)
+
+
+def _build_openrouter_provider() -> BaseProvider:
+    """Instantiate an OpenRouter provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.openrouter_api_key, base_url="https://openrouter.ai/api/v1"
+    )
+    return ProviderFactory.create(provider=ProviderType.OPENROUTER, client=client)
+
+
+def _build_ollama_provider() -> BaseProvider:
+    """Instantiate a local Ollama provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key="ollama",  # Required by standard SDK but ignored by Ollama
+        base_url="http://localhost:11434/v1/",
+    )
+    return ProviderFactory.create(provider=ProviderType.OLLAMA, client=client)
+
+
+def _build_lmstudio_provider() -> BaseProvider:
+    """Instantiate a local LMStudio provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.lmstudio_api_key, base_url=settings.lmstudio_base_url
+    )
+    return ProviderFactory.create(provider=ProviderType.LMSTUDIO, client=client)
+
+
+def _build_bytedance_provider() -> BaseProvider:
+    """Instantiate a ByteDance provider using the OpenAI-compatible SDK."""
+    from openai import OpenAI
+
+    client = OpenAI(
+        api_key=settings.bytedance_api_key,
+        base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
+    )
+    return ProviderFactory.create(provider=ProviderType.BYTEDANCE, client=client)
+
+
 def _build_gemini_provider() -> BaseProvider:
     """Instantiate a Gemini provider using configuration settings."""
     from google import genai
@@ -170,6 +220,11 @@ def register_all() -> None:
         ProviderType.GROQ,
         ProviderType.COHERE,
         ProviderType.FIREWORKS_AI,
+        ProviderType.GROK,
+        ProviderType.OPENROUTER,
+        ProviderType.OLLAMA,
+        ProviderType.LMSTUDIO,
+        ProviderType.BYTEDANCE,
     ]
 
     for provider_type in compatible_providers:
@@ -216,6 +271,26 @@ def register_all() -> None:
 
     ProviderResolver.register(
         provider_type=ProviderType.FIREWORKS_AI, builder=_build_fireworks_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.GROK, builder=_build_grok_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.OPENROUTER, builder=_build_openrouter_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.OLLAMA, builder=_build_ollama_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.LMSTUDIO, builder=_build_lmstudio_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.BYTEDANCE, builder=_build_bytedance_provider
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)

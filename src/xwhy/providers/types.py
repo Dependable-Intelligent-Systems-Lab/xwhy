@@ -14,8 +14,8 @@ class ProviderType(StrEnum):
     GROQ = "groq"
     COHERE = "cohere"
     FIREWORKS_AI = "fireworks-ai"
-
-    # ------------------------------------------------------------------
-    # TODO: Enable when implementations are added.
-    # OLLAMA = "ollama"
-    # ------------------------------------------------------------------
+    GROK = "grok"
+    OPENROUTER = "openrouter"
+    OLLAMA = "ollama"
+    LMSTUDIO = "lmstudio"
+    BYTEDANCE = "bytedance"

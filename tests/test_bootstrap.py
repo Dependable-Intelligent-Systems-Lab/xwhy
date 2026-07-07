@@ -254,6 +254,155 @@ def test_build_fireworks_provider(
 
 
 # ---------------------------------------------------------------------
+# Grok Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_grok_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify Grok provider initialization with correct base_url."""
+    mock_settings.grok_api_key = "dummy_grok_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+    mock_factory_create.return_value = MagicMock()
+
+    from xwhy.bootstrap import _build_grok_provider
+
+    _build_grok_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_grok_key", base_url="https://api.x.ai/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.GROK,
+        client=mock_client_instance,
+    )
+
+
+# ---------------------------------------------------------------------
+# OpenRouter Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_openrouter_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify OpenRouter provider initialization with correct base_url."""
+    mock_settings.openrouter_api_key = "dummy_openrouter_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+    mock_factory_create.return_value = MagicMock()
+
+    from xwhy.bootstrap import _build_openrouter_provider
+
+    _build_openrouter_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_openrouter_key", base_url="https://openrouter.ai/api/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.OPENROUTER,
+        client=mock_client_instance,
+    )
+
+
+# ---------------------------------------------------------------------
+# Ollama Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+def test_build_ollama_provider(
+    mock_openai_class: MagicMock, mock_factory_create: MagicMock
+) -> None:
+    """Verify local Ollama provider initialization with hardcoded dummy key."""
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+    mock_factory_create.return_value = MagicMock()
+
+    from xwhy.bootstrap import _build_ollama_provider
+
+    _build_ollama_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="ollama", base_url="http://localhost:11434/v1/"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.OLLAMA,
+        client=mock_client_instance,
+    )
+
+
+# ---------------------------------------------------------------------
+# LMStudio Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_lmstudio_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify local LMStudio provider initialization from dynamic settings."""
+    mock_settings.lmstudio_api_key = "dynamic-lm-key"
+    mock_settings.lmstudio_base_url = "http://127.0.0.1:9090/v1"
+
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+    mock_factory_create.return_value = MagicMock()
+
+    from xwhy.bootstrap import _build_lmstudio_provider
+
+    _build_lmstudio_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dynamic-lm-key", base_url="http://127.0.0.1:9090/v1"
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.LMSTUDIO,
+        client=mock_client_instance,
+    )
+
+
+# ---------------------------------------------------------------------
+# ByteDance Provider Test
+# ---------------------------------------------------------------------
+@patch("xwhy.bootstrap.ProviderFactory.create")
+@patch("openai.OpenAI")
+@patch("xwhy.bootstrap.settings")
+def test_build_bytedance_provider(
+    mock_settings: MagicMock,
+    mock_openai_class: MagicMock,
+    mock_factory_create: MagicMock,
+) -> None:
+    """Verify ByteDance provider initialization with correct base_url."""
+    mock_settings.bytedance_api_key = "dummy_bytedance_key"
+    mock_client_instance = MagicMock()
+    mock_openai_class.return_value = mock_client_instance
+    mock_factory_create.return_value = MagicMock()
+
+    from xwhy.bootstrap import _build_bytedance_provider
+
+    _build_bytedance_provider()
+
+    mock_openai_class.assert_called_once_with(
+        api_key="dummy_bytedance_key",
+        base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
+    )
+    mock_factory_create.assert_called_once_with(
+        provider=pytest.importorskip("xwhy.providers.types").ProviderType.BYTEDANCE,
+        client=mock_client_instance,
+    )
+
+
+# ---------------------------------------------------------------------
 # Word2Vec/Embeddings Builders Tests
 # ---------------------------------------------------------------------
 @patch("xwhy.bootstrap.Word2VecEmbedding")

@@ -38,3 +38,13 @@ class Settings(BaseSettings):
     cohere_api_key: str | None = None
 
     fireworks_api_key: str | None = None
+
+    grok_api_key: str | None = None
+
+    openrouter_api_key: str | None = None
+
+    bytedance_api_key: str | None = None
+
+    lmstudio_api_key: str = "lm-studio"
+
+    lmstudio_base_url: str = "http://localhost:1234/v1"
