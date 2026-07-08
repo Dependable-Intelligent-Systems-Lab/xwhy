@@ -24,7 +24,7 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
     provider = GeminiProvider(client=mock_client)
     result = provider.answer(
         prompt="Test prompt",
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         max_tokens=100,
         temperature=0.7,
     )
@@ -40,7 +40,7 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
 
     # Verify the main client generation call
     mock_client.models.generate_content.assert_called_once_with(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         contents=mock_part,
         config=mock_config,
     )

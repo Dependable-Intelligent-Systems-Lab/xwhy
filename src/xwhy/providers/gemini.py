@@ -69,7 +69,7 @@ class GeminiProvider(BaseProvider):
         self,
         prompt: str,
         *,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.5-flash",
         max_tokens: int = 200,
         temperature: float = 0.0,
     ) -> str:
