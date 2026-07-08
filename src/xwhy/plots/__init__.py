@@ -3,15 +3,24 @@
 from functools import singledispatch
 
 from xwhy.core.result import BaseXWhyResult, TextXWhyResult
-from xwhy.visualization.factory import TextVisualizerFactory
-from xwhy.visualization.types import TextVisualizerType
+from xwhy.plots.base import BaseTextPlotter
+from xwhy.plots.factory import TextPlotterFactory
+from xwhy.plots.text import NativeHeatmapPlotter
+from xwhy.plots.types import TextPlotterType
+
+__all__ = [
+    "BaseTextPlotter",
+    "NativeHeatmapPlotter",
+    "TextPlotterFactory",
+    "TextPlotterType",
+]
 
 
 @singledispatch
 def heatmap(result: BaseXWhyResult, **kwargs: object) -> None:
     """Plot a heatmap visualization for the given explanation result.
 
-    This function automatically delegates plotting to the appropriate visualizer
+    This function automatically delegates plotting to the appropriate plotter
     based on the concrete type of the result (e.g., TextXWhyResult).
 
     Args:
@@ -32,7 +41,7 @@ def _text_heatmap(result: TextXWhyResult, **kwargs: object) -> None:
 
     Args:
         result: Text explanation result.
-        **kwargs: Can include 'title' (str) and 'backend' (TextVisualizerType or str),
+        **kwargs: Can include 'title' (str) and 'backend' (TextPlotterType or str),
             as well as any other arguments passed to the visualizer plot method.
 
     Raises:
@@ -40,18 +49,18 @@ def _text_heatmap(result: TextXWhyResult, **kwargs: object) -> None:
 
     """
     title = str(kwargs.pop("title", "Text Heatmap"))
-    backend_kwarg = kwargs.pop("backend", TextVisualizerType.NATIVE_HEATMAP)
+    backend_kwarg = kwargs.pop("backend", TextPlotterType.NATIVE_HEATMAP)
 
-    if isinstance(backend_kwarg, TextVisualizerType):
+    if isinstance(backend_kwarg, TextPlotterType):
         backend = backend_kwarg
     elif isinstance(backend_kwarg, str):
-        backend = TextVisualizerType(backend_kwarg)
+        backend = TextPlotterType(backend_kwarg)
     else:
         msg = f"Unsupported backend type: {type(backend_kwarg).__name__}"
         raise ValueError(msg)
 
-    visualizer = TextVisualizerFactory.create(method=backend)
-    visualizer.plot(
+    plotter = TextPlotterFactory.create(method=backend)
+    plotter.plot(
         words=result.words,
         scores=result.coefficients,
         title=title,

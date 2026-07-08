@@ -1,4 +1,4 @@
-"""Base interfaces for visualization components."""
+"""Base interfaces for plots components."""
 
 import abc
 from collections.abc import Sequence
@@ -7,8 +7,8 @@ from typing import Any
 import numpy as np
 
 
-class BaseTextVisualizer(abc.ABC):
-    """Abstract base class for text visualizations."""
+class BaseTextPlotter(abc.ABC):
+    """Abstract base class for text plots."""
 
     @abc.abstractmethod
     def plot(
@@ -17,7 +17,7 @@ class BaseTextVisualizer(abc.ABC):
         scores: np.ndarray,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
-        """Plot the text visualization.
+        """Plot the text plot.
 
         Args:
             words: Sequence of text tokens.

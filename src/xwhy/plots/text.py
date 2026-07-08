@@ -1,4 +1,4 @@
-"""Native matplotlib text visualization implementations."""
+"""Native matplotlib text plot implementations."""
 
 import math
 from collections.abc import Sequence
@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import numpy as np
 
-from xwhy.visualization.base import BaseTextVisualizer
+from xwhy.plots.base import BaseTextPlotter
 
 
-class NativeHeatmapVisualizer(BaseTextVisualizer):
-    """Native matplotlib implementation of text heatmap visualization."""
+class NativeHeatmapPlotter(BaseTextPlotter):
+    """Native matplotlib implementation of text heatmap plot."""
 
     def plot(
         self,
