@@ -8,8 +8,6 @@ from typing import Any
 import numpy as np
 
 from xwhy.metrics.regression import RegressionMetricResult
-from xwhy.visualization.factory import TextVisualizerFactory
-from xwhy.visualization.types import TextVisualizerType
 
 
 @dataclass
@@ -81,25 +79,3 @@ class TextXWhyResult(BaseXWhyResult):
     def data(self) -> np.ndarray:
         """The underlying raw data tokens as a numpy array."""
         return np.array(self.words)
-
-    def heatmap(
-        self,
-        title: str = "Text Heatmap",
-        backend: TextVisualizerType = TextVisualizerType.NATIVE_HEATMAP,
-        **kwargs: Any,  # noqa: ANN401
-    ) -> None:
-        """Plot a text heatmap visualization.
-
-        Args:
-            title: Title of the plot.
-            backend: Visualization backend to use.
-            **kwargs: Additional backend-specific arguments.
-
-        """
-        visualizer = TextVisualizerFactory.create(method=backend)
-        visualizer.plot(
-            words=self.words,
-            scores=self.coefficients,
-            title=title,
-            **kwargs,
-        )
