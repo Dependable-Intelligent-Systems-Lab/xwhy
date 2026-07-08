@@ -24,6 +24,26 @@ from xwhy.surrogate.tree import TreeBasedSurrogate
 from xwhy.surrogate.types import SurrogateType
 
 
+def _ensure_dependency(pkg_name: str, extra_name: str) -> None:
+    """Check if an optional dependency is installed.
+
+    Args:
+        pkg_name: The name of the package module to import.
+        extra_name: The name of the optional dependency extra flag.
+
+    Raises:
+        ImportError: If the requested module cannot be imported.
+
+    """
+    try:
+        __import__(pkg_name)
+    except ImportError as err:
+        raise ImportError(
+            f"'{pkg_name}' is not installed. "
+            f"Please install with: pip install 'xwhy[{extra_name}]'"
+        ) from err
+
+
 def _build_anthropic_provider() -> BaseProvider:
     """Instantiate an Anthropic provider using configuration settings."""
     from anthropic import Anthropic
@@ -148,6 +168,120 @@ def _build_gemini_provider() -> BaseProvider:
     return ProviderFactory.create(provider=ProviderType.GEMINI, client=client)
 
 
+# ---------------------------------------------------------
+# OpenAI & Gemini Native Cloud
+# ---------------------------------------------------------
+def _build_azure_openai_provider() -> BaseProvider:
+    """Instantiate an Azure OpenAI provider using the official SDK."""
+    from openai import AzureOpenAI
+
+    if not settings.azure_endpoint:
+        raise ValueError("azure_endpoint must be set in settings to use Azure OpenAI.")
+
+    client = AzureOpenAI(
+        api_key=settings.azure_api_key,
+        api_version=settings.azure_api_version,
+        azure_endpoint=settings.azure_endpoint,
+    )
+    return ProviderFactory.create(provider=ProviderType.AZURE_OPENAI, client=client)
+
+
+def _build_gcp_gemini_provider() -> BaseProvider:
+    """Instantiate a Gemini provider running on GCP Vertex AI."""
+    from google import genai
+
+    # Needs google-cloud-aiplatform for Vertex features if used
+    _ensure_dependency("google.auth", "vertex")
+
+    client = genai.Client(
+        vertexai=True,
+        project=settings.gcp_project,
+        location=settings.gcp_location,
+    )
+    return ProviderFactory.create(provider=ProviderType.GCP_GEMINI, client=client)
+
+
+# ---------------------------------------------------------
+# Anthropic Cloud Integrations
+# ---------------------------------------------------------
+def _build_anthropic_bedrock_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider for legacy Amazon Bedrock."""
+    from anthropic import AnthropicBedrock
+
+    _ensure_dependency("boto3", "bedrock")
+
+    client = AnthropicBedrock(
+        aws_access_key=settings.aws_access_key,
+        aws_secret_key=settings.aws_secret_key,
+        aws_session_token=settings.aws_session_token,
+        aws_region=settings.aws_region,
+    )
+    return ProviderFactory.create(
+        provider=ProviderType.ANTHROPIC_BEDROCK, client=client
+    )
+
+
+def _build_anthropic_bedrock_mantle_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider for Amazon Bedrock Mantle."""
+    from anthropic import AnthropicBedrockMantle
+
+    _ensure_dependency("boto3", "bedrock")
+
+    client = AnthropicBedrockMantle(aws_region=settings.aws_region)
+    return ProviderFactory.create(
+        provider=ProviderType.ANTHROPIC_BEDROCK_MANTLE, client=client
+    )
+
+
+def _build_anthropic_aws_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider for Claude Platform on AWS."""
+    from anthropic import AnthropicAWS
+
+    _ensure_dependency("boto3", "aws")
+
+    if not settings.anthropic_aws_workspace_id:
+        raise ValueError("anthropic_aws_workspace_id must be set to use Anthropic AWS.")
+
+    client = AnthropicAWS(
+        aws_region=settings.aws_region,
+        workspace_id=settings.anthropic_aws_workspace_id,
+    )
+    return ProviderFactory.create(provider=ProviderType.ANTHROPIC_AWS, client=client)
+
+
+def _build_anthropic_vertex_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider for Google Cloud Vertex AI."""
+    from anthropic import AnthropicVertex
+
+    _ensure_dependency("google.auth", "vertex")
+
+    if not settings.gcp_project:
+        raise ValueError("`gcp_project` must be set to use Anthropic Vertex.")
+
+    client = AnthropicVertex(
+        project_id=settings.gcp_project, region=settings.gcp_location
+    )
+    return ProviderFactory.create(provider=ProviderType.ANTHROPIC_VERTEX, client=client)
+
+
+def _build_anthropic_foundry_provider() -> BaseProvider:
+    """Instantiate an Anthropic provider for Microsoft Foundry."""
+    from anthropic import AnthropicFoundry
+
+    if not settings.anthropic_foundry_resource:
+        raise ValueError(
+            "anthropic_foundry_resource must be set to use Anthropic Foundry."
+        )
+
+    client = AnthropicFoundry(
+        api_key=settings.anthropic_foundry_api_key,
+        resource=settings.anthropic_foundry_resource,
+    )
+    return ProviderFactory.create(
+        provider=ProviderType.ANTHROPIC_FOUNDRY, client=client
+    )
+
+
 def _build_word2vec(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     return Word2VecEmbedding(
         model_name="word2vec-google-news-300", settings=settings, **kwargs
@@ -233,6 +367,35 @@ def register_all() -> None:
             provider_cls=OpenAIProvider,
         )
 
+    ProviderFactory.register(
+        provider=ProviderType.AZURE_OPENAI,
+        provider_cls=OpenAIProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.GCP_GEMINI,
+        provider_cls=GeminiProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC_BEDROCK,
+        provider_cls=AnthropicProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC_BEDROCK_MANTLE,
+        provider_cls=AnthropicProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC_AWS,
+        provider_cls=AnthropicProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC_VERTEX,
+        provider_cls=AnthropicProvider,
+    )
+    ProviderFactory.register(
+        provider=ProviderType.ANTHROPIC_FOUNDRY,
+        provider_cls=AnthropicProvider,
+    )
+
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
@@ -291,6 +454,38 @@ def register_all() -> None:
 
     ProviderResolver.register(
         provider_type=ProviderType.BYTEDANCE, builder=_build_bytedance_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.AZURE_OPENAI, builder=_build_azure_openai_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.GCP_GEMINI, builder=_build_gcp_gemini_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC_BEDROCK,
+        builder=_build_anthropic_bedrock_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC_BEDROCK_MANTLE,
+        builder=_build_anthropic_bedrock_mantle_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC_AWS, builder=_build_anthropic_aws_provider
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC_VERTEX,
+        builder=_build_anthropic_vertex_provider,
+    )
+
+    ProviderResolver.register(
+        provider_type=ProviderType.ANTHROPIC_FOUNDRY,
+        builder=_build_anthropic_foundry_provider,
     )
 
     SurrogateFactory.register(method=SurrogateType.GLM_OLS, builder=_build_glm_ols)
