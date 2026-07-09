@@ -4,6 +4,7 @@ from typing import Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 
@@ -22,6 +23,7 @@ from xwhy.plots.plots import (
     image,
     image_to_text,
     monitoring,
+    replace_shap_label,
     scatter,
     text,
     violin,
@@ -30,7 +32,6 @@ from xwhy.plots.plots import (
 from xwhy.plots.types import TextPlotterType
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 from xwhy.plots.factory import TextPlotterFactory
 
@@ -519,3 +520,33 @@ def test_plots_raise_error_for_1d_text_result(
 
     with pytest.raises(ValueError, match="requires a 2D matrix"):
         monitoring(0, result_1d, features=None)
+
+
+def test_decorator_modifies_matplotlib_xlabel() -> None:
+    """Ensure matplotlib x-axis labels are intercepted and converted."""
+
+    @replace_shap_label
+    def bar(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        _, ax = plt.subplots()
+        ax.set_xlabel("Average SHAP value magnitude")
+        if kwargs.get("show", True):
+            plt.show()
+
+    with patch("matplotlib.pyplot.show") as mock_show:
+        bar(show=True)
+        ax = plt.gca()
+        assert ax.get_xlabel() == "Average XWhy value magnitude"
+        mock_show.assert_called_once()
+        plt.close("all")
+
+
+def test_decorator_bypasses_non_show_functions() -> None:
+    """Ensure functions without a 'show' argument pass safely through."""
+
+    @replace_shap_label
+    def text(*args: Any, **kwargs: Any) -> str:  # noqa: ANN401
+        return "mocked_html_output"
+
+    # Should execute seamlessly without injecting kwargs["show"]
+    result = text()
+    assert result == "mocked_html_output"
