@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
+import shap
 
 from xwhy.metrics.regression import RegressionMetricResult
 
@@ -36,25 +37,10 @@ class BaseXWhyResult(ABC):
     def to_shap(self) -> object:
         """Convert the XWhy result into a standard SHAP Explanation object.
 
-        This enables direct compatibility with external SHAP plotting functions.
-        Example: `shap.plots.waterfall(result.to_shap())`
-
         Returns:
             object: A fully initialized shap.Explanation instance.
 
-        Raises:
-            ImportError: If the 'shap' library is not installed.
-
         """
-        try:
-            import shap
-        except ImportError as exc:
-            msg = (
-                "The 'shap' library is required to convert results to SHAP format. "
-                "Please install it via 'pip install shap'."
-            )
-            raise ImportError(msg) from exc
-
         return shap.Explanation(
             values=self.coefficients,
             base_values=self.base_values,

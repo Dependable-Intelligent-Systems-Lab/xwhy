@@ -28,10 +28,11 @@ update:
 # Development
 # =============================================================================
 
-dev:
+dev: clean
     uv run ruff check src tests
     uv run mypy src tests
     uv run pytest
+    uv run coverage html
 
 # =============================================================================
 # Tests
@@ -61,8 +62,8 @@ test-surrogate:
 test-metrics:
     uv run pytest tests/metrics
 
-test-visualization:
-    uv run pytest tests/visualization
+test-plots:
+    uv run pytest tests/plots
 
 test-explainers:
     uv run pytest tests/explainers

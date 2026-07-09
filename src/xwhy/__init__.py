@@ -1,5 +1,6 @@
 """Core abstractions for xwhy."""
 
+from xwhy import plots
 from xwhy.bootstrap import register_all
 from xwhy.explainers.image import ImageExplainer
 from xwhy.explainers.llm import LLMExplainer
@@ -17,4 +18,5 @@ __all__ = [
     "PointCloudExplainer",
     "TabularExplainer",
     "TextExplainer",
+    "plots",
 ]

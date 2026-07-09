@@ -1,6 +1,5 @@
 """Unit tests for core results."""
 
-import sys
 from collections.abc import Sequence
 from unittest.mock import MagicMock, patch
 
@@ -78,23 +77,21 @@ def test_raw_data_mutation(mock_metrics: RegressionMetricResult) -> None:
     assert result.raw_data["new"] == "data"
 
 
-def test_to_shap_conversion_success(mock_metrics: RegressionMetricResult) -> None:
+@patch("xwhy.core.result.shap.Explanation")
+def test_to_shap_conversion_success(
+    mock_shap_explanation: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
     """Verify to_shap creates an Explanation object correctly when shap is available."""
-    mock_shap_explanation = MagicMock()
-    mock_shap_module = MagicMock()
-    mock_shap_module.Explanation = mock_shap_explanation
-
     result = TextXWhyResult(
         coefficients=np.array([0.5, 0.2]),
         metrics=mock_metrics,
         words=["SHAP", "test"],
     )
 
-    with patch.dict(sys.modules, {"shap": mock_shap_module}):
-        out_object = result.to_shap()
+    out_object = result.to_shap()
 
     # 1. Verify it was called exactly once
-    assert mock_shap_explanation.call_count == 1
+    mock_shap_explanation.assert_called_once()
 
     # 2. Extract the arguments it was called with
     called_kwargs = mock_shap_explanation.call_args.kwargs
@@ -109,20 +106,3 @@ def test_to_shap_conversion_success(mock_metrics: RegressionMetricResult) -> Non
 
     # 5. Verify the returned object
     assert out_object == mock_shap_explanation.return_value
-
-
-def test_to_shap_conversion_missing_library(
-    mock_metrics: RegressionMetricResult,
-) -> None:
-    """Ensure an explicit ImportError is raised if SHAP is absent."""
-    result = TextXWhyResult(
-        coefficients=np.array([0.5]),
-        metrics=mock_metrics,
-        words=["missing"],
-    )
-
-    with (
-        patch.dict(sys.modules, {"shap": None}),
-        pytest.raises(ImportError, match="The 'shap' library is required"),
-    ):
-        result.to_shap()
