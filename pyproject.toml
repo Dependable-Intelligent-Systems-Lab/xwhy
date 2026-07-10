@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "xwhy"
-version = "0.0.1"
+version = "0.0.1.dev1"
 description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
 readme = "README.md"
 requires-python = ">=3.12"

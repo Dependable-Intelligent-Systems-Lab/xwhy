@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     environment:
-      name: pypi
-      url: https://pypi.org/project/xwhy/
+      name: testpypi
+      url: https://test.pypi.org/project/xwhy/
     
     # Required permissions for OIDC PyPI authentication and creating GitHub releases
     permissions:
@@ -37,8 +37,10 @@ jobs:
       - name: Build Package (sdist and wheel)
         run: uv build
 
-      - name: Publish package distributions to PyPI
+      - name: Publish package distributions to TestPyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
