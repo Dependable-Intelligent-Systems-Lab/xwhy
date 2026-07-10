@@ -24,3 +24,5 @@ nav:
   - Contribute: contribute/contributing.md
   - Graphics: graphics/README.md
   - Notebooks: notebooks/README.md
+  - Development Guide:
+      - Releasing: RELEASING.md
