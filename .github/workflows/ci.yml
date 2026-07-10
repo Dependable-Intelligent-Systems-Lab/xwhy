@@ -26,16 +26,13 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.12 3.13
 
       - name: Install Dependencies
         run: uv sync --group dev
 
-      - name: Run All Checks (Lint, Mypy, Tests)
-        run: uv run pre-commit run --all-files
-
-      - name: Run Tests & Coverage
-        run: uv run pytest --cov --cov-branch --cov-report=xml
+      - name: Run Nox Sessions [All Checks] (Lint, Mypy, Tests & Matrix Tests)
+        run: uv run nox
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
