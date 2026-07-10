@@ -1,0 +1,26 @@
+site_name: XWhy Documentation
+site_description: Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)
+repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocs-jupyter
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+
+nav:
+  - Home: index.md
+  - Contribute: contribute/contributing.md
+  - Graphics: graphics/README.md
+  - Notebooks: notebooks/README.md
