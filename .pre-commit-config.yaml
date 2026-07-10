@@ -1,0 +1,45 @@
+# Only run hooks on Python source files under src/ and tests
+files: ^(src|tests)/
+
+repos:
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-yaml
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  # Ruff (Lint + Format)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+
+      - id: ruff-format
+
+  # Mypy (Static Type Checking) - Local execution via uv
+  - repo: local
+    hooks:
+      - id: mypy-check
+        name: mypy
+        entry: uv run mypy src tests
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Pytest (Testing)
+  - repo: local
+    hooks:
+      - id: pytest-check
+        name: pytest
+        entry: uv run pytest tests
+        language: system
+        pass_filenames: false
+        always_run: true

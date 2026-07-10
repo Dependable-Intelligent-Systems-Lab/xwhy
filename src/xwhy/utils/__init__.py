@@ -1,0 +1,3 @@
+"""Configuration objects."""
+
+# Placeholder package

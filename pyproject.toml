@@ -1,3 +1,202 @@
 [build-system]
-requires = ["setuptools", "wheel", "oldest-supported-numpy"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.11.26,<0.12"]
+build-backend = "uv_build"
+
+[project]
+name = "xwhy"
+version = "0.0.1.dev1"
+description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Mojgan Hashemian" },
+    { name = "Koorosh Aslansefat", email = "koo.ec2008@gmail.com" },
+    { name = "Hamed Daneshvar" },
+    { name = "Sara Dehghani" },
+    { name = "Mohammad Naveed Akram" },
+    { name = "Ioannis Sorokos" },
+    { name = "Martin Walker" },
+    { name = "Yiannis Papadopoulos" },
+]
+maintainers = [
+    { name = "Koorosh Aslansefat", email = "koo.ec2008@gmail.com" },
+    { name = "Hamed Daneshvar" },
+]
+
+keywords = [
+    "explainable-ai",
+    "xwhy",
+    "interpretability",
+    "machine-learning",
+    "deep-learning",
+]
+
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "openai~=2.44.0",
+    "numpy~=2.4.6",
+    "matplotlib~=3.11.0",
+    "scikit-learn~=1.9.0",
+    "gensim~=4.4.0",
+    "pot~=0.9.6.post1",
+    "python-dotenv~=1.2.2",
+    "requests~=2.34.2",
+    "pydantic-settings~=2.14.2",
+    "xgboost~=3.3.0",
+    "google-genai~=2.10.0",
+    "anthropic~=0.116.0",
+    "huggingface-hub~=1.22.0",
+    "numba~=0.66.0",
+    "shap>=0.49.1",
+    "pytest-cov~=7.1.0",
+]
+
+[project.optional-dependencies]
+vertex = [
+    "google-auth[requests] >=2, <3",
+    "google-cloud-aiplatform >=1, <2",
+]
+aws = [
+    "boto3 ~= 1.43.42",
+    "botocore ~= 1.43.42",
+]
+bedrock = [
+    "boto3 ~= 1.43.42",
+    "botocore ~= 1.43.42",
+]
+
+[project.urls]
+Homepage = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"
+Repository = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy.git"
+Issues = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "coverage[toml]>=7.14.3",
+    "ruff>=0.15.20",
+    "pre-commit>=4.6.0",
+    "mypy>=2.1.0",
+    "nox>=2026.4.10",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.5",
+    "mkdocs-jupyter>=0.26.3",
+]
+
+################################################################################
+# Ruff
+################################################################################
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "B",
+    "UP",
+    "SIM",
+    "C4",
+    "PERF",
+    "RUF",
+    "N",
+    "ANN",
+    "D",
+    "NPY",
+    "PT",
+]
+
+ignore = [
+    "D203",
+    "D213",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+docstring-code-format = true
+
+################################################################################
+# mypy
+################################################################################
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true
+
+
+################################################################################
+# PyTest
+################################################################################
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+
+testpaths = [
+    "tests",
+]
+
+python_files = [
+    "test_*.py",
+    "*_test.py",
+]
+
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--cov=src/xwhy",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+]
+
+filterwarnings = [
+    "ignore::PendingDeprecationWarning:shap.*",
+]
+
+################################################################################
+# Coverage
+################################################################################
+
+[tool.coverage.run]
+branch = true
+source = [
+    "src/xwhy",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+precision = 2
+
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == '__main__':",
+    "raise NotImplementedError",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+[tool.coverage.xml]
+output = "coverage.xml"
