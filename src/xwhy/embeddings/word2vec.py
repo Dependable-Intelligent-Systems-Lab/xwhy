@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import gzip
 import shutil
+import zipfile
 from pathlib import Path
 from typing import Any, ClassVar
 
 import gensim.downloader as api
 import requests
 from gensim.models import KeyedVectors
+from tqdm.auto import tqdm
 
 from xwhy.config import Settings
 from xwhy.embeddings import BaseEmbedding
@@ -24,16 +26,25 @@ class Word2VecEmbedding(BaseEmbedding):
             "file": "GoogleNews-vectors-negative300.bin",
             "binary": True,
             "gensim": True,
+            "no_header": False,
         },
         "glove.840B.300d": {
             "file": "glove.840B.300d.txt",
             "binary": False,
             "gensim": True,
+            "no_header": True,
         },
         "paragram_300_sl999": {
             "file": "paragram_300_sl999.txt",
             "binary": False,
             "gensim": True,
+            "no_header": True,
+        },
+        "paragram-300-WS353": {
+            "file": "paragram_300_ws353.txt",
+            "binary": False,
+            "gensim": True,
+            "no_header": True,
         },
     }
 
@@ -51,10 +62,6 @@ class Word2VecEmbedding(BaseEmbedding):
         self._force_download = force_download
         self._model: KeyedVectors | None = None
 
-    # ------------------------------------------------------------------ #
-    # public API
-    # ------------------------------------------------------------------ #
-
     def load(self) -> KeyedVectors:
         """Load embedding model with caching strategy."""
         if self._model is not None:
@@ -67,14 +74,18 @@ class Word2VecEmbedding(BaseEmbedding):
             raise ValueError(f"Unsupported model: {self._model_name}")
 
         model_info = self._MODEL_FILE_MAP[self._model_name]
-        model_path = cache_dir / model_info["file"]
+        original_model_path = cache_dir / model_info["file"]
 
         # 1. cache
-        if model_path.exists() and not self._force_download:
-            logger.debug(f"Loading embedding model from cache: {model_path}")
+        bin_cache_path = original_model_path.with_suffix(".bin")
+
+        if bin_cache_path.exists() and not self._force_download:
+            logger.debug(
+                f"Loading embedding model from fast binary cache: {bin_cache_path}"
+            )
             self._model = KeyedVectors.load_word2vec_format(
-                str(model_path),
-                binary=model_info["binary"],
+                str(bin_cache_path),
+                binary=True,
             )
             return self._model
 
@@ -83,22 +94,23 @@ class Word2VecEmbedding(BaseEmbedding):
             logger.debug(f"Loading embedding model via gensim: {self._model_name}")
             try:
                 model = api.load(self._model_name)
-
-                logger.info(f"Saving to cache: {model_path}")
-                model.save_word2vec_format(
-                    str(model_path),
-                    binary=model_info["binary"],
-                )
-
+                logger.info(f"Saving to fast binary cache: {bin_cache_path}")
+                model.save_word2vec_format(str(bin_cache_path), binary=True)
                 self._model = model
                 return model
 
             except Exception:
                 pass
 
-        # 3. fallback download (GoogleNews only)
+        # 3. fallback download for specific models
         if self._model_name == "word2vec-google-news-300":
-            return self._download_google_news(cache_dir, model_path)
+            return self._download_google_news(cache_dir, bin_cache_path)
+        elif self._model_name == "glove.840B.300d":
+            return self._download_glove(cache_dir, bin_cache_path, original_model_path)
+        elif self._model_name in ("paragram_300_sl999", "paragram-300-WS353"):
+            return self._download_paragram(
+                cache_dir, bin_cache_path, original_model_path
+            )
 
         raise RuntimeError(f"Failed to load embedding model: {self._model_name}")
 
@@ -123,32 +135,30 @@ class Word2VecEmbedding(BaseEmbedding):
 
         return [x / len(vectors) for x in result]
 
-    # ------------------------------------------------------------------ #
-    # internal helpers
-    # ------------------------------------------------------------------ #
-
     def _get_cache_dir(self) -> Path:
-        return self._settings.embedding_cache_dir
+        cache_dir = self._settings.embedding_cache_dir
+        return cache_dir if cache_dir else Path(Path.home() / ".cache/xwhy/embeddings")
 
     def _download_google_news(
         self,
         cache_dir: Path,
-        model_path: Path,
+        bin_cache_path: Path,
     ) -> KeyedVectors:
         """Download GoogleNews model."""
-        gz_path = model_path.with_suffix(".bin.gz")
-
+        gz_path = cache_dir / "GoogleNews-vectors-negative300.bin.gz"
         url = (
             "https://public.ukp.informatik.tu-darmstadt.de/"
             "reimers/wordembeddings/GoogleNews-vectors-negative300.bin.gz"
         )
 
         try:
-            self._download_file(url, gz_path)
-            self._extract_gzip(gz_path, model_path)
+            if not gz_path.exists():
+                self._download_file(url, gz_path)
+
+            self._extract_gzip(gz_path, bin_cache_path)
 
             self._model = KeyedVectors.load_word2vec_format(
-                str(model_path),
+                str(bin_cache_path),
                 binary=True,
             )
 
@@ -157,49 +167,185 @@ class Word2VecEmbedding(BaseEmbedding):
         except Exception as error:
             raise RuntimeError("Failed to load GoogleNews model") from error
 
-    @staticmethod
-    def _download_file(url: str, path: Path) -> None:
-        """Download a file using streaming requests with a size sanity check.
-
-        Args:
-            url (str): File URL.
-            path (str): Destination file path.
-
-        Raises:
-            IOError: If downloaded file is unexpectedly small.
-            requests.exceptions.RequestException: If request fails.
-
-        """
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        min_expected_size = 100 * 1024 * 1024
-        downloaded_size = 0
+    def _download_glove(
+        self, cache_dir: Path, bin_path: Path, txt_path: Path
+    ) -> KeyedVectors:
+        """Download, clean, and convert GloVe model to binary."""
+        zip_path = cache_dir / "glove.840B.300d.zip"
+        url = "http://nlp.stanford.edu/data/glove.840B.300d.zip"
 
         try:
-            logger.debug(
-                f"Attempting direct download from {url} to {path} using requests..."
+            if not zip_path.exists():
+                self._download_file(url, zip_path)
+
+            if not txt_path.exists():
+                logger.info("Extracting GloVe zip file...")
+                with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                    zip_ref.extractall(cache_dir)
+
+            cleaned_path = txt_path.with_name(txt_path.name + ".cleaned")
+            if not cleaned_path.exists():
+                seen = set()
+                logger.info("De-duplicating GloVe file to suppress warnings...")
+                with (
+                    open(txt_path, encoding="utf-8", errors="ignore") as fin,
+                    open(cleaned_path, "w", encoding="utf-8") as fout,
+                ):
+                    for line in tqdm(fin, desc="Cleaning GloVe"):
+                        word = line.split(maxsplit=1)[0]
+                        if word not in seen:
+                            fout.write(line)
+                            seen.add(word)
+
+            logger.info(
+                "Loading cleaned GloVe text (this takes time but only happens once)..."
+            )
+            model = KeyedVectors.load_word2vec_format(
+                str(cleaned_path), binary=False, no_header=True
             )
 
-            response = requests.get(url, stream=True, timeout=300)
-            response.raise_for_status()
+            logger.info("Converting GloVe to fast binary format...")
+            model.save_word2vec_format(str(bin_path), binary=True)
 
-            with path.open("wb") as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        file.write(chunk)
-                        downloaded_size += len(chunk)
+            for path_to_remove in [cleaned_path, txt_path, zip_path]:
+                if path_to_remove.exists():
+                    path_to_remove.unlink()
 
-            if downloaded_size < min_expected_size:
-                raise OSError(
-                    f"Downloaded file too small: {downloaded_size / (1024**2):.2f} MB"
+            self._model = model
+            return self._model
+        except Exception as error:
+            raise RuntimeError("Failed to load GloVe 840B 300d model") from error
+
+    def _download_paragram(
+        self, cache_dir: Path, bin_path: Path, txt_path: Path
+    ) -> KeyedVectors:
+        """Download and convert Paragram models from Google Drive to binary."""
+        import gdown
+
+        # Google Drive file IDs based on model name
+        gdrive_ids = {
+            "paragram_300_sl999": "0B9w48e1rj-MOck1fRGxaZW1LU2M",
+            "paragram-300-WS353": "0B9w48e1rj-MOLVdZRzFfTlNsem8",
+        }
+        file_id = gdrive_ids[self._model_name]
+
+        try:
+            if not txt_path.exists():
+                logger.info(
+                    f"Downloading {self._model_name} from Google Drive via gdown..."
                 )
 
-            logger.debug(
-                "Download completed: %.2f MB",
-                downloaded_size / (1024**2),
+                temp_path = txt_path.with_suffix(".tmp")
+                gdown.download(id=file_id, output=str(temp_path), quiet=False)  # type: ignore[attr-defined]
+
+                if zipfile.is_zipfile(str(temp_path)):
+                    logger.info(
+                        "Downloaded file is a zip archive. "
+                        "Extracting (Cross-Platform)..."
+                    )
+                    with zipfile.ZipFile(str(temp_path), "r") as zf:
+                        # Find the text file name inside the zip archive
+                        txt_filename = next(
+                            (name for name in zf.namelist() if name.endswith(".txt")),
+                            None,
+                        )
+                        if not txt_filename:
+                            raise FileNotFoundError(
+                                "No .txt file found inside the zip archive."
+                            )
+
+                        # Manually extract with Python to bypass CRC errors
+                        with open(txt_path, "wb") as f_out:
+                            try:
+                                with zf.open(txt_filename) as f_in:
+                                    shutil.copyfileobj(f_in, f_out)
+                            except zipfile.BadZipFile:
+                                logger.warning(
+                                    "Ignored CRC error during extraction. "
+                                    "The file is mostly intact."
+                                )
+                    temp_path.unlink()
+                else:
+                    temp_path.rename(txt_path)
+
+            logger.info(
+                "Sanitizing text file (removing malformed lines) and adding header..."
+            )
+            clean_txt_path = txt_path.with_suffix(".clean.txt")
+            expected_dim = 300
+
+            # Step 1: Count valid lines (lines with exactly 301
+            # parts: 1 word + 300 numbers)
+            valid_lines = 0
+            with open(txt_path, encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    if len(line.rstrip("\n").split(" ")) == expected_dim + 1:
+                        valid_lines += 1
+
+            # Step 2: Rewrite the file with only valid lines
+            # + add standard word2vec header
+            with (
+                open(txt_path, encoding="utf-8", errors="ignore") as f_in,
+                open(clean_txt_path, "w", encoding="utf-8") as f_out,
+            ):
+                f_out.write(f"{valid_lines} {expected_dim}\n")
+                for line in f_in:
+                    if len(line.rstrip("\n").split(" ")) == expected_dim + 1:
+                        f_out.write(line)
+
+            logger.info(f"Loading {self._model_name} text into Gensim...")
+            # Since we added the header to the cleaned file
+            # ourselves, set no_header=False
+            model = KeyedVectors.load_word2vec_format(
+                str(clean_txt_path),
+                binary=False,
+                no_header=False,
+                unicode_errors="ignore",
             )
 
-        except (requests.exceptions.RequestException, OSError):
+            logger.info(f"Converting {self._model_name} to fast binary format...")
+            model.save_word2vec_format(str(bin_path), binary=True)
+
+            # Clean up both text files (original and cleaned) to free up disk space
+            if txt_path.exists():
+                txt_path.unlink()
+            if clean_txt_path.exists():
+                clean_txt_path.unlink()
+
+            self._model = model
+            return self._model
+        except Exception as error:
+            raise RuntimeError(f"Failed to load {self._model_name} model") from error
+
+    @staticmethod
+    def _download_file(url: str, path: Path) -> None:
+        """Download a file using streaming requests with a size sanity check."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            logger.debug(f"Attempting direct download from {url} to {path}...")
+            response = requests.get(url, stream=True, timeout=600)
+            response.raise_for_status()
+            total_size = int(response.headers.get("content-length", 0))
+
+            with (
+                path.open("wb") as file,
+                tqdm(
+                    desc=path.name,
+                    total=total_size,
+                    unit="iB",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as bar,
+            ):
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        size = file.write(chunk)
+                        bar.update(size)
+
+            if path.stat().st_size < 100:
+                raise OSError("Downloaded file too small")
+
+        except Exception:
             if path.exists():
                 path.unlink()
 

@@ -292,9 +292,15 @@ def _build_glove(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     return Word2VecEmbedding(model_name="glove.840B.300d", settings=settings, **kwargs)
 
 
-def _build_paragram(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
+def _build_paragram_sl(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     return Word2VecEmbedding(
         model_name="paragram_300_sl999", settings=settings, **kwargs
+    )
+
+
+def _build_paragram_ws(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
+    return Word2VecEmbedding(
+        model_name="paragram-300-WS353", settings=settings, **kwargs
     )
 
 
@@ -398,7 +404,8 @@ def register_all() -> None:
 
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
-    EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
+    EmbeddingFactory.register(EmbeddingType.PARAGRAM_SL, _build_paragram_sl)
+    EmbeddingFactory.register(EmbeddingType.PARAGRAM_WS, _build_paragram_ws)
 
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,

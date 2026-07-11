@@ -8,7 +8,8 @@ from xwhy.bootstrap import (
     _build_gemini_provider,
     _build_glove,
     _build_openai_provider,
-    _build_paragram,
+    _build_paragram_sl,
+    _build_paragram_ws,
     _build_word2vec,
 )
 from xwhy.providers.base import BaseProvider
@@ -733,15 +734,30 @@ def test_build_glove(mock_word2vec_embedding: MagicMock) -> None:
 
 
 @patch("xwhy.bootstrap.Word2VecEmbedding")
-def test_build_paragram(mock_word2vec_embedding: MagicMock) -> None:
-    """Verify Paragram builder passes correct model_name and kwargs."""
+def test_build_paragram_sl(mock_word2vec_embedding: MagicMock) -> None:
+    """Verify Paragram sl builder passes correct model_name and kwargs."""
     mock_instance = MagicMock()
     mock_word2vec_embedding.return_value = mock_instance
 
-    result = _build_paragram()
+    result = _build_paragram_sl()
 
     mock_word2vec_embedding.assert_called_once_with(
         model_name="paragram_300_sl999",
+        settings=pytest.importorskip("xwhy.config").settings,
+    )
+    assert result is mock_instance
+
+
+@patch("xwhy.bootstrap.Word2VecEmbedding")
+def test_build_paragram_ws(mock_word2vec_embedding: MagicMock) -> None:
+    """Verify Paragram WS builder passes correct model_name and kwargs."""
+    mock_instance = MagicMock()
+    mock_word2vec_embedding.return_value = mock_instance
+
+    result = _build_paragram_ws()
+
+    mock_word2vec_embedding.assert_called_once_with(
+        model_name="paragram-300-WS353",
         settings=pytest.importorskip("xwhy.config").settings,
     )
     assert result is mock_instance

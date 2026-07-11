@@ -9,7 +9,8 @@ def test_embedding_type_from_str_success() -> None:
     """Test successful conversion from valid strings."""
     assert EmbeddingType.from_str("word2vec") == EmbeddingType.WORD2VEC
     assert EmbeddingType.from_str("glove") == EmbeddingType.GLOVE
-    assert EmbeddingType.from_str(EmbeddingType.PARAGRAM) == EmbeddingType.PARAGRAM
+    assert EmbeddingType.from_str("paragram_sl") == EmbeddingType.PARAGRAM_SL
+    assert EmbeddingType.from_str("paragram_ws") == EmbeddingType.PARAGRAM_WS
 
 
 def test_embedding_type_from_str_invalid() -> None:
