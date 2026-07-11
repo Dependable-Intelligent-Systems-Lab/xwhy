@@ -1,5 +1,6 @@
 """Core abstractions for xwhy."""
 
+import xwhy.logger  # noqa: F401
 from xwhy import plots
 from xwhy.bootstrap import register_all
 from xwhy.explainers.image import ImageExplainer
