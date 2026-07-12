@@ -55,7 +55,7 @@ class NativeHeatmapPlotter(BaseTextPlotter):
         ax.set_title(title, loc="left", pad=10)
 
         # Color map normalization
-        cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)
+        cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)  # type: ignore[attr-defined]
         cmap.set_clim(0, 1)
 
         denom = np.max(np.abs(scores))

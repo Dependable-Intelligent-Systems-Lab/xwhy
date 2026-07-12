@@ -45,23 +45,21 @@ classifiers = [
 ]
 
 dependencies = [
-    "openai~=2.44.0",
-    "numpy~=2.4.6",
-    "matplotlib~=3.11.0",
-    "scikit-learn~=1.9.0",
-    "gensim~=4.4.0",
-    "pot~=0.9.6.post1",
-    "python-dotenv~=1.2.2",
-    "requests~=2.34.2",
-    "pydantic-settings~=2.14.2",
-    "xgboost~=3.3.0",
-    "google-genai~=2.10.0",
-    "anthropic~=0.116.0",
-    "huggingface-hub~=1.22.0",
-    "numba~=0.66.0",
-    "shap>=0.49.1",
-    "pytest-cov~=7.1.0",
-    "gdown~=6.1.0",
+    "openai>=2.43.0",
+    "numpy>=2.0.2",
+    "matplotlib==3.10.0",
+    "scikit-learn~=1.6.1",
+    "gensim>=4.3.2",
+    "pot>=0.9.6.post1",
+    "python-dotenv>=1.2.2",
+    "requests>=2.32.4",
+    "pydantic-settings>=2.14.2",
+    "xgboost>=3.3.0",
+    "google-genai>=2.10.0",
+    "anthropic>=0.116.0",
+    "huggingface-hub>=1.20.1",
+    "shap>=0.52.0",
+    "gdown>=5.2.2",
 ]
 
 [project.optional-dependencies]
@@ -70,12 +68,12 @@ vertex = [
     "google-cloud-aiplatform >=1, <2",
 ]
 aws = [
-    "boto3 ~= 1.43.42",
-    "botocore ~= 1.43.42",
+    "boto3 >= 1.43.42",
+    "botocore >= 1.43.42",
 ]
 bedrock = [
-    "boto3 ~= 1.43.42",
-    "botocore ~= 1.43.42",
+    "boto3 >= 1.43.42",
+    "botocore >= 1.43.42",
 ]
 all = [
     "xwhy[vertex]",
