@@ -4,15 +4,16 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
-  
+
   jobs:
     install:
-      - pip install uv
-      
-      - uv pip install --system -e .
-      
-      - uv export --group dev --no-hashes -o rtd-requirements.txt
-      - uv pip install --system -r rtd-requirements.txt
+      - python -m pip install --upgrade pip
+      - python -m pip install -e .
+      - python -m pip install "mkdocs-material>=9.7.6"
+      - python -m pip install "mkdocstrings[python]>=1.0.5"
+      - python -m pip install "mkdocs-jupyter>=0.26.3"
+      - python -m pip install "mkdocs-gen-files>=0.6.1"
+      - python -m pip install "mkdocs-literate-nav>=0.6.3"
 
 mkdocs:
   configuration: mkdocs.yml
