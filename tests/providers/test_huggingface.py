@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from xwhy.providers.huggingface import HuggingFaceProvider
 
 
@@ -46,12 +48,35 @@ def test_huggingface_provider_api_error() -> None:
     )
 
     provider = HuggingFaceProvider(client=mock_client)
-    result = provider.answer(prompt="Error prompt test")
 
-    assert result == ""
+    with pytest.raises(RuntimeError, match="Model loading or API error"):
+        provider.answer(prompt="Error prompt test")
+
     mock_client.chat.completions.create.assert_called_once_with(
         model="meta-llama/Meta-Llama-3-8B-Instruct",
         messages=[{"role": "user", "content": "Error prompt test"}],
         max_tokens=512,
         temperature=0.1,
     )
+
+
+def test_huggingface_empty_text_response_raises_error() -> None:
+    """Test RuntimeError is raised when HuggingFace returns empty text.
+
+    This covers the 'if not result_text:' block for the HuggingFace API.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+
+    mock_choice.message.content = "   \n  "
+    mock_response.choices = [mock_choice]
+    mock_client.chat.completions.create.return_value = mock_response
+
+    provider = HuggingFaceProvider(client=mock_client)
+
+    expected_error = "empty response from the HuggingFace API"
+    with pytest.raises(RuntimeError, match=expected_error):
+        provider.answer(prompt="Test empty response")
+
+    mock_client.chat.completions.create.assert_called_once()

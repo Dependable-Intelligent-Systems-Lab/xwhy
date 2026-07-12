@@ -48,15 +48,27 @@ def test_answer_uses_responses_api() -> None:
     client.completions.create.assert_not_called()
 
 
-def test_answer_returns_empty_string_when_exception_occurs() -> None:
-    """Errors should return an empty string."""
+def test_answer_raises_runtime_error_when_client_fails() -> None:
+    """RuntimeError from the client should propagate and raise RuntimeError."""
     client = MagicMock()
 
     client.completions.create.side_effect = RuntimeError("boom")
 
     provider = OpenAIProvider(client)
 
-    assert provider.answer("prompt") == ""
+    with pytest.raises(RuntimeError, match="boom"):
+        provider.answer("prompt")
+
+
+def test_answer_raises_runtime_error_on_generic_exception() -> None:
+    """Generic exceptions should be caught, logged, and raise a RuntimeError."""
+    client = MagicMock()
+    client.completions.create.side_effect = ValueError("generic error")
+
+    provider = OpenAIProvider(client)
+
+    with pytest.raises(RuntimeError, match="OpenAI request failed: generic error"):
+        provider.answer("prompt")
 
 
 @pytest.mark.parametrize(
@@ -106,27 +118,26 @@ def test_generate_regex_dynamic_fix() -> None:
 
 
 def test_generate_regex_no_match_fallback() -> None:
-    """Return empty string when regex matching fails."""
+    """Raise RuntimeError when regex matching fails on tokens error."""
     client = MagicMock()
 
-    error_message = "Error: max_output_tokens is an integer below minimum "
-    "value. Expected a value."
+    error_message = (
+        "Error: max_output_tokens is an integer below minimum value. Expected a value."
+    )
     client.completions.create.side_effect = Exception(error_message)
 
     provider = OpenAIProvider(client)
 
     with patch("xwhy.providers.openai.logger") as mock_logger:
-        result = provider._generate(
-            prompt="test",
-            model="gpt-3.5-turbo-instruct",
-            max_tokens=10,
-            temperature=0.0,
-        )
-
-        assert result == ""
+        with pytest.raises(RuntimeError, match="Expected a value"):
+            provider._generate(
+                prompt="test",
+                model="gpt-3.5-turbo-instruct",
+                max_tokens=10,
+                temperature=0.0,
+            )
 
         assert client.completions.create.call_count == 1
-
         mock_logger.error.assert_called()
         mock_logger.warning.assert_not_called()
 
@@ -193,7 +204,8 @@ def test_openai_provider_max_tokens_lowercase_regex() -> None:
 def test_openai_provider_temperature_already_one_no_retry() -> None:
     """Test that no retry occurs if temperature is already 1.0.
 
-    This covers the False branch of 'if temperature != 1.0:'.
+    This covers the False branch of 'if temperature != 1.0:' and verifies
+    that a RuntimeError is raised instead of an empty string.
     """
     mock_client = MagicMock()
     mock_client.responses.create.side_effect = Exception(
@@ -201,18 +213,20 @@ def test_openai_provider_temperature_already_one_no_retry() -> None:
     )
 
     provider = OpenAIProvider(client=mock_client)
-    # Sending temperature=1.0 initially triggers the False branch of the inner IF
-    result = provider.answer(prompt="Test", model="o1-preview", temperature=1.0)
 
-    assert result == ""
+    # Sending temperature=1.0 initially triggers the False branch of the inner IF
+    with pytest.raises(RuntimeError, match="temperature parameter is not supported"):
+        provider.answer(prompt="Test", model="o1-preview", temperature=1.0)
+
     # Should only call once and fail gracefully without infinite recursion
     assert mock_client.responses.create.call_count == 1
 
 
 def test_openai_provider_max_tokens_no_regex_match() -> None:
-    """Test that no retry occurs if the token error message format is unexpected.
+    """Test that no retry occurs if token error message format is unexpected.
 
-    This covers the False branch of 'if match:'.
+    This covers the False branch of 'if match:' and ensures a RuntimeError is
+    properly raised rather than returning an empty string.
     """
     mock_client = MagicMock()
     mock_client.responses.create.side_effect = Exception(
@@ -220,9 +234,33 @@ def test_openai_provider_max_tokens_no_regex_match() -> None:
     )
 
     provider = OpenAIProvider(client=mock_client)
-    # The outer IF matches, but the regex search will fail (returning None)
-    result = provider.answer(prompt="Test", model="o3-mini", max_tokens=5)
 
-    assert result == ""
-    # Should skip the retry logic inside 'if match:' and return an empty string
+    # The outer IF matches, but regex search fails (returns None), raising error
+    with pytest.raises(RuntimeError, match="unexpected error format"):
+        provider.answer(prompt="Test", model="o3-mini", max_tokens=5)
+
+    # Should skip retry logic and raise the error immediately
     assert mock_client.responses.create.call_count == 1
+
+
+def test_openai_empty_text_response_raises_error() -> None:
+    """Test RuntimeError is raised when OpenAI returns empty text.
+
+    This covers the 'if not result_text:' block, ensuring that safety
+    or filter-related empty string results are explicitly raised.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+
+    mock_choice.text = ""
+    mock_response.choices = [mock_choice]
+    mock_client.completions.create.return_value = mock_response
+
+    provider = OpenAIProvider(client=mock_client)
+
+    expected_error = "empty response from the OpenAI API"
+    with pytest.raises(RuntimeError, match=expected_error):
+        provider.answer(prompt="Test empty response", model="gpt-3.5-turbo-instruct")
+
+    mock_client.completions.create.assert_called_once()

@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from xwhy.providers.anthropic import AnthropicProvider
 
 
@@ -39,15 +41,37 @@ def test_anthropic_provider_api_error() -> None:
     mock_client = MagicMock()
 
     # Simulate a network or authentication error
-    mock_client.messages.create.side_effect = Exception("Invalid API Key or Rate Limit")
+    mock_client.messages.create.side_effect = Exception("Invalid API Key or Limit")
 
     provider = AnthropicProvider(client=mock_client)
-    result = provider.answer(prompt="Will fail")
 
-    assert result == ""
+    with pytest.raises(RuntimeError, match="Invalid API Key or Limit"):
+        provider.answer(prompt="Will fail")
+
     mock_client.messages.create.assert_called_once_with(
         model="claude-opus-4-8",
         max_tokens=1024,
         temperature=0.0,
         messages=[{"role": "user", "content": "Will fail"}],
     )
+
+
+def test_anthropic_empty_response_content_raises_error() -> None:
+    """Test RuntimeError is raised when Anthropic returns empty content.
+
+    This covers the scenario where response.content is an empty list,
+    leaving result_text empty and triggering the safety RuntimeError.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+
+    mock_response.content = []
+    mock_client.messages.create.return_value = mock_response
+
+    provider = AnthropicProvider(client=mock_client)
+
+    expected_error = "empty response from the Anthropic API"
+    with pytest.raises(RuntimeError, match=expected_error):
+        provider.answer(prompt="Test empty response")
+
+    mock_client.messages.create.assert_called_once()

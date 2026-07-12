@@ -236,7 +236,7 @@ class Word2VecEmbedding(BaseEmbedding):
                 )
 
                 temp_path = txt_path.with_suffix(".tmp")
-                gdown.download(id=file_id, output=str(temp_path), quiet=False)  # type: ignore[attr-defined]
+                gdown.download(id=file_id, output=str(temp_path), quiet=False)
 
                 if zipfile.is_zipfile(str(temp_path)):
                     logger.info(

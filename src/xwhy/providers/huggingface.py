@@ -36,20 +36,37 @@ class HuggingFaceProvider(BaseProvider):
         Returns:
             Generated text.
 
+        Raises:
+            RuntimeError: If the API returns an empty response.
+
         """
         try:
-            # InferenceClient's chat.completions API is very similar to OpenAI's
             response = self._client.chat.completions.create(  # type: ignore[attr-defined]
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
                 temperature=temperature,
             )
-            return str(response.choices[0].message.content).strip()
+
+            result_text = str(response.choices[0].message.content).strip()
+
+            if not result_text:
+                error_message = (
+                    "Received an empty response from the HuggingFace API. "
+                    "This could be due to model-specific guardrails, network "
+                    "filtering (anti-filter), or provider-side anomalies."
+                )
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+
+            return result_text
+
+        except RuntimeError:
+            raise
 
         except Exception as exc:
             logger.error("HuggingFace request failed: %s", exc)
-            return ""
+            raise RuntimeError(f"HuggingFace request failed: {exc}") from exc
 
     def answer(
         self,
