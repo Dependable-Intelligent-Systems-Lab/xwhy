@@ -32,6 +32,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         config: ExplainerConfig | None = None,
         use_best_surrogate: bool = True,
         default_surrogate: str | SurrogateType = SurrogateType.LIME,
+        **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the LLM explainer.
 
@@ -44,10 +45,11 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                                 automatically.
             default_surrogate: The default surrogate method to use if the search is
                                disabled.
+            **provider_kwargs: Additional provider-specific options.
 
         """
         # Resolve string/enum provider into a concrete instance using Hidden Factory
-        resolved_provider = ProviderResolver.resolve(provider)
+        resolved_provider = ProviderResolver.resolve(provider, **provider_kwargs)
         super().__init__(resolved_provider, config)
 
         self.provider = resolved_provider
