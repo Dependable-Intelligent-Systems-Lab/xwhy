@@ -11,9 +11,71 @@ Explainability is a foundational pillar for establishing this missing trust. **X
 ## Table of Contents
 
 *   [Home Overview](index.md)
+*   [Installation](#installation)
 *   [Quick Start & General Usage](#quick-start)
 *   [Rich Visualizations](#rich-visualizations)
 *   [Advanced Feature: LLM Explainer](llm_explainer.md) — *Learn how to interpret LLM prompt-response dynamics.*
+
+---
+
+## Installation
+
+XWhy is distributed on PyPI and can be installed using standard Python package managers. 
+
+### 1. Core Package
+To install the core engine with standard explainers and baseline visualization support:
+
+**Using pip:**
+```bash
+pip install xwhy
+
+```
+
+**Using uv:**
+
+```bash
+uv add xwhy
+
+```
+
+### 2. Optional Cloud Ecosystems (Extras)
+
+If you intend to use specific cloud platforms or specific model deployment environments, you can install the target optional dependencies.
+
+> 💡 **Note for Shell Users:** Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
+
+| Extra Name | Description | Target Cloud Engine / SDK |
+| --- | --- | --- |
+| `vertex` | Google Cloud Vertex AI support | `google-cloud-aiplatform` |
+| `aws` | Core AWS provider utilities | `boto3`, `botocore` |
+| `bedrock` | Amazon Bedrock foundation models | `boto3`, `botocore` |
+| `all` | Installs all available cloud providers | Full ecosystem bundle |
+
+#### Example: Installing Specific Backends
+
+**Using pip:**
+
+```bash
+# Install specific provider extras
+pip install "xwhy[vertex]"
+pip install "xwhy[aws,bedrock]"
+
+# Install all cloud providers at once
+pip install "xwhy[all]"
+
+```
+
+**Using uv:**
+
+```bash
+# Install specific provider extras
+uv add "xwhy[vertex]"
+uv add "xwhy[aws,bedrock]"
+
+# Install all cloud providers at once
+uv add "xwhy[all]"
+
+```
 
 ---
 
