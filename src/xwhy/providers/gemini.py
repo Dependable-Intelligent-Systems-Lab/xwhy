@@ -38,6 +38,10 @@ class GeminiProvider(BaseProvider):
         Returns:
             Generated text.
 
+        Raises:
+            RuntimeError: If the API returns an empty response or is
+                          blocked by safety filters.
+
         """
         try:
             response = self._client.models.generate_content(  # type: ignore[attr-defined]
@@ -50,20 +54,34 @@ class GeminiProvider(BaseProvider):
             )
 
             try:
-                return str(response.text).strip()
-            except ValueError:
+                result_text = str(response.text).strip()
+            except ValueError as val_err:
                 # Gemini throws ValueError on .text access if the response was
                 # blocked by safety filters.
-                logger.warning(
-                    "Gemini generation was blocked (likely due to safety filters) "
-                    "for model '%s'. Returning empty string.",
-                    model,
+                error_message = (
+                    f"Gemini generation was blocked (likely due to safety filters) "
+                    f"for model '{model}'. No content returned."
                 )
-                return ""
+                logger.error(error_message)
+                raise RuntimeError(error_message) from val_err
+
+            if not result_text:
+                error_message = (
+                    "Received an empty response from the Gemini API. "
+                    "This could be due to network filtering (anti-filter) "
+                    "or provider-side anomalies."
+                )
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+
+            return result_text
+
+        except RuntimeError:
+            raise
 
         except Exception as exc:
             logger.error("Gemini request failed: %s", exc)
-            return ""
+            raise RuntimeError(f"Gemini request failed: {exc}") from exc
 
     def answer(
         self,

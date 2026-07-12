@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
 
     environment:
-      name: pypi
-      url: https://pypi.org/project/xwhy/
+      name: testpypi
+      url: https://test.pypi.org/project/xwhy/
     
     # Required permissions for OIDC PyPI authentication and creating GitHub releases
     permissions:
