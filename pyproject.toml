@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "xwhy"
-version = "0.0.1.dev2"
+version = "0.0.1"
 description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -76,6 +76,11 @@ aws = [
 bedrock = [
     "boto3 ~= 1.43.42",
     "botocore ~= 1.43.42",
+]
+all = [
+    "xwhy[vertex]",
+    "xwhy[aws]",
+    "xwhy[bedrock]",
 ]
 
 [project.urls]
