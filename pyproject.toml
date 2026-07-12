@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "xwhy"
-version = "0.0.1.dev1"
+version = "0.0.1.dev2"
 description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -95,6 +95,8 @@ dev = [
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.5",
     "mkdocs-jupyter>=0.26.3",
+    "mkdocs-gen-files>=0.6.1",
+    "mkdocs-literate-nav>=0.6.3",
 ]
 
 ################################################################################
