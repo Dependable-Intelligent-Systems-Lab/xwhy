@@ -12,8 +12,8 @@ This guide starts with the simplest setup for explaining an OpenAI model. Advanc
 
 For a first test, you only need:
 
-1. An OpenAI API key
-2. A small `.env` file
+1. An LLM API provider key
+2. A credential setup approach (either a `.env` file or direct notebook/runtime configuration)
 3. A short Python script
 
 ### 1. Create a Simple `.env` File
@@ -22,11 +22,57 @@ Create a file named `.env` in the root directory of your project and add your Op
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
+
 ```
 
 > Keep API keys private. Do not commit the `.env` file to GitHub or include it in shared code.
 
-### 2. Run a Basic Explanation
+### 2. Alternative: Notebook & Runtime Configuration (No `.env` Required)
+
+If you are working in an interactive environment like Google Colab or Jupyter Notebooks, managing a physical `.env` file can be cumbersome. XWhy provides two flexible alternatives to configure your credentials on the fly directly inside your code.
+
+#### Approach A: Modifying Global Settings
+
+You can dynamically assign values to the global `settings` object immediately after importing `xwhy`. This updates the internal config registry before the explainer is initialized:
+
+```python
+import xwhy
+
+# Manually set keys at runtime (Overrides .env)
+xwhy.settings.openai_api_key = "sk-proj-your_key_here"
+xwhy.settings.gemini_api_key = "your_gemini_key_here"
+
+```
+
+#### Approach B: Inline Arguments via LLMExplainer (`kwargs`)
+
+You can pass credentials and client settings directly into the `LLMExplainer` constructor. These parameters bypass the global state and are forwarded straight to the provider's underlying engine:
+
+```python
+from xwhy import LLMExplainer
+
+# Pass parameters directly into the explainer constructor
+explainer = LLMExplainer(
+    provider="openai",
+    api_key="sk-proj-your_key_here",
+    use_best_surrogate=True
+)
+
+```
+
+> ⚠️ **Critical Requirement on Parameter Names:** When passing credentials directly into `LLMExplainer`, the key arguments **must match the native parameter names expected by the underlying provider's official SDK client**, not XWhy's global setting aliases.
+> For example, use **`api_key`** for OpenAI, Anthropic, or Gemini, but you must use **`token`** when instantiating a Hugging Face client, as shown below:
+
+```python
+# For OpenAI/Anthropic/Gemini, the SDK client expects 'api_key'
+openai_explainer = LLMExplainer(provider="openai", api_key="sk-...")
+
+# For Hugging Face, the native InferenceClient SDK expects 'token'
+hf_explainer = LLMExplainer(provider="huggingface", token="hf_...")
+
+```
+
+### 3. Run a Basic Explanation
 
 The following example explains the input text using an OpenAI model and displays a token-level heatmap:
 
@@ -39,6 +85,7 @@ xwhy.plots.initjs()
 
 try:
     # Create an explainer for an OpenAI model
+    # (Credentials will look up your .env, xwhy.settings, or explicit kwargs)
     explainer = LLMExplainer(
         provider="openai",
         use_best_surrogate=True,
@@ -58,9 +105,10 @@ try:
 
 except Exception as error:
     print(f"The explanation could not be generated: {error}")
+
 ```
 
-### 3. Read the Result
+### 4. Read the Result
 
 The explanation highlights words or tokens according to their estimated influence on the model response.
 
@@ -78,6 +126,7 @@ xwhy.plots.waterfall(result)
 xwhy.plots.text(result)
 xwhy.plots.force(result)
 xwhy.plots.decision(result)
+
 ```
 
 A complete example that generates all supported plots is provided later in this guide.
@@ -159,6 +208,7 @@ HUGGINGFACE_TOKEN=
 ############################
 
 EMBEDDING_CACHE_DIR=~/.cache/xwhy/embeddings
+
 ```
 
 ### 2. Select a Provider in Python
@@ -172,6 +222,7 @@ explainer = LLMExplainer(
     provider="openai",
     use_best_surrogate=True,
 )
+
 ```
 
 For another supported provider, replace `"openai"` with the provider identifier required by XWhy and ensure that the corresponding environment variables are configured.
@@ -220,7 +271,8 @@ XWhy currently supports the following local embedding engines for measuring chan
 
 * Word2Vec
 * GloVe
-* Paragram
+* Paragram-sl
+* Paragram-WS
 
 ---
 
@@ -264,6 +316,7 @@ try:
 
 except Exception as error:
     print(f"Error during the explanation pipeline: {error}")
+
 ```
 
 ---

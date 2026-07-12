@@ -18,12 +18,16 @@ plugins:
       handlers:
         python:
           paths: [src]
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
 
 nav:
   - Home: index.md
   - LLM Explainer Guide: llm_explainer.md
   - Contribute: contribute/contributing.md
-  - Graphics: graphics/README.md
-  - Notebooks: notebooks/README.md
+  - API Reference: reference/
   - Development Guide:
       - Releasing: RELEASING.md

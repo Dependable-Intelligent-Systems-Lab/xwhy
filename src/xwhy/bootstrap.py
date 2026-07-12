@@ -44,159 +44,186 @@ def _ensure_dependency(pkg_name: str, extra_name: str) -> None:
         ) from err
 
 
-def _build_anthropic_provider() -> BaseProvider:
-    """Instantiate an Anthropic provider using configuration settings."""
+def _build_anthropic_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
+    """Instantiate an Anthropic provider using configuration settings or kwargs."""
     from anthropic import Anthropic
 
-    client = Anthropic(api_key=settings.anthropic_api_key)
+    api_key = kwargs.pop("api_key", settings.anthropic_api_key)
+    client = Anthropic(api_key=api_key, **kwargs)
     return ProviderFactory.create(provider=ProviderType.ANTHROPIC, client=client)
 
 
-def _build_huggingface_provider() -> BaseProvider:
-    """Instantiate a HuggingFace provider using configuration settings."""
+def _build_huggingface_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
+    """Instantiate a HuggingFace provider using configuration settings or kwargs."""
     from huggingface_hub import InferenceClient
 
-    client = InferenceClient(api_key=settings.huggingface_token)
+    token = kwargs.pop("token", settings.huggingface_token)
+    client = InferenceClient(token=token, **kwargs)
     return ProviderFactory.create(provider=ProviderType.HUGGINGFACE, client=client)
 
 
-def _build_openai_provider() -> BaseProvider:
-    """Instantiate an OpenAI provider using configuration settings."""
+def _build_openai_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
+    """Instantiate an OpenAI provider using configuration settings or kwargs."""
     from openai import OpenAI
 
-    client = OpenAI(api_key=settings.openai_api_key)
+    api_key = kwargs.pop("api_key", settings.openai_api_key)
+    client = OpenAI(api_key=api_key, **kwargs)
     return ProviderFactory.create(provider=ProviderType.OPENAI, client=client)
 
 
-def _build_zai_provider() -> BaseProvider:
+def _build_zai_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Z.ai provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.zai_api_key, base_url="https://api.z.ai/api/paas/v4/"
-    )
+    api_key = kwargs.pop("api_key", settings.zai_api_key)
+    base_url = kwargs.pop("base_url", "https://api.z.ai/api/paas/v4/")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.ZAI, client=client)
 
 
-def _build_groq_provider() -> BaseProvider:
+def _build_groq_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Groq provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.groq_api_key, base_url="https://api.groq.com/openai/v1"
-    )
+    api_key = kwargs.pop("api_key", settings.groq_api_key)
+    base_url = kwargs.pop("base_url", "https://api.groq.com/openai/v1")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.GROQ, client=client)
 
 
-def _build_cohere_provider() -> BaseProvider:
+def _build_cohere_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Cohere provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.cohere_api_key,
-        base_url="https://api.cohere.ai/compatibility/v1",
-    )
+    api_key = kwargs.pop("api_key", settings.cohere_api_key)
+    base_url = kwargs.pop("base_url", "https://api.cohere.ai/compatibility/v1")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.COHERE, client=client)
 
 
-def _build_fireworks_provider() -> BaseProvider:
+def _build_fireworks_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Fireworks AI provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.fireworks_api_key,
-        base_url="https://api.fireworks.ai/inference/v1",
-    )
+    api_key = kwargs.pop("api_key", settings.fireworks_api_key)
+    base_url = kwargs.pop("base_url", "https://api.fireworks.ai/inference/v1")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.FIREWORKS_AI, client=client)
 
 
-def _build_grok_provider() -> BaseProvider:
+def _build_grok_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Grok (xAI) provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(api_key=settings.grok_api_key, base_url="https://api.x.ai/v1")
+    api_key = kwargs.pop("api_key", settings.grok_api_key)
+    base_url = kwargs.pop("base_url", "https://api.x.ai/v1")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.GROK, client=client)
 
 
-def _build_openrouter_provider() -> BaseProvider:
+def _build_openrouter_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an OpenRouter provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.openrouter_api_key, base_url="https://openrouter.ai/api/v1"
-    )
+    api_key = kwargs.pop("api_key", settings.openrouter_api_key)
+    base_url = kwargs.pop("base_url", "https://openrouter.ai/api/v1")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.OPENROUTER, client=client)
 
 
-def _build_ollama_provider() -> BaseProvider:
+def _build_ollama_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a local Ollama provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key="ollama",  # Required by standard SDK but ignored by Ollama
-        base_url="http://localhost:11434/v1/",
-    )
+    api_key = kwargs.pop(
+        "api_key", "ollama"
+    )  # Required by standard SDK but ignored by Ollama
+    base_url = kwargs.pop("base_url", "http://localhost:11434/v1/")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.OLLAMA, client=client)
 
 
-def _build_lmstudio_provider() -> BaseProvider:
+def _build_lmstudio_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a local LMStudio provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.lmstudio_api_key, base_url=settings.lmstudio_base_url
-    )
+    api_key = kwargs.pop("api_key", settings.lmstudio_api_key)
+    base_url = kwargs.pop("base_url", settings.lmstudio_base_url)
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.LMSTUDIO, client=client)
 
 
-def _build_bytedance_provider() -> BaseProvider:
+def _build_bytedance_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a ByteDance provider using the OpenAI-compatible SDK."""
     from openai import OpenAI
 
-    client = OpenAI(
-        api_key=settings.bytedance_api_key,
-        base_url="https://ark.ap-southeast.bytepluses.com/api/v3",
-    )
+    api_key = kwargs.pop("api_key", settings.bytedance_api_key)
+    base_url = kwargs.pop("base_url", "https://ark.ap-southeast.bytepluses.com/api/v3")
+
+    client = OpenAI(api_key=api_key, base_url=base_url, **kwargs)
     return ProviderFactory.create(provider=ProviderType.BYTEDANCE, client=client)
 
 
-def _build_gemini_provider() -> BaseProvider:
-    """Instantiate a Gemini provider using configuration settings."""
+def _build_gemini_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
+    """Instantiate a Gemini provider using configuration settings or kwargs."""
     from google import genai
 
-    client = genai.Client(api_key=settings.gemini_api_key)
+    api_key = kwargs.pop("api_key", settings.gemini_api_key)
+
+    client = genai.Client(api_key=api_key, **kwargs)
     return ProviderFactory.create(provider=ProviderType.GEMINI, client=client)
 
 
 # ---------------------------------------------------------
 # OpenAI & Gemini Native Cloud
 # ---------------------------------------------------------
-def _build_azure_openai_provider() -> BaseProvider:
+def _build_azure_openai_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Azure OpenAI provider using the official SDK."""
     from openai import AzureOpenAI
 
-    if not settings.azure_endpoint:
-        raise ValueError("azure_endpoint must be set in settings to use Azure OpenAI.")
+    api_key = kwargs.pop("api_key", settings.azure_api_key)
+    api_version = kwargs.pop("api_version", settings.azure_api_version)
+    azure_endpoint = kwargs.pop("azure_endpoint", settings.azure_endpoint)
+
+    if not azure_endpoint:
+        raise ValueError(
+            "azure_endpoint must be set in settings or passed via kwargs "
+            "to use Azure OpenAI."
+        )
 
     client = AzureOpenAI(
-        api_key=settings.azure_api_key,
-        api_version=settings.azure_api_version,
-        azure_endpoint=settings.azure_endpoint,
+        api_key=api_key,
+        api_version=api_version,
+        azure_endpoint=azure_endpoint,
+        **kwargs,
     )
     return ProviderFactory.create(provider=ProviderType.AZURE_OPENAI, client=client)
 
 
-def _build_gcp_gemini_provider() -> BaseProvider:
+def _build_gcp_gemini_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a Gemini provider running on GCP Vertex AI."""
     from google import genai
 
     # Needs google-cloud-aiplatform for Vertex features if used
     _ensure_dependency("google.auth", "vertex")
 
+    vertexai = kwargs.pop("vertexai", True)
+    project = kwargs.pop("project", settings.gcp_project)
+    location = kwargs.pop("location", settings.gcp_location)
+
     client = genai.Client(
-        vertexai=True,
-        project=settings.gcp_project,
-        location=settings.gcp_location,
+        vertexai=vertexai,
+        project=project,
+        location=location,
+        **kwargs,
     )
     return ProviderFactory.create(provider=ProviderType.GCP_GEMINI, client=client)
 
@@ -204,78 +231,106 @@ def _build_gcp_gemini_provider() -> BaseProvider:
 # ---------------------------------------------------------
 # Anthropic Cloud Integrations
 # ---------------------------------------------------------
-def _build_anthropic_bedrock_provider() -> BaseProvider:
+def _build_anthropic_bedrock_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Anthropic provider for legacy Amazon Bedrock."""
     from anthropic import AnthropicBedrock
 
     _ensure_dependency("boto3", "bedrock")
 
+    aws_access_key = kwargs.pop("aws_access_key", settings.aws_access_key)
+    aws_secret_key = kwargs.pop("aws_secret_key", settings.aws_secret_key)
+    aws_session_token = kwargs.pop("aws_session_token", settings.aws_session_token)
+    aws_region = kwargs.pop("aws_region", settings.aws_region)
+
     client = AnthropicBedrock(
-        aws_access_key=settings.aws_access_key,
-        aws_secret_key=settings.aws_secret_key,
-        aws_session_token=settings.aws_session_token,
-        aws_region=settings.aws_region,
+        aws_access_key=aws_access_key,
+        aws_secret_key=aws_secret_key,
+        aws_session_token=aws_session_token,
+        aws_region=aws_region,
+        **kwargs,
     )
     return ProviderFactory.create(
         provider=ProviderType.ANTHROPIC_BEDROCK, client=client
     )
 
 
-def _build_anthropic_bedrock_mantle_provider() -> BaseProvider:
+def _build_anthropic_bedrock_mantle_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Anthropic provider for Amazon Bedrock Mantle."""
     from anthropic import AnthropicBedrockMantle
 
     _ensure_dependency("boto3", "bedrock")
 
-    client = AnthropicBedrockMantle(aws_region=settings.aws_region)
+    aws_region = kwargs.pop("aws_region", settings.aws_region)
+
+    client = AnthropicBedrockMantle(aws_region=aws_region, **kwargs)
     return ProviderFactory.create(
         provider=ProviderType.ANTHROPIC_BEDROCK_MANTLE, client=client
     )
 
 
-def _build_anthropic_aws_provider() -> BaseProvider:
+def _build_anthropic_aws_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Anthropic provider for Claude Platform on AWS."""
     from anthropic import AnthropicAWS
 
     _ensure_dependency("boto3", "aws")
 
-    if not settings.anthropic_aws_workspace_id:
-        raise ValueError("anthropic_aws_workspace_id must be set to use Anthropic AWS.")
+    aws_region = kwargs.pop("aws_region", settings.aws_region)
+    workspace_id = kwargs.pop("workspace_id", settings.anthropic_aws_workspace_id)
+
+    if not workspace_id:
+        raise ValueError(
+            "`workspace_id` must be set via kwargs or `anthropic_aws_workspace_id`"
+            " in settings to use Anthropic AWS."
+        )
 
     client = AnthropicAWS(
-        aws_region=settings.aws_region,
-        workspace_id=settings.anthropic_aws_workspace_id,
+        aws_region=aws_region,
+        workspace_id=workspace_id,
+        **kwargs,
     )
     return ProviderFactory.create(provider=ProviderType.ANTHROPIC_AWS, client=client)
 
 
-def _build_anthropic_vertex_provider() -> BaseProvider:
+def _build_anthropic_vertex_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Anthropic provider for Google Cloud Vertex AI."""
     from anthropic import AnthropicVertex
 
     _ensure_dependency("google.auth", "vertex")
 
-    if not settings.gcp_project:
-        raise ValueError("`gcp_project` must be set to use Anthropic Vertex.")
+    project_id = kwargs.pop("project_id", settings.gcp_project)
+    region = kwargs.pop("region", settings.gcp_location)
+
+    if not project_id:
+        raise ValueError(
+            "`project_id` must be set via kwargs or `gcp_project` in"
+            " settings to use Anthropic Vertex."
+        )
 
     client = AnthropicVertex(
-        project_id=settings.gcp_project, region=settings.gcp_location
+        project_id=project_id,
+        region=region,
+        **kwargs,
     )
     return ProviderFactory.create(provider=ProviderType.ANTHROPIC_VERTEX, client=client)
 
 
-def _build_anthropic_foundry_provider() -> BaseProvider:
+def _build_anthropic_foundry_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate an Anthropic provider for Microsoft Foundry."""
     from anthropic import AnthropicFoundry
 
-    if not settings.anthropic_foundry_resource:
+    api_key = kwargs.pop("api_key", settings.anthropic_foundry_api_key)
+    resource = kwargs.pop("resource", settings.anthropic_foundry_resource)
+
+    if not resource:
         raise ValueError(
-            "anthropic_foundry_resource must be set to use Anthropic Foundry."
+            "`resource` must be set via kwargs or `anthropic_foundry_resource` in"
+            " settings to use Anthropic Foundry."
         )
 
     client = AnthropicFoundry(
-        api_key=settings.anthropic_foundry_api_key,
-        resource=settings.anthropic_foundry_resource,
+        api_key=api_key,
+        resource=resource,
+        **kwargs,
     )
     return ProviderFactory.create(
         provider=ProviderType.ANTHROPIC_FOUNDRY, client=client
@@ -292,9 +347,15 @@ def _build_glove(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     return Word2VecEmbedding(model_name="glove.840B.300d", settings=settings, **kwargs)
 
 
-def _build_paragram(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
+def _build_paragram_sl(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     return Word2VecEmbedding(
         model_name="paragram_300_sl999", settings=settings, **kwargs
+    )
+
+
+def _build_paragram_ws(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
+    return Word2VecEmbedding(
+        model_name="paragram-300-WS353", settings=settings, **kwargs
     )
 
 
@@ -398,7 +459,8 @@ def register_all() -> None:
 
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
-    EmbeddingFactory.register(EmbeddingType.PARAGRAM, _build_paragram)
+    EmbeddingFactory.register(EmbeddingType.PARAGRAM_SL, _build_paragram_sl)
+    EmbeddingFactory.register(EmbeddingType.PARAGRAM_WS, _build_paragram_ws)
 
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,

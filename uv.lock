@@ -794,6 +794,21 @@ wheels = [
 ]
 
 [[package]]
+name = "gdown"
+version = "6.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "filelock" },
+    { name = "requests", extra = ["socks"] },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6a/b5/a45f62f20664031bf74a6aeb6f8d8cd5910e411bf90d756bd6b09bdc6c35/gdown-6.1.0.tar.gz", hash = "sha256:361c6e04c6ca335df50b9d71f40bcfe9ab70fb26a1b0e890a427267781389553", size = 269670, upload-time = "2026-05-30T11:56:21.322Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/56/a99f0f159cce5b26d267317d436afee184f45fc7911938757d7cbbd2d10c/gdown-6.1.0-py3-none-any.whl", hash = "sha256:38a36a94275b8272f684db469bbd73b4d1f64cbbc1751bcb993a1b2be8f013c8", size = 19216, upload-time = "2026-05-30T11:56:20.016Z" },
+]
+
+[[package]]
 name = "gensim"
 version = "4.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1886,6 +1901,19 @@ wheels = [
 ]
 
 [[package]]
+name = "mkdocs-gen-files"
+version = "0.6.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mkdocs" },
+    { name = "properdocs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/43/428f312149c161cae557eecd35f3c4a82b867998b1d47fb29fdfe927be26/mkdocs_gen_files-0.6.1.tar.gz", hash = "sha256:57d7ff2229e23d077e46d14a33db6d37c8823f6ce1a503c874c1764a71679763", size = 8746, upload-time = "2026-03-16T23:26:09.31Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/1b/3075eb67fe66e19db059f0a25744c4e56978a309603a20e1d3353d545b5e/mkdocs_gen_files-0.6.1-py3-none-any.whl", hash = "sha256:b3182bfc6219e35b8d26658cb988368659d5d023aac30c2a819247558fc12189", size = 8282, upload-time = "2026-03-16T23:26:08.292Z" },
+]
+
+[[package]]
 name = "mkdocs-get-deps"
 version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1914,6 +1942,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/00/aa/f8d15409a9a3112486994a80d5a975694c7d145c4f8b5b484aeb383420ef/mkdocs_jupyter-0.26.3.tar.gz", hash = "sha256:e1e8bd48a1b96542e84e3028e3066112bac7b94d95ab69f8b91305c84003ca26", size = 1628353, upload-time = "2026-04-17T18:56:31.517Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/13/95/cf3f7fe4910cf0365fa8ea0c731f4b8a624d97cd76ea777913ac8d0868e2/mkdocs_jupyter-0.26.3-py3-none-any.whl", hash = "sha256:cd6644fb578131157194d750fd4d10fc2fd8f1e84e00036ee62df3b5b4b84c82", size = 1459740, upload-time = "2026-04-17T18:56:30.031Z" },
+]
+
+[[package]]
+name = "mkdocs-literate-nav"
+version = "0.6.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "mkdocs" },
+    { name = "properdocs" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/af/dd3776a7a713f798f79bec7eb9c661d5cfb83ddc17d9a3667595e53e1559/mkdocs_literate_nav-0.6.3.tar.gz", hash = "sha256:edbaca22343f861fe4e34aac47d55a0c9955c640dbf02eea99fe631e914cf9ee", size = 17526, upload-time = "2026-03-16T23:26:50.688Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/2c/bcf1ae903975ad6f169abb05c1eb0f94395478364deb89270cf034081b29/mkdocs_literate_nav-0.6.3-py3-none-any.whl", hash = "sha256:2c421561280fa9184f88cbf399bebbd4cc17ee507e978a31ce11fd6f3aabf233", size = 13355, upload-time = "2026-03-16T23:26:49.562Z" },
 ]
 
 [[package]]
@@ -2506,6 +2547,29 @@ wheels = [
 ]
 
 [[package]]
+name = "properdocs"
+version = "1.6.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+    { name = "ghp-import" },
+    { name = "jinja2" },
+    { name = "markdown" },
+    { name = "markupsafe" },
+    { name = "packaging" },
+    { name = "pathspec" },
+    { name = "platformdirs" },
+    { name = "pyyaml" },
+    { name = "pyyaml-env-tag" },
+    { name = "watchdog" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ec/29/f27a4e1eddf72ed3db6e47818fbafe6debbf09fd7051f9c1a007239b46ef/properdocs-1.6.7.tar.gz", hash = "sha256:adc7b16e562890af0e098a7e5b02e3a81c20894a87d6a28d345c9300de73c26e", size = 276141, upload-time = "2026-03-20T20:07:48.167Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bd/4d/fc923f5c85318ee8cc903566dc4e0ebe41b2dfc1d2ecf5546db232397ed6/properdocs-1.6.7-py3-none-any.whl", hash = "sha256:6fa0cfa2e01bf338f684892c8a506cf70ea88ae7f3479c933b6fa20168101cbd", size = 225406, upload-time = "2026-03-20T20:07:46.875Z" },
+]
+
+[[package]]
 name = "proto-plus"
 version = "1.28.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2757,6 +2821,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pysocks"
+version = "1.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bd/11/293dd436aea955d45fc4e8a35b6ae7270f5b8e00b53cf6c024c83b657a11/PySocks-1.7.1.tar.gz", hash = "sha256:3f8804571ebe159c380ac6de37643bb4685970655d3bba243530d6558b799aa0", size = 284429, upload-time = "2019-09-20T02:07:35.714Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8d/59/b4572118e098ac8e46e399a1dd0f2d85403ce8bbaad9ec79373ed6badaf9/PySocks-1.7.1-py3-none-any.whl", hash = "sha256:2725bd0a9925919b9b51739eea5f9e2bae91e83288108a9ad338b2e3a4435ee5", size = 16725, upload-time = "2019-09-20T02:06:22.938Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2948,6 +3021,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/c3/e2a2b89f2d3e2179abd6d00ebd70bff6273f37fb3e0cc209f48b39d00cbf/requests-2.34.2.tar.gz", hash = "sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed", size = 142856, upload-time = "2026-05-14T19:25:27.735Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/f4/c67b0b3f1b9245e8d266f0f112c500d50e5b4e83cb6f3b71b6528104182a/requests-2.34.2-py3-none-any.whl", hash = "sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0", size = 73075, upload-time = "2026-05-14T19:25:26.443Z" },
+]
+
+[package.optional-dependencies]
+socks = [
+    { name = "pysocks" },
 ]
 
 [[package]]
@@ -3601,10 +3679,11 @@ wheels = [
 
 [[package]]
 name = "xwhy"
-version = "0.0.1.dev1"
+version = "0.0.1.dev2"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "gdown" },
     { name = "gensim" },
     { name = "google-genai" },
     { name = "huggingface-hub" },
@@ -3640,7 +3719,9 @@ vertex = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
+    { name = "mkdocs-gen-files" },
     { name = "mkdocs-jupyter" },
+    { name = "mkdocs-literate-nav" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
     { name = "mypy" },
@@ -3658,6 +3739,7 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'bedrock'", specifier = "~=1.43.42" },
     { name = "botocore", marker = "extra == 'aws'", specifier = "~=1.43.42" },
     { name = "botocore", marker = "extra == 'bedrock'", specifier = "~=1.43.42" },
+    { name = "gdown", specifier = "~=6.1.0" },
     { name = "gensim", specifier = "~=4.4.0" },
     { name = "google-auth", extras = ["requests"], marker = "extra == 'vertex'", specifier = ">=2,<3" },
     { name = "google-cloud-aiplatform", marker = "extra == 'vertex'", specifier = ">=1,<2" },
@@ -3681,7 +3763,9 @@ provides-extras = ["vertex", "aws", "bedrock"]
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", extras = ["toml"], specifier = ">=7.14.3" },
+    { name = "mkdocs-gen-files", specifier = ">=0.6.1" },
     { name = "mkdocs-jupyter", specifier = ">=0.26.3" },
+    { name = "mkdocs-literate-nav", specifier = ">=0.6.3" },
     { name = "mkdocs-material", specifier = ">=9.7.6" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=1.0.5" },
     { name = "mypy", specifier = ">=2.1.0" },

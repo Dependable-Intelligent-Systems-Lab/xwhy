@@ -10,7 +10,8 @@ class EmbeddingType(StrEnum):
 
     WORD2VEC = "word2vec"
     GLOVE = "glove"
-    PARAGRAM = "paragram"
+    PARAGRAM_SL = "paragram_sl"
+    PARAGRAM_WS = "paragram_ws"
 
     # Future:
     # SENTENCE_TRANSFORMER = "sentence_transformer"

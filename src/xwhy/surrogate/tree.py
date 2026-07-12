@@ -56,7 +56,7 @@ class TreeBasedSurrogate(BaseSurrogate):
 
         Raises:
             AttributeError: If the underlying model lacks a
-            'feature_importances_' attribute.
+                            'feature_importances_' attribute.
 
         """
         if hasattr(self._model, "feature_importances_"):

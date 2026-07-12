@@ -35,6 +35,32 @@ print(explanation.metrics)
 
 ```
 
+### Enabling Logging & Progress Tracking
+
+XWhy follows standard Python logging best practices and uses a `NullHandler` by default to keep your environment clean. If you are working in an interactive environment like Jupyter Notebook or Google Colab and want to view internal pipeline progress (such as perturbation status and surrogate model selection) in real-time, configure the package logger before running your explainer:
+
+```python
+import logging
+import sys
+
+# Get the internal xwhy logger
+xwhy_logger = logging.getLogger("xwhy")
+
+# Set the logging level to INFO to capture pipeline events
+xwhy_logger.setLevel(logging.INFO)
+
+# Create a stream handler directing logs to standard output
+handler = logging.StreamHandler(sys.stdout)
+
+# Define a structured, clean format for execution logs
+formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+handler.setFormatter(formatter)
+
+# Attach the handler to track live progress
+xwhy_logger.addHandler(handler)
+
+```
+
 ---
 
 ## Rich Visualizations

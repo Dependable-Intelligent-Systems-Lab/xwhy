@@ -1,5 +1,8 @@
 """Core abstractions for xwhy."""
 
+from xwhy.config import settings  # noqa: I001
+
+import xwhy.logger  # noqa: F401
 from xwhy import plots
 from xwhy.bootstrap import register_all
 from xwhy.explainers.image import ImageExplainer
@@ -19,4 +22,5 @@ __all__ = [
     "TabularExplainer",
     "TextExplainer",
     "plots",
+    "settings",
 ]

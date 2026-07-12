@@ -1,5 +1,7 @@
 """Unit tests for the plots module."""
 
+import sys
+from collections.abc import Generator
 from typing import Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
@@ -64,6 +66,20 @@ def mock_metrics() -> RegressionMetricResult:
         weighted_l1_norm=0.1,
         weighted_l2_norm=0.05,
     )
+
+
+if "shap" not in sys.modules:
+    shap_mock = MagicMock()
+    sys.modules["shap"] = shap_mock
+    sys.modules["shap.plots"] = MagicMock()
+
+
+@pytest.fixture(autouse=True)
+def clean_plots() -> Generator[None, None, None]:
+    """Ensure all matplotlib figures are closed before and after each test."""
+    plt.close("all")
+    yield
+    plt.close("all")
 
 
 def test_text_heatmap_unsupported_type(mock_metrics: RegressionMetricResult) -> None:
@@ -550,3 +566,139 @@ def test_decorator_bypasses_non_show_functions() -> None:
     # Should execute seamlessly without injecting kwargs["show"]
     result = text()
     assert result == "mocked_html_output"
+
+
+@patch("shap.plots", create=True)
+@patch("matplotlib.pyplot.show")
+def test_replace_shap_label_full_flow_all_true(
+    mock_show: MagicMock, mock_shap_plots: MagicMock
+) -> None:
+    """Test all positive branches: show=True, figure exists, 'SHAP value' in label."""
+
+    def dummy_plot(show: bool = True) -> str:
+        plt.figure()
+        plt.xlabel("Average SHAP value (impact)")
+        return "success"
+
+    mock_shap_plots.dummy_plot = dummy_plot
+
+    decorated = replace_shap_label(dummy_plot)
+    result = decorated(show=True)
+
+    assert result == "success"
+    assert plt.gca().get_xlabel() == "Average XWhy value (impact)"
+    mock_show.assert_called_once()
+
+
+@patch("shap.plots", create=True)
+def test_replace_shap_label_shap_func_none(mock_shap_plots: MagicMock) -> None:
+    """Test when the function is not found in shap.plots (shap_func is None)."""
+
+    def unknown_plot() -> str:
+        return "bypassed"
+
+    decorated = replace_shap_label(unknown_plot)
+    result = decorated()
+
+    assert result == "bypassed"
+
+
+@patch("shap.plots", create=True)
+@patch("inspect.signature")
+def test_replace_shap_label_inspect_raises(
+    mock_signature: MagicMock, mock_shap_plots: MagicMock
+) -> None:
+    """Test the except (ValueError, TypeError) block during signature inspection."""
+
+    def weird_plot() -> str:
+        return "handled"
+
+    mock_shap_plots.weird_plot = weird_plot
+    mock_signature.side_effect = ValueError("Cannot inspect built-in")
+
+    decorated = replace_shap_label(weird_plot)
+    result = decorated()
+
+    assert result == "handled"
+
+
+@patch("shap.plots", create=True)
+def test_replace_shap_label_no_figures(mock_shap_plots: MagicMock) -> None:
+    """Test the branch where len(plt.get_fignums()) > 0 is False."""
+
+    def empty_plot(show: bool = True) -> None:
+        pass
+
+    mock_shap_plots.empty_plot = empty_plot
+
+    decorated = replace_shap_label(empty_plot)
+    decorated(show=False)
+
+    assert len(plt.get_fignums()) == 0
+
+
+@patch("shap.plots", create=True)
+def test_replace_shap_label_different_xlabel(mock_shap_plots: MagicMock) -> None:
+    """Test the branch where 'SHAP value' is not in the current_xlabel."""
+
+    def diff_plot(show: bool = True) -> None:
+        plt.figure()
+        plt.xlabel("Feature Importance")
+
+    mock_shap_plots.diff_plot = diff_plot
+
+    decorated = replace_shap_label(diff_plot)
+    decorated(show=False)
+
+    assert plt.gca().get_xlabel() == "Feature Importance"
+
+
+@patch("shap.plots", create=True)
+@patch("matplotlib.pyplot.show")
+def test_replace_shap_label_original_show_false(
+    mock_show: MagicMock, mock_shap_plots: MagicMock
+) -> None:
+    """Test the branch where original_show is False."""
+
+    def silent_plot(show: bool = True) -> None:
+        plt.figure()
+        plt.xlabel("SHAP value")
+
+    mock_shap_plots.silent_plot = silent_plot
+
+    decorated = replace_shap_label(silent_plot)
+    decorated(show=False)
+
+    assert plt.gca().get_xlabel() == "XWhy value"
+    mock_show.assert_not_called()
+
+
+@patch("shap.plots", create=True)
+def test_replace_shap_label_already_called(mock_shap_plots: MagicMock) -> None:
+    """Test the guard block handling hasattr(current_func, 'called')."""
+
+    def already_called_plot() -> str:
+        return "direct"
+
+    already_called_plot.called = True  # type: ignore
+    mock_shap_plots.already_called_plot = already_called_plot
+
+    decorated = replace_shap_label(already_called_plot)
+    result = decorated()
+
+    assert result == "direct"
+
+
+@patch("shap.plots", create=True)
+def test_replace_shap_label_shap_func_is_none(mock_shap_plots: MagicMock) -> None:
+    """Test the branch where shap_func is None (func not in shap.plots)."""
+
+    def my_custom_plot() -> str:
+        return "bypassed and executed"
+
+    del mock_shap_plots.my_custom_plot
+
+    decorated = replace_shap_label(my_custom_plot)
+    result = decorated()
+
+    assert result == "bypassed and executed"
