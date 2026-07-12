@@ -177,6 +177,7 @@ addopts = [
 
 filterwarnings = [
     "ignore::PendingDeprecationWarning:shap.*",
+    "ignore::pyparsing.PyparsingDeprecationWarning",
 ]
 
 ################################################################################

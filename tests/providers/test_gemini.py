@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import pytest
+
 from xwhy.providers.gemini import GeminiProvider
 
 
@@ -48,7 +50,7 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
 
 @patch("xwhy.providers.gemini.types")
 def test_gemini_provider_safety_block_fallback(mock_types: MagicMock) -> None:
-    """Test fallback when Gemini response is blocked by safety filters."""
+    """Test that Gemini provider raises RuntimeError when blocked by safety filters."""
     mock_client = MagicMock()
     mock_response = MagicMock()
 
@@ -60,9 +62,13 @@ def test_gemini_provider_safety_block_fallback(mock_types: MagicMock) -> None:
     mock_client.models.generate_content.return_value = mock_response
 
     provider = GeminiProvider(client=mock_client)
-    result = provider.answer(prompt="Blocked prompt test")
 
-    assert result == ""
+    # Note: Using exact substring match without regex escape for safety filter message
+    with pytest.raises(
+        RuntimeError, match="blocked \\(likely due to safety filters\\)"
+    ):
+        provider.answer(prompt="Blocked prompt test")
+
     mock_client.models.generate_content.assert_called_once()
     mock_types.Part.from_text.assert_called_once_with(text="Blocked prompt test")
 
@@ -78,7 +84,30 @@ def test_gemini_provider_api_error(mock_types: MagicMock) -> None:
     )
 
     provider = GeminiProvider(client=mock_client)
-    result = provider.answer(prompt="Error prompt test")
 
-    assert result == ""
+    with pytest.raises(RuntimeError, match="API rate limit exceeded"):
+        provider.answer(prompt="Error prompt test")
+
+    mock_client.models.generate_content.assert_called_once()
+
+
+@patch("xwhy.providers.gemini.types")
+def test_gemini_empty_text_response_raises_error(mock_types: MagicMock) -> None:
+    """Test RuntimeError is raised when Gemini returns empty text directly.
+
+    This covers the 'if not result_text:' block where the API returns a
+    response without triggering ValueError, but the stripped text is empty.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+
+    type(mock_response).text = PropertyMock(return_value="   ")
+    mock_client.models.generate_content.return_value = mock_response
+
+    provider = GeminiProvider(client=mock_client)
+
+    expected_error = "empty response from the Gemini API"
+    with pytest.raises(RuntimeError, match=expected_error):
+        provider.answer(prompt="Test empty response")
+
     mock_client.models.generate_content.assert_called_once()

@@ -36,6 +36,9 @@ class AnthropicProvider(BaseProvider):
         Returns:
             Generated text.
 
+        Raises:
+            RuntimeError: If the API returns an empty response.
+
         """
         try:
             response = self._client.messages.create(  # type: ignore[attr-defined]
@@ -51,12 +54,28 @@ class AnthropicProvider(BaseProvider):
             )
 
             # Anthropic returns a list of ContentBlock objects. We extract the text
-            # from the first block.
-            return str(response.content[0].text).strip()
+            # from the first block if it exists to avoid IndexError.
+            result_text = ""
+            if response.content:
+                result_text = str(response.content[0].text).strip()
+
+            if not result_text:
+                error_message = (
+                    "Received an empty response from the Anthropic API. "
+                    "This could be due to content moderation filters, network"
+                    " filtering (anti-filter), or provider-side anomalies."
+                )
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+
+            return result_text
+
+        except RuntimeError:
+            raise
 
         except Exception as exc:
             logger.error("Anthropic request failed: %s", exc)
-            return ""
+            raise RuntimeError(f"Anthropic request failed: {exc}") from exc
 
     def answer(
         self,

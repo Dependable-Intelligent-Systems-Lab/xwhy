@@ -53,6 +53,9 @@ class OpenAIProvider(BaseProvider):
         Returns:
             Generated text.
 
+        Raises:
+            RuntimeError: If the API returns an empty response.
+
         """
         try:
             if self._is_reasoning_model(model):
@@ -63,15 +66,29 @@ class OpenAIProvider(BaseProvider):
                     reasoning={"effort": "low"},
                     temperature=temperature,
                 )
-                return str(reasoning_response.output_text).strip()
+                result_text = str(reasoning_response.output_text).strip()
+            else:
+                completion_response = self._client.completions.create(
+                    model=model,
+                    prompt=prompt,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+                result_text = str(completion_response.choices[0].text).strip()
 
-            completion_response = self._client.completions.create(
-                model=model,
-                prompt=prompt,
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
-            return str(completion_response.choices[0].text).strip()
+            if not result_text:
+                error_message = (
+                    "Received an empty response from the OpenAI API. "
+                    "This could be due to safety guardrails, network "
+                    "filtering (anti-filter), or provider-side anomalies."
+                )
+                logger.error(error_message)
+                raise RuntimeError(error_message)
+
+            return result_text
+
+        except RuntimeError:
+            raise
 
         except Exception as exc:
             error_msg = str(exc).lower()
@@ -117,7 +134,7 @@ class OpenAIProvider(BaseProvider):
                     )
 
             logger.error("OpenAI request failed: %s", exc)
-            return ""
+            raise RuntimeError(f"OpenAI request failed: {exc}") from exc
 
     def answer(
         self,
