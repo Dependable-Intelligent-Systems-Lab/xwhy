@@ -28,10 +28,10 @@ update:
 # =============================================================================
 
 docs: 
-    uv run mkdocs serve
+    uv run properdocs serve
 
 docs-build:
-    uv run mkdocs build
+    uv run properdocs build
 
 # =============================================================================
 # Nox - Multi-python testing
