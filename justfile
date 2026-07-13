@@ -28,10 +28,10 @@ update:
 # =============================================================================
 
 docs: 
-    uv run mkdocs serve
+    uv run properdocs serve
 
 docs-build:
-    uv run mkdocs build
+    uv run properdocs build
 
 # =============================================================================
 # Nox - Multi-python testing
@@ -47,11 +47,7 @@ nox:
 # Development
 # =============================================================================
 
-dev: clean
-    uv run ruff check src tests
-    uv run mypy src tests
-    uv run pytest
-    uv run coverage html
+dev: clean format lint-fix mypy test-html
 
 # =============================================================================
 # Tests
@@ -168,6 +164,7 @@ clean:
     rm -rf .ruff_cache
     rm -rf .mypy_cache
     rm -rf htmlcov
+    rm -rf site
     rm -f coverage.xml
     rm -f .coverage
 

@@ -9,11 +9,12 @@ build:
     install:
       - python -m pip install --upgrade pip
       - python -m pip install -e .
+      - python -m pip install properdocs
       - python -m pip install "mkdocs-material>=9.7.6"
       - python -m pip install "mkdocstrings[python]>=1.0.5"
       - python -m pip install "mkdocs-jupyter>=0.26.3"
       - python -m pip install "mkdocs-gen-files>=0.6.1"
       - python -m pip install "mkdocs-literate-nav>=0.6.3"
-
-mkdocs:
-  configuration: mkdocs.yml
+    build:
+      html:
+        - properdocs build -f mkdocs.yml --clean --site-dir $READTHEDOCS_OUTPUT/html

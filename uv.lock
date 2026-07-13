@@ -3713,7 +3713,7 @@ wheels = [
 
 [[package]]
 name = "xwhy"
-version = "0.0.1.dev3"
+version = "0.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
@@ -3765,6 +3765,7 @@ dev = [
     { name = "mypy" },
     { name = "nox" },
     { name = "pre-commit" },
+    { name = "properdocs" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
@@ -3810,6 +3811,7 @@ dev = [
     { name = "mypy", specifier = ">=2.1.0" },
     { name = "nox", specifier = ">=2026.4.10" },
     { name = "pre-commit", specifier = ">=4.6.0" },
+    { name = "properdocs", specifier = ">=1.6.7" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.15.20" },

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import re
+import zipfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
@@ -514,127 +515,226 @@ def test_download_glove_failure(mock_download: MagicMock, tmp_path: Path) -> Non
     )
     mock_download.side_effect = Exception("Network failure")
 
-    with pytest.raises(RuntimeError, match="Failed to load GloVe 840B 300d model"):
+    with pytest.raises(RuntimeError, match="Failed to load GloVe model"):
         embedding._download_glove(tmp_path, tmp_path / "bin", tmp_path / "txt")
 
 
-# ---------------------------------------------------------------------
+@patch("gdown.download")
+@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+def test_try_gdown_download_success(
+    mock_kv_load: MagicMock, mock_download: MagicMock, tmp_path: Path
+) -> None:
+    """Test successful fast binary download from Google Drive."""
+    embedding = Word2VecEmbedding(settings=cast(Any, DummySettings()))
+    bin_path = tmp_path / "model.bin"
+    model_info = {"google_id": "test_gdrive_id"}
+
+    def download_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
+        Path(output).write_bytes(b"dummy binary data")
+
+    mock_download.side_effect = download_side_effect
+
+    fake_model = MagicMock()
+    mock_kv_load.return_value = fake_model
+
+    result = embedding._try_gdown_download(model_info, bin_path)
+
+    assert result is fake_model
+    assert embedding._model is fake_model
+    mock_download.assert_called_once_with(
+        id="test_gdrive_id", output=str(bin_path), quiet=False
+    )
+    mock_kv_load.assert_called_once_with(str(bin_path), binary=True, no_header=False)
+
+
+def test_try_gdown_download_no_google_id(tmp_path: Path) -> None:
+    """Test skip download if google_id is missing."""
+    embedding = Word2VecEmbedding(settings=cast(Any, DummySettings()))
+    bin_path = tmp_path / "model.bin"
+    model_info = {"no_google_id_here": True}
+
+    result = embedding._try_gdown_download(model_info, bin_path)
+    assert result is None
+
+
+def test_try_gdown_download_force_download(tmp_path: Path) -> None:
+    """Test skip fast gdown download if force_download is True."""
+    embedding = Word2VecEmbedding(
+        settings=cast(Any, DummySettings()), force_download=True
+    )
+    bin_path = tmp_path / "model.bin"
+    model_info = {"google_id": "test_gdrive_id"}
+
+    result = embedding._try_gdown_download(model_info, bin_path)
+    assert result is None
+
+
+def test_try_gdown_download_exception_with_cleanup(tmp_path: Path) -> None:
+    """Test exception handling during download and proper cleanup of corrupted file."""
+    embedding = Word2VecEmbedding(settings=cast(Any, DummySettings()))
+    bin_path = tmp_path / "model.bin"
+    bin_path.write_bytes(b"corrupted partial data")  # Simulate partial download
+    model_info = {"google_id": "test_gdrive_id"}
+
+    mock_gdown = MagicMock()
+    mock_gdown.download.side_effect = Exception("Network Error")
+
+    with patch.dict("sys.modules", {"gdown": mock_gdown}):
+        result = embedding._try_gdown_download(model_info, bin_path)
+
+    assert result is None
+    assert not bin_path.exists()  # Ensure cleanup logic ran
+
+
+def test_try_gdown_download_exception_no_cleanup_needed(tmp_path: Path) -> None:
+    """Test exception handling when file was never created (no cleanup needed)."""
+    embedding = Word2VecEmbedding(settings=cast(Any, DummySettings()))
+    bin_path = tmp_path / "model.bin"
+    model_info = {"google_id": "test_gdrive_id"}
+
+    mock_gdown = MagicMock()
+    mock_gdown.download.side_effect = Exception("Connection Failed")
+
+    with patch.dict("sys.modules", {"gdown": mock_gdown}):
+        result = embedding._try_gdown_download(model_info, bin_path)
+
+    assert result is None
+    assert not bin_path.exists()
+
+
+@patch.object(Word2VecEmbedding, "_try_gdown_download")
+def test_load_gdown_shortcut_success(mock_try_gdown: MagicMock, tmp_path: Path) -> None:
+    """Test load method returns immediately if gdown shortcut succeeds."""
+    embedding = Word2VecEmbedding(
+        settings=cast(Any, DummySettings()), model_name="glove.840B.300d"
+    )
+
+    fake_model = MagicMock()
+    mock_try_gdown.return_value = fake_model
+
+    with patch.object(embedding, "_get_cache_dir", return_value=tmp_path):
+        result = embedding.load()
+
+    assert result is fake_model
+    mock_try_gdown.assert_called_once()
+
+
+# =====================================================================
 # Paragram Download and Extract logic
-# ---------------------------------------------------------------------
+# =====================================================================
+@patch("gdown.download")
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_success_zip(
     mock_kv_load: MagicMock,
+    mock_download: MagicMock,
     tmp_path: Path,
 ) -> None:
     """Test successful Paragram download and extraction from zip."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
     txt_path = tmp_path / "paragram.txt"
     bin_path = tmp_path / "model.bin"
 
-    mock_gdown = MagicMock()
-
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
-        import zipfile
-
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         with zipfile.ZipFile(output, "w") as zf:
             valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
             zf.writestr("model.txt", valid_line)
 
-    mock_gdown.download.side_effect = gdown_side_effect
+    mock_download.side_effect = gdown_side_effect
     fake_model = MagicMock()
     mock_kv_load.return_value = fake_model
 
-    with patch.dict("sys.modules", {"gdown": mock_gdown}):
-        model = embedding._download_paragram(tmp_path, bin_path, txt_path)
+    model = embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     assert model is fake_model
     fake_model.save_word2vec_format.assert_called_once_with(str(bin_path), binary=True)
-    assert not txt_path.exists()  # Ensure cleanup
+    assert not txt_path.exists()
 
 
+@patch("gdown.download")
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_success_txt_no_zip(
     mock_kv_load: MagicMock,
+    mock_download: MagicMock,
     tmp_path: Path,
 ) -> None:
     """Test successful Paragram download when the downloaded file is a raw text."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
     txt_path = tmp_path / "paragram.txt"
     bin_path = tmp_path / "model.bin"
 
-    mock_gdown = MagicMock()
-
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
         Path(output).write_text(valid_line, encoding="utf-8")
 
-    mock_gdown.download.side_effect = gdown_side_effect
-    mock_kv_load.return_value = MagicMock()
+    mock_download.side_effect = gdown_side_effect
+    fake_model = MagicMock()
+    mock_kv_load.return_value = fake_model
 
-    with patch.dict("sys.modules", {"gdown": mock_gdown}):
-        embedding._download_paragram(tmp_path, bin_path, txt_path)
+    embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     mock_kv_load.assert_called_once()
+    fake_model.save_word2vec_format.assert_called_once_with(str(bin_path), binary=True)
 
 
+@patch("gdown.download")
 @patch("xwhy.embeddings.word2vec.shutil.copyfileobj")
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_bad_zip_handling(
     mock_kv_load: MagicMock,
     mock_copy: MagicMock,
+    mock_download: MagicMock,
     tmp_path: Path,
 ) -> None:
     """Test Paragram extraction ignores BadZipFile (CRC error) safely."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
-    mock_gdown = MagicMock()
 
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
-        import zipfile
-
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         with zipfile.ZipFile(output, "w") as zf:
             zf.writestr("model.txt", "dummy")
 
-    mock_gdown.download.side_effect = gdown_side_effect
-
-    import zipfile
-
+    mock_download.side_effect = gdown_side_effect
     mock_copy.side_effect = zipfile.BadZipFile("Simulated CRC Error")
 
-    with patch.dict("sys.modules", {"gdown": mock_gdown}):
-        embedding._download_paragram(tmp_path, tmp_path / "bin", tmp_path / "txt")
+    fake_model = MagicMock()
+    mock_kv_load.return_value = fake_model
+
+    embedding._download_paragram(tmp_path, tmp_path / "bin", tmp_path / "txt")
 
     mock_kv_load.assert_called_once()
+    fake_model.save_word2vec_format.assert_called_once()
 
 
-def test_download_paragram_no_txt_in_zip(tmp_path: Path) -> None:
+@patch("gdown.download")
+def test_download_paragram_no_txt_in_zip(
+    mock_download: MagicMock, tmp_path: Path
+) -> None:
     """Test Paragram download raises error if zip contains no text file."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
-    mock_gdown = MagicMock()
 
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
-        import zipfile
-
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         with zipfile.ZipFile(output, "w") as zf:
             zf.writestr("model.bin", "dummy")  # No .txt file
 
-    mock_gdown.download.side_effect = gdown_side_effect
+    mock_download.side_effect = gdown_side_effect
 
-    with (
-        patch.dict("sys.modules", {"gdown": mock_gdown}),
-        pytest.raises(RuntimeError, match="Failed to load paragram_300_sl999 model"),
-    ):
+    with pytest.raises(RuntimeError, match="Failed to load paragram_300_sl999"):
         embedding._download_paragram(tmp_path, tmp_path / "bin", tmp_path / "txt")
 
 
@@ -645,61 +745,63 @@ def test_download_paragram_cache_exists(
 ) -> None:
     """Test Paragram bypasses download if txt_path already exists."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
     txt_path = tmp_path / "paragram.txt"
-    txt_path.write_text("dummy")  # Create cache
+    valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
+    txt_path.write_text(valid_line)  # Create cache with correct dimension length
 
     mock_gdown = MagicMock()
+    fake_model = MagicMock()
+    mock_kv_load.return_value = fake_model
 
     with patch.dict("sys.modules", {"gdown": mock_gdown}):
         embedding._download_paragram(tmp_path, tmp_path / "bin", txt_path)
 
     mock_gdown.download.assert_not_called()
+    mock_kv_load.assert_called_once()
 
 
-def test_download_paragram_failure(tmp_path: Path) -> None:
+@patch("gdown.download")
+def test_download_paragram_failure(mock_download: MagicMock, tmp_path: Path) -> None:
     """Test Paragram download general exception handling."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
-    mock_gdown = MagicMock()
-    mock_gdown.download.side_effect = Exception("gdown network failure")
 
-    with (
-        patch.dict("sys.modules", {"gdown": mock_gdown}),
-        pytest.raises(RuntimeError, match="Failed to load paragram_300_sl999 model"),
-    ):
+    mock_download.side_effect = Exception("gdown network failure")
+
+    with pytest.raises(RuntimeError, match="Failed to load paragram_300_sl999"):
         embedding._download_paragram(tmp_path, tmp_path / "bin", tmp_path / "txt")
 
 
-# ---------------------------------------------------------------------
+# =====================================================================
 # Paragram Cleanup Coverage (True & False branches)
-# ---------------------------------------------------------------------
+# =====================================================================
+@patch("gdown.download")
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_cleanup_files_exist_true_branch(
     mock_kv_load: MagicMock,
+    mock_download: MagicMock,
     tmp_path: Path,
 ) -> None:
     """Test the True branches of the cleanup block (both files exist)."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
     txt_path = tmp_path / "paragram.txt"
     bin_path = tmp_path / "model.bin"
 
-    mock_gdown = MagicMock()
-
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
-        import zipfile
-
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         with zipfile.ZipFile(output, "w") as zf:
-            zf.writestr("model.txt", "word1 0.1\n")
+            valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
+            zf.writestr("model.txt", valid_line)
 
-    mock_gdown.download.side_effect = gdown_side_effect
+    mock_download.side_effect = gdown_side_effect
 
     def load_side_effect(fname: str, *args: Any, **kwargs: Any) -> MagicMock:  # noqa: ANN401
         Path(fname).write_text("dummy clean content")
@@ -708,39 +810,40 @@ def test_download_paragram_cleanup_files_exist_true_branch(
 
     mock_kv_load.side_effect = load_side_effect
 
-    with patch.dict("sys.modules", {"gdown": mock_gdown}):
-        embedding._download_paragram(tmp_path, bin_path, txt_path)
+    embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     assert not txt_path.exists()
 
+    # Ensure all .txt and .clean.txt files were wiped out
     txt_files = list(tmp_path.glob("*.txt*"))
     assert len(txt_files) == 0
 
 
+@patch("gdown.download")
 @patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_cleanup_files_missing_false_branch(
     mock_kv_load: MagicMock,
+    mock_download: MagicMock,
     tmp_path: Path,
 ) -> None:
     """Test the False branches of the cleanup block (files missing)."""
     embedding = Word2VecEmbedding(
-        settings=cast(Settings, DummySettings()),
+        settings=cast(Any, DummySettings()),
         model_name="paragram_300_sl999",
     )
     txt_path = tmp_path / "paragram.txt"
     bin_path = tmp_path / "model.bin"
 
-    mock_gdown = MagicMock()
-
-    def gdown_side_effect(id: str, output: str, quiet: bool) -> None:
-        import zipfile
-
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
         with zipfile.ZipFile(output, "w") as zf:
-            zf.writestr("model.txt", "word1 0.1\n")
+            valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
+            zf.writestr("model.txt", valid_line)
 
-    mock_gdown.download.side_effect = gdown_side_effect
+    mock_download.side_effect = gdown_side_effect
 
     def load_side_effect(fname: str, *args: Any, **kwargs: Any) -> MagicMock:  # noqa: ANN401
+        # Simulate missing files right before cleanup logic
         if Path(fname).exists():
             Path(fname).unlink()
         if txt_path.exists():
@@ -749,7 +852,56 @@ def test_download_paragram_cleanup_files_missing_false_branch(
 
     mock_kv_load.side_effect = load_side_effect
 
-    with patch.dict("sys.modules", {"gdown": mock_gdown}):
-        embedding._download_paragram(tmp_path, bin_path, txt_path)
+    embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     assert not txt_path.exists()
+
+
+@patch("gdown.download")
+@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+def test_download_paragram_dimension_filtering(
+    mock_kv_load: MagicMock,
+    mock_download: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Test Step 1 and Step 2 correctly filter lines based on expected dimensions."""
+    embedding = Word2VecEmbedding(
+        settings=cast(Any, DummySettings()),
+        model_name="paragram_300_sl999",
+    )
+    txt_path = tmp_path / "paragram.txt"
+    bin_path = tmp_path / "model.bin"
+
+    def gdown_side_effect(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        output = kwargs.get("output") or args[1]
+
+        valid_line = "word1 " + " ".join(["0.1"] * 300) + "\n"
+        invalid_short = "word2 " + " ".join(["0.2"] * 299) + "\n"
+        invalid_long = "word3 " + " ".join(["0.3"] * 301) + "\n"
+        empty_line = "\n"
+
+        file_content = invalid_short + valid_line + empty_line + invalid_long
+
+        with zipfile.ZipFile(output, "w") as zf:
+            zf.writestr("model.txt", file_content)
+
+    mock_download.side_effect = gdown_side_effect
+
+    def load_side_effect(fname: str, *args: Any, **kwargs: Any) -> MagicMock:  # noqa: ANN401
+        content = Path(fname).read_text(encoding="utf-8")
+        lines = content.splitlines()
+
+        assert lines[0] == "1 300", f"Expected header '1 300', but got '{lines[0]}'"
+
+        assert len(lines) == 2, "File should only contain the header and 1 valid line."
+        assert lines[1].startswith("word1 "), (
+            "Only 'word1' should have passed the filter."
+        )
+
+        return MagicMock()
+
+    mock_kv_load.side_effect = load_side_effect
+
+    embedding._download_paragram(tmp_path, bin_path, txt_path)
+
+    mock_kv_load.assert_called_once()

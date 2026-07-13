@@ -84,6 +84,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         seed: int = 1024,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
+        fidelity_plot: bool = False,
         **kwargs: object,
     ) -> TextXWhyResult:
         """Generate an explanation for the given prompt.
@@ -96,6 +97,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             seed: Random seed for reproducibility.
             num_perturbations: Number of perturbed samples to generate.
             embedding_type: Embedding method for WMD.
+            fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional explainer-specific options.
 
         Returns:
@@ -187,6 +189,8 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             "wmd_scores": wmd_scores,
             "similarities": sims,
             "weights": weights,
+            "y_target": y_target,
+            "y_pred": y_pred,
         }
 
         if self.use_best_surrogate:
@@ -194,10 +198,16 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         else:
             raw_data["surrogate_method"] = method
 
-        return TextXWhyResult(
+        result = TextXWhyResult(
             original_output=original_output,
             words=prompt.split(),
             coefficients=coeffs,
             metrics=metrics,
             raw_data=raw_data,
         )
+
+        if fidelity_plot:
+            logger.info("Rendering fidelity plot as requested...")
+            result.plot(show=True)
+
+        return result
