@@ -47,11 +47,7 @@ nox:
 # Development
 # =============================================================================
 
-dev: clean
-    uv run ruff check src tests
-    uv run mypy src tests
-    uv run pytest
-    uv run coverage html
+dev: clean format lint-fix mypy test-html
 
 # =============================================================================
 # Tests
