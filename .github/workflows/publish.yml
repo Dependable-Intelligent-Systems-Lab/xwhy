@@ -37,10 +37,8 @@ jobs:
       - name: Build Package (sdist and wheel)
         run: uv build
 
-      - name: Publish package distributions to TestPyPI
+      - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
