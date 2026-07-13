@@ -168,6 +168,7 @@ clean:
     rm -rf .ruff_cache
     rm -rf .mypy_cache
     rm -rf htmlcov
+    rm -rf site
     rm -f coverage.xml
     rm -f .coverage
 

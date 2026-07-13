@@ -1,6 +1,7 @@
 """Unit tests for core results."""
 
 from collections.abc import Sequence
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -106,3 +107,62 @@ def test_to_shap_conversion_success(
 
     # 5. Verify the returned object
     assert out_object == mock_shap_explanation.return_value
+
+
+class TestBaseXWhyResult:
+    """Test suite for the BaseXWhyResult class functionality."""
+
+    def test_plot_raises_key_error_on_missing_data(
+        self, mock_metrics: RegressionMetricResult
+    ) -> None:
+        """Ensure KeyError is raised if required arrays are missing in raw_data."""
+        # Missing 'weights' and 'y_pred'
+        raw_data = {"y_target": np.array([1.0, 2.0])}
+
+        result_obj = ConcreteResult(
+            coefficients=np.array([0.5, -0.5]),
+            metrics=mock_metrics,
+            raw_data=raw_data,
+        )
+
+        with pytest.raises(KeyError, match="'y_pred' must be present"):
+            result_obj.plot()
+
+    @patch("xwhy.core.result.plot_fidelity")
+    def test_plot_success(
+        self, mock_plot_fidelity: MagicMock, mock_metrics: RegressionMetricResult
+    ) -> None:
+        """Test that plot successfully delegates to plot_fidelity with correct data."""
+        y_target_mock = np.array([1.0, 2.0])
+        y_pred_mock = np.array([1.1, 1.9])
+        weights_mock = np.array([1.0, 1.0])
+
+        raw_data = {
+            "y_target": y_target_mock,
+            "y_pred": y_pred_mock,
+            "weights": weights_mock,
+            "extra_info": "should be ignored",
+        }
+
+        result_obj = ConcreteResult(
+            coefficients=np.array([0.5, -0.5]),
+            metrics=mock_metrics,
+            raw_data=raw_data,
+        )
+
+        mock_plot_fidelity.return_value = "/mock/path/plot.png"
+
+        save_path = Path("/mock/path/plot.png")
+        returned_path = result_obj.plot(save_path=save_path, show=False)
+
+        assert returned_path == "/mock/path/plot.png"
+
+        # Verify the delegation was done correctly
+        mock_plot_fidelity.assert_called_once_with(
+            metrics=mock_metrics,
+            y_target=y_target_mock,
+            y_pred=y_pred_mock,
+            weights=weights_mock,
+            save_path=save_path,
+            show=False,
+        )

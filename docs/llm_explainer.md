@@ -95,10 +95,14 @@ try:
     result = explainer.explain(
         instance="Machine learning is fascinating.",
         model_name="gpt-5-nano",
+        fidelity_plot=False,
     )
 
     # Print the explanation-quality metrics
     print(result.metrics)
+
+    # Display the fidelity plot
+    result.plot()
 
     # Display the token-level explanation
     xwhy.plots.text_heatmap(result)
