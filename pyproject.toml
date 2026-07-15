@@ -81,7 +81,7 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"
+Homepage = "https://dependable-intelligent-systems-lab.github.io/xwhy/"
 Repository = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy.git"
 Issues = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/issues"
 
