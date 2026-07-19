@@ -12,6 +12,8 @@ from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import BaseXWhyResult
 from xwhy.core.types import ImageClassificationState
 from xwhy.logger import logger
+from xwhy.models.classification.factory import ClassificationFactory
+from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.surrogate.types import SurrogateType
@@ -30,6 +32,7 @@ class ImageClassificationExplainer(
     def __init__(
         self,
         config: ImageClassificationConfig | None = None,
+        classification_type: str | ClassificationType = ClassificationType.INCEPTION_V3,
         use_model_preprocess: bool = False,
         need_normalization: bool = False,
         use_embedding_model: bool = False,
@@ -51,6 +54,8 @@ class ImageClassificationExplainer(
         Args:
             config:
                 Optional configuration for the explainer.
+            classification_type:
+                Type of the classification model to explain.
             use_model_preprocess:
                 Whether to use the classification model's official
                 preprocessing pipeline.
@@ -85,11 +90,13 @@ class ImageClassificationExplainer(
                 Number of predictions to explain.
 
         """
+        classification_type = ClassificationType.from_str(classification_type)
         embedding_type = EmbeddingType.from_str(embedding_type)
         surrogate_type = SurrogateType.from_str(surrogate_type)
 
         if config is None:
             config = ImageClassificationConfig(
+                classification_type=classification_type,
                 use_model_preprocess=use_model_preprocess,
                 need_normalization=need_normalization,
                 use_embedding_model=use_embedding_model,
@@ -122,8 +129,21 @@ class ImageClassificationExplainer(
 
     def _initialize(self) -> None:
         """Initialize runtime resources."""
-        # self._load_classification_model()
+        # 1. Load Classification Model
+        logger.info(f"Loading classification model: {self.config.classification_type}")  # type: ignore
 
+        if not isinstance(self.config.classification_type, ClassificationType):  # type: ignore
+            raise ValueError(
+                f"Invalid classification type '{self.config.classification_type}'."  # type: ignore
+            )
+
+        self.state.classification_model = ClassificationFactory.create(
+            classification=self.config.classification_type,  # type: ignore
+            device=self.state.device,
+        )
+        self.state.classification_model.load()
+
+        # 2. Load Embedding Model (if enabled)
         if self.config.use_embedding_model:  # type: ignore
             if not self.config.embedding_type.is_image_embedding:  # type: ignore
                 raise ValueError(

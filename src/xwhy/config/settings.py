@@ -23,6 +23,10 @@ class Settings(BaseSettings):
         default=Path.home() / ".cache" / "xwhy" / "embeddings",
     )
 
+    classification_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "xwhy" / "classification",
+    )
+
     anthropic_api_key: str | None = None
 
     openai_api_key: str | None = None

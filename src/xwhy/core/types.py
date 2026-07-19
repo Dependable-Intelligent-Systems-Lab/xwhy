@@ -6,6 +6,7 @@ from torch import device
 from torch.nn import Module
 from torchvision.models._api import WeightsEnum
 
+from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
 
 
@@ -25,8 +26,7 @@ class ImageClassificationState:
         """
         self.device = device_
 
-        self.classification_weights: WeightsEnum | None = None
-        self.classification_model: Module | None = None
+        self.classification_model: BaseClassification | None = None
 
         self.segmentation_weights: WeightsEnum | None = None
         self.segmentation_model: Module | None = None

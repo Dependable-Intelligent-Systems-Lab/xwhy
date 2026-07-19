@@ -3,6 +3,7 @@
 import pytest
 
 from xwhy.bootstrap import register_all
+from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.resolver import ProviderResolver
@@ -14,6 +15,7 @@ def reset_registry() -> None:
     """Reset all global registries before each test and reload defaults."""
     ProviderFactory.clear()
     EmbeddingFactory.clear()
+    ClassificationFactory.clear()
     ProviderResolver.clear()
     SurrogateFactory.clear()
 
