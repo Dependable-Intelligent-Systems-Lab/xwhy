@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.surrogate.types import SurrogateType
 
 
@@ -26,6 +27,8 @@ class ImageClassificationConfig(ExplainerConfig):
     use_model_preprocess: bool = False
     need_normalization: bool = False
     use_embedding_model: bool = False
+    embedding_type: EmbeddingType = EmbeddingType.DINOV2
+    device: str = "cpu"  # or "cuda"
 
     seed: int = 222
 

@@ -7,6 +7,7 @@ from sklearn.linear_model import BayesianRidge, LinearRegression, Ridge
 from xgboost import XGBRegressor
 
 from xwhy.config import settings
+from xwhy.models.embeddings.dinov2 import Dinov2Embedding
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.embeddings.word2vec import Word2VecEmbedding
@@ -359,6 +360,12 @@ def _build_paragram_ws(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     )
 
 
+def _build_dinov2(**kwargs: Any) -> Dinov2Embedding:  # noqa: ANN401
+    return Dinov2Embedding(
+        model_name="facebook/dinov2-base", settings=settings, **kwargs
+    )
+
+
 def _build_glm_ols(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: ANN401
     return LinearRegressionSurrogate(model=LinearRegression())
 
@@ -461,6 +468,7 @@ def register_all() -> None:
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM_SL, _build_paragram_sl)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM_WS, _build_paragram_ws)
+    EmbeddingFactory.register(EmbeddingType.DINOV2, _build_dinov2)
 
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,

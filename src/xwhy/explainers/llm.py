@@ -108,6 +108,13 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         prompt = instance
         embedding_type = EmbeddingType.from_str(embedding_type)
 
+        # Validation
+        if not embedding_type.is_text_embedding:
+            raise ValueError(
+                f"Invalid embedding type '{embedding_type}' "
+                "for LLMExplainer. Must be a text embedding."
+            )
+
         logger.info("Querying provider for original response...")
         original_output = self.provider.answer(
             prompt=prompt,
