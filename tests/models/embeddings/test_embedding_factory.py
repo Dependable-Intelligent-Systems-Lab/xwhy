@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-from xwhy.embeddings.factory import EmbeddingFactory
-from xwhy.embeddings.types import EmbeddingType
-from xwhy.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.embeddings.word2vec import Word2VecEmbedding
 
 
 def test_register_and_create_embedding() -> None:

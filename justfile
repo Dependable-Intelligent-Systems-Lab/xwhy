@@ -63,7 +63,7 @@ test-providers:
     uv run pytest tests/providers
 
 test-embeddings:
-    uv run pytest tests/embeddings
+    uv run pytest tests/models/embeddings
 
 test-perturbation:
     uv run pytest tests/perturbation

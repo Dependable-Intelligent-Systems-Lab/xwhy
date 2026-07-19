@@ -10,10 +10,10 @@ from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TextXWhyResult
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.wmd import WMDDistance
-from xwhy.embeddings.factory import EmbeddingFactory
-from xwhy.embeddings.types import EmbeddingType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
+from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.perturbation.text import TextPerturbation
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.resolver import ProviderResolver
@@ -50,7 +50,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         """
         # Resolve string/enum provider into a concrete instance using Hidden Factory
         resolved_provider = ProviderResolver.resolve(provider, **provider_kwargs)
-        super().__init__(resolved_provider, config)
+        super().__init__(config)
 
         self.provider = resolved_provider
         self.use_best_surrogate = use_best_surrogate

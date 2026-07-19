@@ -10,11 +10,10 @@ class PointCloudExplainer(BaseExplainer):
 
     def __init__(
         self,
-        model: object,
         config: ExplainerConfig | None = None,
     ) -> None:
         """Initialize the explainer."""
-        super().__init__(model, config)
+        super().__init__(config)
 
     def explain(
         self,

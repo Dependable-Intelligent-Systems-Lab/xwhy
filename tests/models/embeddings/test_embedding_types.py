@@ -2,7 +2,7 @@
 
 import pytest
 
-from xwhy.embeddings.types import EmbeddingType
+from xwhy.models.embeddings.types import EmbeddingType
 
 
 def test_embedding_type_from_str_success() -> None:

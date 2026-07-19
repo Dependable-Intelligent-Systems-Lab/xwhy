@@ -7,9 +7,9 @@ from sklearn.linear_model import BayesianRidge, LinearRegression, Ridge
 from xgboost import XGBRegressor
 
 from xwhy.config import settings
-from xwhy.embeddings.factory import EmbeddingFactory
-from xwhy.embeddings.types import EmbeddingType
-from xwhy.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.embeddings.word2vec import Word2VecEmbedding
 from xwhy.providers.anthropic import AnthropicProvider
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory

@@ -15,8 +15,8 @@ from gensim.models import KeyedVectors
 from tqdm.auto import tqdm
 
 from xwhy.config import Settings
-from xwhy.embeddings import BaseEmbedding
 from xwhy.logger import logger
+from xwhy.models.embeddings import BaseEmbedding
 
 
 class Word2VecEmbedding(BaseEmbedding):

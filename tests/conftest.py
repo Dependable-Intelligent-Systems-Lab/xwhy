@@ -3,7 +3,7 @@
 import pytest
 
 from xwhy.bootstrap import register_all
-from xwhy.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.resolver import ProviderResolver
 from xwhy.surrogate.factory import SurrogateFactory
