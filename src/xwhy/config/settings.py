@@ -27,6 +27,10 @@ class Settings(BaseSettings):
         default=Path.home() / ".cache" / "xwhy" / "classification",
     )
 
+    segmentation_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "xwhy" / "segmentation",
+    )
+
     anthropic_api_key: str | None = None
 
     openai_api_key: str | None = None

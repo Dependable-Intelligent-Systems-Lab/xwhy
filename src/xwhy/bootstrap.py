@@ -14,6 +14,9 @@ from xwhy.models.embeddings.dinov2 import Dinov2Embedding
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.segmentation.factory import SegmentationFactory
+from xwhy.models.segmentation.torchvision_models import TorchvisionSegmentation
+from xwhy.models.segmentation.types import SegmentationType
 from xwhy.providers.anthropic import AnthropicProvider
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
@@ -393,6 +396,36 @@ def _build_vit_base(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
     return TorchvisionClassification(model_name="vit_base", settings=settings, **kwargs)
 
 
+def _build_deeplabv3_resnet101(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_resnet101", settings=settings, **kwargs
+    )
+
+
+def _build_deeplabv3_resnet50(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_resnet50", settings=settings, **kwargs
+    )
+
+
+def _build_deeplabv3_mobilenet_v3(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_mobilenet_v3_large", settings=settings, **kwargs
+    )
+
+
+def _build_fcn_resnet50(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="fcn_resnet50", settings=settings, **kwargs
+    )
+
+
+def _build_lraspp_mobilenet_v3(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="lraspp_mobilenet_v3_large", settings=settings, **kwargs
+    )
+
+
 def _build_glm_ols(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: ANN401
     return LinearRegressionSurrogate(model=LinearRegression())
 
@@ -504,6 +537,21 @@ def register_all() -> None:
     ClassificationFactory.register(ClassificationType.RESNET18, _build_resnet18)
     ClassificationFactory.register(ClassificationType.MOBILENET_V3, _build_mobilenet_v3)
     ClassificationFactory.register(ClassificationType.VIT_BASE, _build_vit_base)
+
+    # Register Segmentation Type Models
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_RESNET101, _build_deeplabv3_resnet101
+    )
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_RESNET50, _build_deeplabv3_resnet50
+    )
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_MOBILENET_V3, _build_deeplabv3_mobilenet_v3
+    )
+    SegmentationFactory.register(SegmentationType.FCN_RESNET50, _build_fcn_resnet50)
+    SegmentationFactory.register(
+        SegmentationType.LRASPP_MOBILENET_V3, _build_lraspp_mobilenet_v3
+    )
 
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,

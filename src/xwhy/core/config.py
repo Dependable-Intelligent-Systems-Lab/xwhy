@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.segmentation.types import SegmentationType
 from xwhy.surrogate.types import SurrogateType
 
 
@@ -27,9 +28,14 @@ class ImageClassificationConfig(ExplainerConfig):
 
     use_model_preprocess: bool = False
     need_normalization: bool = False
+
     use_embedding_model: bool = False
     embedding_type: EmbeddingType = EmbeddingType.DINOV2
+
     classification_type: ClassificationType = ClassificationType.INCEPTION_V3
+
+    use_segmentation_model: bool = True
+    segmentation_type: SegmentationType = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
     seed: int = 222

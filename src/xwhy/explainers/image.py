@@ -16,6 +16,8 @@ from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.segmentation.factory import SegmentationFactory
+from xwhy.models.segmentation.types import SegmentationType
 from xwhy.surrogate.types import SurrogateType
 
 
@@ -37,6 +39,9 @@ class ImageClassificationExplainer(
         need_normalization: bool = False,
         use_embedding_model: bool = False,
         embedding_type: str | EmbeddingType = EmbeddingType.DINOV2,
+        use_segmentation_model: bool = True,
+        segmentation_type: str
+        | SegmentationType = SegmentationType.DEEPLABV3_RESNET101,
         device: str = "cpu",
         seed: int = 222,
         kernel_size: int = 4,
@@ -66,6 +71,10 @@ class ImageClassificationExplainer(
                 Whether an image embedding model should be used.
             embedding_type:
                 Embedding method for Image Embedding.
+            use_segmentation_model:
+                Whether an image segmentation model should be used.
+            segmentation_type:
+                Segmentation method for extracting object masks.
             device:
                 Device type name.
             seed:
@@ -92,6 +101,7 @@ class ImageClassificationExplainer(
         """
         classification_type = ClassificationType.from_str(classification_type)
         embedding_type = EmbeddingType.from_str(embedding_type)
+        segmentation_type = SegmentationType.from_str(segmentation_type)
         surrogate_type = SurrogateType.from_str(surrogate_type)
 
         if config is None:
@@ -101,6 +111,8 @@ class ImageClassificationExplainer(
                 need_normalization=need_normalization,
                 use_embedding_model=use_embedding_model,
                 embedding_type=embedding_type,
+                use_segmentation_model=use_segmentation_model,
+                segmentation_type=segmentation_type,
                 device=device,
                 seed=seed,
                 kernel_size=kernel_size,
@@ -158,7 +170,19 @@ class ImageClassificationExplainer(
             )
             self.state.embedding_model.load()
 
-        # self._load_segmentation_model()
+        # 3. Load Segmentation Model (if enabled)
+        if self.config.use_segmentation_model:  # type: ignore
+            if not isinstance(self.config.segmentation_type, SegmentationType):  # type: ignore
+                raise ValueError(
+                    f"Invalid segmentation type '{self.config.segmentation_type}'."  # type: ignore
+                )
+
+            logger.info(f"Loading segmentation model: {self.config.segmentation_type}")  # type: ignore
+            self.state.segmentation_model = SegmentationFactory.create(
+                segmentation=self.config.segmentation_type,  # type: ignore
+                device=self.state.device,
+            )
+            self.state.segmentation_model.load()
 
     def run(self, instance: Any, **kwargs: Any) -> BaseXWhyResult:  # noqa: ANN401
         """Run the full explanation pipeline (ExplanationPipeline implementation).

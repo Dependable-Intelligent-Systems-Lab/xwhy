@@ -5,6 +5,7 @@ import pytest
 from xwhy.bootstrap import register_all
 from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.segmentation.factory import SegmentationFactory
 from xwhy.providers.factory import ProviderFactory
 from xwhy.providers.resolver import ProviderResolver
 from xwhy.surrogate.factory import SurrogateFactory
@@ -16,6 +17,7 @@ def reset_registry() -> None:
     ProviderFactory.clear()
     EmbeddingFactory.clear()
     ClassificationFactory.clear()
+    SegmentationFactory.clear()
     ProviderResolver.clear()
     SurrogateFactory.clear()
 

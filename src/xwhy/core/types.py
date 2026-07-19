@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from torch import device
-from torch.nn import Module
-from torchvision.models._api import WeightsEnum
 
 from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
+from xwhy.models.segmentation.base import BaseSegmentation
 
 
 class ImageClassificationState:
@@ -28,8 +27,6 @@ class ImageClassificationState:
 
         self.classification_model: BaseClassification | None = None
 
-        self.segmentation_weights: WeightsEnum | None = None
-        self.segmentation_model: Module | None = None
-        self.segmentation_class_names: list[str] = []
+        self.segmentation_model: BaseSegmentation | None = None
 
         self.embedding_model: BaseEmbedding | None = None
