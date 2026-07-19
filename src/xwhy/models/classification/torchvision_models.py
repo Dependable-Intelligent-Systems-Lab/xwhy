@@ -1,4 +1,3 @@
-# src\xwhy\models\classification\torchvision_models.py
 """Torchvision models classification implementation."""
 
 from __future__ import annotations

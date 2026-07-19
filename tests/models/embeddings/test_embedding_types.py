@@ -21,3 +21,16 @@ def test_embedding_type_from_str_invalid() -> None:
         ValueError, match=f"'{invalid_input}' is not a valid EmbeddingType"
     ):
         EmbeddingType.from_str(invalid_input)
+
+
+@pytest.mark.parametrize(
+    ("embedding_type", "expected_is_image"),
+    [
+        (EmbeddingType.DINOV2, True),
+    ],
+)
+def test_embedding_type_is_image_embedding(
+    embedding_type: EmbeddingType, expected_is_image: bool
+) -> None:
+    """Test if the embedding type is correctly identified as an image-based."""
+    assert embedding_type.is_image_embedding is expected_is_image

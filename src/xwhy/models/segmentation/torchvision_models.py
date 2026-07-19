@@ -1,4 +1,3 @@
-# src\xwhy\models\segmentation\torchvision_models.py
 """Torchvision models segmentation implementation."""
 
 from __future__ import annotations

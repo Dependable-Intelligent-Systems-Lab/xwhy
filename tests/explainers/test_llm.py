@@ -214,3 +214,38 @@ def test_explain_fidelity_plot_flag(
 
     # Assert plot was NOT called
     mock_plot.assert_not_called()
+
+
+def test_explain_validation_fails_for_non_text_embedding(
+    explainer: LLMExplainer,
+) -> None:
+    """Test that ValueError is raised when embedding_type is not text-based."""
+    mock_invalid_emb = MagicMock()
+    mock_invalid_emb.is_text_embedding = False
+    mock_invalid_emb.__str__.return_value = "invalid_embedding"  # type: ignore[attr-defined]
+
+    with (
+        patch(
+            "xwhy.explainers.llm.EmbeddingType.from_str", return_value=mock_invalid_emb
+        ),
+        pytest.raises(ValueError, match="Invalid embedding type"),
+    ):
+        explainer.explain("test prompt", embedding_type="any_string")
+
+
+def test_explain_validation_passes_for_text_embedding(explainer: LLMExplainer) -> None:
+    """Test that validation passes when embedding_type is text-based."""
+    mock_valid_emb = MagicMock()
+    mock_valid_emb.is_text_embedding = True
+
+    with (
+        patch(
+            "xwhy.explainers.llm.EmbeddingType.from_str", return_value=mock_valid_emb
+        ),
+        patch.object(explainer, "explain", return_value=MagicMock()) as _,
+    ):
+        try:
+            explainer.explain("test prompt", embedding_type="valid_type")
+        except Exception as e:
+            if isinstance(e, ValueError):
+                pytest.fail("explain() raised ValueError unexpectedly!")
