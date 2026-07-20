@@ -29,7 +29,7 @@ class Dinov2Embedding(BaseEmbedding):
         *,
         settings: Settings,
         model_name: str = "facebook/dinov2-base",
-        seed: int = 222,
+        seed: int = 42,
         device: torch.device | str | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
@@ -59,6 +59,86 @@ class Dinov2Embedding(BaseEmbedding):
         # Transformers objects are typed as Any because they generate dynamically
         self._processor: Any | None = None
         self._model: Any | None = None
+
+    @property
+    def model(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the Hugging Face DINOv2 model.
+
+        Raises:
+            RuntimeError: If the model has not been loaded yet.
+
+        Returns:
+            The loaded Hugging Face model object.
+
+        """
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self._model_name}' is not loaded. Call .load() first."
+            )
+        return self._model
+
+    @property
+    def processor(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the Hugging Face image processor.
+
+        Raises:
+            RuntimeError: If the processor has not been loaded yet.
+
+        Returns:
+            The loaded Hugging Face processor object.
+
+        """
+        if self._processor is None:
+            raise RuntimeError(
+                f"Processor for '{self._model_name}' is not loaded. Call .load() first."
+            )
+        return self._processor
+
+    def __call__(
+        self, inputs: Image.Image | torch.Tensor | dict[str, torch.Tensor]
+    ) -> np.ndarray:
+        """Execute the forward pass to extract and pool image embeddings.
+
+        Args:
+            inputs: Can be a PIL Image object, a raw PyTorch tensor, or a
+                dictionary of tensors generated directly by the AutoImageProcessor.
+
+        Raises:
+            RuntimeError: If the model or processor has not been loaded yet.
+
+        Returns:
+            A numpy array representing the mean-pooled embedding vector.
+
+        """
+        if self._processor is None or self._model is None:
+            processor, model = self.load()
+        else:
+            processor = self._processor
+            model = self._model
+
+        # Handle different input types dynamically and robustly
+        if isinstance(inputs, Image.Image):
+            processed_inputs = processor(
+                images=inputs,
+                return_tensors="pt",
+                do_rescale=False,
+            ).to(self._device)
+            with torch.no_grad():
+                outputs = model(**processed_inputs)
+        elif isinstance(inputs, dict):
+            processed_inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            with torch.no_grad():
+                outputs = model(**processed_inputs)
+        else:
+            tensor_inputs = inputs.to(self._device)
+            with torch.no_grad():
+                outputs = model(tensor_inputs)
+
+        # Average pooling over the token sequence
+        emb = outputs.last_hidden_state.mean(dim=1)
+        emb_array: np.ndarray = emb.squeeze().cpu().numpy()
+
+        return emb_array
 
     def _set_seed(self) -> None:
         """Set random seeds for reproducibility."""
@@ -130,26 +210,7 @@ class Dinov2Embedding(BaseEmbedding):
             A numpy array representing the extracted embedding vector.
 
         """
-        if self._processor is None or self._model is None:
-            processor, model = self.load()
-        else:
-            processor = self._processor
-            model = self._model
-
-        inputs = processor(
-            images=image,
-            return_tensors="pt",
-            do_rescale=False,
-        ).to(self._device)
-
-        with torch.no_grad():
-            outputs = model(**inputs)
-
-        # Average pooling over the token sequence
-        emb = outputs.last_hidden_state.mean(dim=1)
-        emb_array: np.ndarray = emb.squeeze().cpu().numpy()
-
-        return emb_array
+        return self.__call__(image)
 
     def encode(self, text: str) -> list[float]:
         """Encode an image into a list of floats from a file path.

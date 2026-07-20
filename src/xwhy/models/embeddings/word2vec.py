@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import shutil
+import string
 import zipfile
 from pathlib import Path
 from typing import Any, ClassVar
@@ -66,6 +67,69 @@ class Word2VecEmbedding(BaseEmbedding):
         self._model_name = model_name
         self._force_download = force_download
         self._model: KeyedVectors | None = None
+
+    @property
+    def model(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the underlying Word2Vec model."""
+        if self._model is None:
+            raise RuntimeError("Word2Vec model is not loaded. Call .load() first.")
+        return self._model
+
+    @property
+    def processor(self) -> Any:  # noqa: ANN401
+        """Read-only dummy processor property for interface compliance.
+
+        Returns:
+            None, as Word2Vec does not require an external HuggingFace processor.
+
+        """
+        return None
+
+    def __call__(
+        self,
+        inputs: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
+    ) -> float:
+        """Compute Word Mover's Distance between source and target text.
+
+        Args:
+            inputs: Source text string or a tuple/list of (source, target).
+            **kwargs: Additional keyword arguments, including 'target' text
+                or 'model' (Loaded Word2Vec KeyedVectors).
+
+        Returns:
+            float: Word Mover's Distance.
+
+        """
+        model = kwargs.get("model") or self.model
+        if not isinstance(model, KeyedVectors):
+            raise ValueError(
+                "WMDDistance requires a gensim KeyedVectors 'model' passed "
+                "via kwargs or loaded."
+            )
+
+        # Handle inputs as either a tuple/list of two texts or separate arguments
+        if isinstance(inputs, (tuple, list)) and len(inputs) == 2:
+            source, target = inputs
+        else:
+            source = str(inputs)
+            target = kwargs.get("target", "")
+
+        # Remove punctuation and normalize text
+        clean_source = source.translate(
+            str.maketrans("", "", string.punctuation)
+        ).lower()
+        clean_target = target.translate(
+            str.maketrans("", "", string.punctuation)
+        ).lower()
+
+        words1 = [word for word in clean_source.split() if word in model]
+        words2 = [word for word in clean_target.split() if word in model]
+
+        if not words1 or not words2:
+            return 1.0
+
+        return float(model.wmdistance(words1, words2))
 
     def load(self) -> KeyedVectors:
         """Load embedding model with caching strategy."""

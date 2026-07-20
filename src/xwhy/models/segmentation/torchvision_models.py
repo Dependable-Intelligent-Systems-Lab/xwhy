@@ -96,12 +96,78 @@ class TorchvisionSegmentation(BaseSegmentation):
         self._class_names: list[str] = []
 
     @property
+    def model(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the underlying raw segmentation model.
+
+        Raises:
+            RuntimeError: If the model has not been loaded yet.
+
+        Returns:
+            The loaded torchvision segmentation model.
+
+        """
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self._model_name}' is not loaded. Call .load() first."
+            )
+        return self._model
+
+    @property
+    def preprocess_fn(self) -> Callable[..., Any] | None:
+        """Read-only property to access the preprocessing transform function.
+
+        Returns:
+            The torchvision transform function configured for the segmentation model.
+
+        """
+        return self._preprocess
+
+    @property
     def class_names(self) -> list[str]:
-        """Return the list of class names (categories) supported by the model."""
+        """Read-only property to access the segmentation semantic class names.
+
+        Returns:
+            A list of class names supported by the loaded model.
+
+        """
         if not self._class_names:
             logger.warning("Model not loaded yet. Loading now to fetch class names.")
             self.load()
         return self._class_names
+
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Execute the forward pass of the segmentation model.
+
+        Args:
+            inputs: A PyTorch tensor containing the preprocessed images.
+                Expected shape is typically (B, C, H, W).
+
+        Raises:
+            RuntimeError: If the model has not been loaded yet.
+
+        Returns:
+            A PyTorch tensor containing the segmentation logits or masks
+            of shape (B, num_classes, H, W).
+
+        """
+        if self._model is None:
+            _, model = self.load()
+        else:
+            model = self._model
+
+        inputs = inputs.to(self._device)
+
+        with torch.no_grad():
+            outputs = model(inputs)
+
+            # Torchvision segmentation models return an OrderedDict.
+            # The main output is stored in the "out" key.
+            if isinstance(outputs, dict) and "out" in outputs:
+                logits = outputs["out"]
+            else:
+                logits = outputs
+
+        return logits  # type: ignore[no-any-return]
 
     def _set_seed(self) -> None:
         """Set random seeds for reproducibility."""
@@ -168,18 +234,4 @@ class TorchvisionSegmentation(BaseSegmentation):
             A tensor of logits/masks (B, num_classes, H, W).
 
         """
-        if self._model is None:
-            _, model = self.load()
-        else:
-            model = self._model
-
-        inputs = inputs.to(self._device)
-
-        with torch.no_grad():
-            outputs = model(inputs)
-
-            # Torchvision segmentation models return an OrderedDict.
-            # The main output is stored in the "out" key.
-            logits = outputs["out"]
-
-        return logits  # type: ignore[no-any-return]
+        return self.__call__(inputs)

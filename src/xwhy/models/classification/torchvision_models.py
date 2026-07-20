@@ -86,6 +86,59 @@ class TorchvisionClassification(BaseClassification):
         self._model: Any | None = None
         self._preprocess: Any | None = None
 
+    @property
+    def model(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the underlying raw model.
+
+        Raises:
+            RuntimeError: If the model has not been loaded yet.
+
+        Returns:
+            The loaded torchvision model.
+
+        """
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self._model_name}' is not loaded. Call .load() first."
+            )
+        return self._model
+
+    @property
+    def preprocess_fn(self) -> Callable[..., Any] | None:
+        """Read-only property to access the preprocessing transform function.
+
+        Returns:
+            The torchvision transform function configured for the model.
+
+        """
+        if self._model is None:
+            raise RuntimeError("Preprocess is not loaded. Call .load() first.")
+
+        return self._preprocess
+
+    def __call__(self, inputs: torch.Tensor) -> torch.Tensor:
+        """Execute the forward pass of the classification model.
+
+        Args:
+            inputs: A PyTorch tensor containing the preprocessed images.
+                Expected shape is typically (B, C, H, W).
+
+        Raises:
+            RuntimeError: If the model has not been loaded yet.
+
+        Returns:
+            A PyTorch tensor containing the classification logits.
+
+        """
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self._model_name}' is not loaded. Call .load() first."
+            )
+
+        inputs = inputs.to(self._device)
+
+        return self._model(inputs)  # type: ignore[no-any-return]
+
     def _set_seed(self) -> None:
         """Set random seeds for reproducibility."""
         logger.debug(f"Setting seeds to {self._seed} for reproducibility...")
