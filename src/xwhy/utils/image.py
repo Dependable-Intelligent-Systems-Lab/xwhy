@@ -2,12 +2,28 @@
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import numpy as np
+import skimage.transform
 import torch
 from PIL import Image
 from torchvision import transforms
+
+from xwhy.logger import logger
+
+# Distinct high-contrast palette for visualization (0 is background gray)
+VIS_PALETTE: list[tuple[int, int, int]] = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (0, 255, 255),
+    (255, 0, 255),
+    (170, 0, 0),
+    (0, 170, 0),
+    (0, 0, 170),
+]
 
 
 def get_default_transform() -> Callable[[Image.Image], torch.Tensor]:
@@ -143,3 +159,127 @@ def tensor_to_numpy_image(
     clipped_array = np.clip(img_np, 0, 1)
 
     return cast(np.ndarray, clipped_array)
+
+
+def create_sequential_segmentation_mask(
+    prediction: np.ndarray,
+    class_names: Sequence[str] | None = None,
+) -> tuple[Image.Image, np.ndarray]:
+    """Map class ID predictions to sequential integer labels and a visual image.
+
+    Args:
+        prediction: 2D numpy array of predicted class IDs (H, W).
+        class_names: Optional sequence of class name strings corresponding to IDs.
+
+    Returns:
+        tuple[Image.Image, np.ndarray]: Visualization PIL image and semantic
+            mask with sequential labels (0 for background, 1, 2... for objects).
+
+    """
+    height, width = prediction.shape
+    # sem_mask will hold your sequential labels (0, 1, 2, ...)
+    sem_mask = np.zeros((height, width), dtype=np.uint8)
+    # visual_np will hold the colored visualization
+    visual_np = np.full(
+        (height, width, 3), 128, dtype=np.uint8
+    )  # Start with gray BG (128, 128, 128)
+
+    # Get the unique class IDs found by the segmentation model (e.g., 8, 12, 15)
+    unique_class_ids = np.unique(prediction)
+    # Filter out the background ID (typically 0)
+    object_class_ids = [cls_id for cls_id in unique_class_ids if cls_id != 0]
+
+    # Map detected objects to sequential labels (1, 2, 3...)
+
+    # Start sequential label counter at 1 (0 is always background)
+    sequential_label = 1
+
+    for cls_id in object_class_ids:
+        # Create a mask for all pixels belonging to the current object class ID
+        mask = prediction == cls_id
+        # Assign the sequential label to the semantic mask
+        sem_mask[mask] = sequential_label
+
+        # Assign a unique visualization color (cycle through palette)
+        color = VIS_PALETTE[(sequential_label - 1) % len(VIS_PALETTE)]
+        visual_np[mask] = color
+
+        if class_names is not None and cls_id < len(class_names):
+            class_name = class_names[cls_id]
+        else:
+            class_name = f"Unknown_ID_{cls_id}"
+
+        logger.debug(
+            "Mapping model class '%s' (ID: %s) to sequential label: %d",
+            class_name,
+            cls_id,
+            sequential_label,
+        )
+
+        # Increment the sequential label counter for the next object
+        sequential_label += 1
+
+    # Final conversion
+    visual_image = Image.fromarray(visual_np)
+    return visual_image, sem_mask
+
+
+def get_segmentation_mask(
+    image_path: str | Path,
+    segmentation_model: Callable[[torch.Tensor], Any],
+    transform_fn: Callable[[Image.Image], torch.Tensor] | None = None,
+    device: str | torch.device = "cpu",
+    class_names: Sequence[str] | None = None,
+) -> tuple[Image.Image, np.ndarray]:
+    """Generate a semantic segmentation mask and colored visualization image.
+
+    Args:
+        image_path: Path to the input image file.
+        segmentation_model: Callable model receiving tensor (1, C, H, W) and
+            returning either a tensor or a dict with 'out' key.
+        transform_fn: Preprocessing transform for PIL image. Uses default if None.
+        device: Target device for running model inference.
+        class_names: Optional class name list for logging.
+
+    Returns:
+        tuple[Image.Image, np.ndarray]: Visualization PIL image and 2D NumPy
+            array of sequential labels (0 for background).
+
+    Raises:
+        TypeError: If the segmentation model returns an unsupported type.
+
+    """
+    # Load and Preprocess Image
+    img_pil = Image.open(image_path).convert("RGB")
+    width, height = img_pil.size
+
+    pipeline = transform_fn if transform_fn is not None else get_default_transform()
+    input_tensor = pipeline(img_pil).unsqueeze(0).to(device)
+
+    # Inference
+    with torch.no_grad():
+        output = segmentation_model(input_tensor)
+
+    if isinstance(output, dict) and "out" in output:
+        output_tensor = cast(torch.Tensor, output["out"][0])
+    elif torch.is_tensor(output):
+        output_tensor = output[0] if output.ndim == 4 else output
+    else:
+        raise TypeError(f"Unsupported model output type: {type(output)}")
+
+    # Get the predicted class index for each pixel (H, W)
+    prediction = output_tensor.argmax(0).byte().cpu().numpy()
+
+    # Resize mask back to original image size
+    if prediction.shape != (height, width):
+        resized = skimage.transform.resize(
+            prediction,
+            (height, width),
+            order=0,
+            preserve_range=True,
+            anti_aliasing=False,
+        )  # type: ignore[no-untyped-call]
+
+        prediction = cast(np.ndarray, resized).astype(np.uint8)
+
+    return create_sequential_segmentation_mask(prediction, class_names=class_names)
