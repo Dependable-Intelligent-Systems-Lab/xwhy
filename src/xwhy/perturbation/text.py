@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 from numpy.random import Generator
@@ -11,7 +12,7 @@ from xwhy.logger import logger
 from xwhy.perturbation.base import BasePerturbation
 
 
-class TextPerturbation(BasePerturbation):
+class TextPerturbation(BasePerturbation[Sequence[str], Sequence[int], list[str]]):
     """Generate binary perturbations for text.
 
     This class creates binary perturbation masks and applies them to an
@@ -37,26 +38,25 @@ class TextPerturbation(BasePerturbation):
 
     def apply_mask(
         self,
-        *,
-        words: Sequence[str],
+        item: Sequence[str],
         mask: Sequence[int],
+        *args: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
     ) -> list[str]:
-        """Apply a binary mask to tokenized text.
-
-        The mask determines which words remain in the output.
-        If fewer than two words survive, random words are added until the
-        minimum size is reached.
+        """Apply a perturbation mask to a sequence of words.
 
         Args:
-            words:
-                Original tokenized text.
-            mask:
-                Binary mask.
+            item: Sequence of input words to perturb.
+            mask: Sequence of integers (0 or 1) acting as the mask.
+            *args: Unused positional arguments.
+            **kwargs: Unused keyword arguments.
 
         Returns:
-            List of selected words.
+            list[str]: The perturbed sequence of words.
 
         """
+        words = item
+
         selected = [
             word
             for word, flag in zip(words, mask, strict=False)
@@ -134,7 +134,7 @@ class TextPerturbation(BasePerturbation):
                 unique_masks.add(mask)
 
                 perturbed = self.apply_mask(
-                    words=words,
+                    item=words,
                     mask=mask,
                 )
 
@@ -161,7 +161,7 @@ class TextPerturbation(BasePerturbation):
             mask = unique_masks_list[idx]
 
             perturbed = self.apply_mask(
-                words=words,
+                item=words,
                 mask=mask,
             )
 
