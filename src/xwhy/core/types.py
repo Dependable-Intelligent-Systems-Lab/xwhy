@@ -7,6 +7,7 @@ from torch import device
 from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
 from xwhy.models.segmentation.base import BaseSegmentation
+from xwhy.perturbation.image import ImagePerturbation
 
 
 class ImageClassificationState:
@@ -24,8 +25,10 @@ class ImageClassificationState:
 
         """
         self.device = device_
+        self.perturbator: ImagePerturbation | None = None
 
         self.classification_model: BaseClassification | None = None
+        self.transform_fn: BaseClassification | None = None
 
         self.segmentation_model: BaseSegmentation | None = None
 

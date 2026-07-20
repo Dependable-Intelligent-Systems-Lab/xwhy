@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import torch
+from tqdm import tqdm
 
 from xwhy.core.config import ImageClassificationConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import BaseXWhyResult
 from xwhy.core.types import ImageClassificationState
+from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.models.classification.factory import ClassificationFactory
@@ -19,7 +22,9 @@ from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.segmentation.factory import SegmentationFactory
 from xwhy.models.segmentation.types import SegmentationType
+from xwhy.perturbation.image import ImagePerturbation
 from xwhy.surrogate.types import SurrogateType
+from xwhy.utils.image import numpy_image_to_tensor
 
 
 class ImageClassificationExplainer(
@@ -164,6 +169,10 @@ class ImageClassificationExplainer(
         )
         self.state.classification_model.load()
 
+        # Extract the transform function directly from the adapter
+        if self.config.use_model_preprocess:  # type: ignore[union-attr]
+            self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+
         # 2. Load Embedding Model (if enabled)
         if self.config.use_embedding_model:  # type: ignore
             if not self.config.embedding_type.is_image_embedding:  # type: ignore
@@ -192,6 +201,91 @@ class ImageClassificationExplainer(
                 device=self.state.device,
             )
             self.state.segmentation_model.load()
+
+        # 4. Initialize Perturbator ONCE
+        self.state.perturbator = ImagePerturbation(
+            kernel_size=self.config.kernel_size,  # type: ignore[union-attr]
+            max_dist=self.config.max_dist,  # type: ignore[union-attr]
+            ratio=self.config.ratio,  # type: ignore[union-attr]
+            seed=self.config.seed,  # type: ignore[union-attr]
+        )
+
+    def _run_perturbation_loop(
+        self,
+        original_image: np.ndarray,
+        superpixels: np.ndarray,
+        perturbation_masks: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """Iterate perturbations, compute model predictions, and calculate distances.
+
+        Args:
+            original_image (np.ndarray): Original image of shape (H, W, C).
+            superpixels (np.ndarray): Superpixel segmentation mask.
+            perturbation_masks (np.ndarray): Binary masks indicating active
+                superpixels for each perturbation.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]:
+                - predictions: Model output probabilities for each perturbation.
+                - distances: Calculated distances for each perturbation.
+
+        """
+        batch_predictions = []
+        distances = []
+
+        device = self.state.device
+        use_embedding = self.config.use_embedding_model  # type: ignore[union-attr]
+        dist_metric = self.config.distance_metric  # type: ignore[union-attr]
+
+        # 1. Pre-calculate original representation (Optimization: do this once)
+        base_representation = original_image
+        if use_embedding:
+            original_embedding = self.state.embedding_model.encode_image(original_image)  # type: ignore[union-attr]
+            if original_embedding is None:
+                raise ValueError("Original embedding extraction failed.")
+            base_representation = np.asarray(original_embedding)
+
+        # Retrieve the underlying pytorch model and transform from the state/adapter
+        classifier_model = self.state.classification_model.model  # type: ignore[union-attr]
+        transform = self.state.transform_fn
+
+        logger.info(f"Running inference on {len(perturbation_masks)} perturbations...")
+
+        for mask in tqdm(perturbation_masks, desc="Generating Neighborhood"):
+            # A. Apply Perturbation
+            perturbed_img = self.state.perturbator.apply_mask(  # type: ignore[union-attr]
+                original_image, mask, superpixels
+            )
+
+            # B. Preprocess for Model
+            tensor_batch = numpy_image_to_tensor(
+                np_array=perturbed_img, transform_fn=transform
+            ).to(device)
+
+            # C. Inference
+            with torch.no_grad():
+                prediction = classifier_model(tensor_batch)
+
+            batch_predictions.append(prediction.detach().cpu().numpy())
+
+            # D. Calculate Distance
+            current_representation = perturbed_img
+            if use_embedding:
+                perturbed_embedding = self.state.embedding_model.encode_image(  # type: ignore[union-attr]
+                    perturbed_img
+                )
+                current_representation = np.asarray(perturbed_embedding)
+
+            dist = calculate_distance(
+                metric=dist_metric,
+                source=base_representation,
+                target=current_representation,
+            )
+            distances.append(dist)
+
+        final_predictions = np.concatenate(batch_predictions, axis=0)
+
+        return final_predictions, np.array(distances)
 
     def run(self, instance: Any, **kwargs: Any) -> BaseXWhyResult:  # noqa: ANN401
         """Run the full explanation pipeline (ExplanationPipeline implementation).
