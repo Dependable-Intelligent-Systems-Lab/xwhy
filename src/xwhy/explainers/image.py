@@ -11,6 +11,7 @@ from xwhy.core.explainer import BaseExplainer
 from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import BaseXWhyResult
 from xwhy.core.types import ImageClassificationState
+from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.classification.types import ClassificationType
@@ -48,7 +49,7 @@ class ImageClassificationExplainer(
         max_dist: int = 200,
         ratio: float = 0.2,
         num_perturb: int = 150,
-        distance_metric: str = "wasserstein",
+        distance_metric: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         num_top_features: int = 4,
@@ -99,6 +100,14 @@ class ImageClassificationExplainer(
                 Number of predictions to explain.
 
         """
+        distance_metric = DistanceType.from_str(distance_metric)
+
+        if not distance_metric.is_numeric_metric:
+            raise ValueError(
+                f"Invalid distance metric '{distance_metric}' "
+                "for ImageClassificationExplainer. Must be a numeric distance."
+            )
+
         classification_type = ClassificationType.from_str(classification_type)
         embedding_type = EmbeddingType.from_str(embedding_type)
         segmentation_type = SegmentationType.from_str(segmentation_type)

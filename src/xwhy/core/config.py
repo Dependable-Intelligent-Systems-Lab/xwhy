@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from xwhy.distance.types import DistanceType
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.segmentation.types import SegmentationType
@@ -45,7 +46,7 @@ class ImageClassificationConfig(ExplainerConfig):
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
     num_perturb: int = Field(default=150, gt=0)
 
-    distance_metric: str = "wasserstein"
+    distance_metric: DistanceType = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType = SurrogateType.LIME
     use_best_surrogate: bool = True
 
