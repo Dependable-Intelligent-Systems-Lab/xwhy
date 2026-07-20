@@ -17,4 +17,4 @@ build:
       - python -m pip install "mkdocs-literate-nav>=0.6.3"
     build:
       html:
-        - properdocs build -f mkdocs.yml --clean --site-dir $READTHEDOCS_OUTPUT/html
+        - python -m properdocs build -f mkdocs.yml --clean --site-dir $READTHEDOCS_OUTPUT/html
