@@ -62,8 +62,14 @@ test-config:
 test-providers:
     uv run pytest tests/providers
 
-test-embeddings:
+test-models-classification:
+    uv run pytest tests/models/classification
+
+test-models-embeddings:
     uv run pytest tests/models/embeddings
+
+test-models-segmentation:
+    uv run pytest tests/models/segmentation
 
 test-perturbation:
     uv run pytest tests/perturbation
@@ -85,6 +91,9 @@ test-explainers:
 
 test-core:
     uv run pytest tests/core
+
+test-utils:
+    uv run pytest tests/utils
 
 test-cov:
     uv run pytest --cov
