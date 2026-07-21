@@ -149,15 +149,19 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             np.array(m, dtype=int) for m in binary_masks
         ]
 
+        x_matrix = np.vstack(masks_as_arrays)
+        y_target = np.array([s for _, s in sims])
+        distances_array = np.array([d for _, d in wmd_scores])
+
         if self.use_best_surrogate:
             logger.info(
                 "Searching for the optimal surrogate model among available"
                 " candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                perturbations=masks_as_arrays,
-                similarities=sims,
-                wmd_scores=wmd_scores,
+                x=x_matrix,
+                y=y_target,
+                distances=distances_array,
                 seed=seed,
             )
             logger.info(
@@ -173,9 +177,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 method.value,
             )
 
-        x_matrix = np.vstack(masks_as_arrays)
-        y_target = np.array([s for _, s in sims])
-        weights = SurrogateTrainer.compute_weights(method, wmd_scores)
+        weights = SurrogateTrainer.compute_weights(method, distances_array)
 
         surrogate = SurrogateFactory.create(method=method, seed=seed)
         surrogate.fit(x_matrix, y_target, weights)

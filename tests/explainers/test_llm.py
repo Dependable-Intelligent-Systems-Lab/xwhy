@@ -62,7 +62,7 @@ def test_explain_success_best_surrogate(
     mock_embedding_factory.create.return_value.load.return_value = mock_emb_model
 
     # WMD and Normalizer
-    mock_wmd.return_value.compute_batch.return_value = np.array([0.5])
+    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     # Trainer & Surrogate
@@ -111,7 +111,7 @@ def test_explain_success_default_surrogate(
     )
 
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
-    mock_wmd.return_value.compute_batch.return_value = np.array([0.5])
+    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     mock_surrogate = MagicMock()
@@ -192,7 +192,7 @@ def test_explain_fidelity_plot_flag(
         [np.array([1, 0])],
     )
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
-    mock_wmd.return_value.compute_batch.return_value = np.array([0.5])
+    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     mock_surrogate = MagicMock()

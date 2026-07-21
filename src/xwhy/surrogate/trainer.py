@@ -1,7 +1,5 @@
 """Trainer and selection logic for surrogate models."""
 
-from collections.abc import Sequence
-
 import numpy as np
 
 from xwhy.logger import logger
@@ -17,60 +15,73 @@ class SurrogateTrainer:
     @staticmethod
     def compute_weights(
         method: SurrogateType,
-        wmd_scores: Sequence[tuple[str, float]],
+        distances: np.ndarray,
         kernel_width: float = 0.25,
+        normalize_distances: bool = False,
     ) -> np.ndarray:
         """Compute sample weights based on distances and method type.
 
         Args:
             method: The surrogate method determining global or local weighting.
-            wmd_scores: Sequence of (text, distance) tuples.
+            distances: 1D array of distances between original and perturbed inputs.
             kernel_width: Kernel width for exponential weighting.
+            normalize_distances: Whether to scale distances by their max
+                                 value (used in images).
 
         Returns:
             np.ndarray: Computed sample weights.
 
         """
-        n_samples = len(wmd_scores)
         is_global = method in (SurrogateType.GLM_OLS, SurrogateType.GLM_RIDGE)
 
         if is_global:
-            return np.ones(n_samples)
+            return np.ones(len(distances))
 
-        dvals = np.array([d for _, d in wmd_scores])
-        return np.sqrt(np.exp(-(dvals**2) / (kernel_width**2)))
+        if normalize_distances:
+            max_dist = np.max(distances)
+            if max_dist > 0:
+                distances = distances / max_dist
+
+        return np.sqrt(np.exp(-(distances**2) / (kernel_width**2)))
 
     @classmethod
     def fit_and_evaluate(
         cls,
         *,
         method: SurrogateType,
-        perturbations: Sequence[np.ndarray],
-        similarities: Sequence[tuple[str, float]],
-        wmd_scores: Sequence[tuple[str, float]],
+        x: np.ndarray,
+        y: np.ndarray,
+        distances: np.ndarray,
         seed: int = 1024,
         kernel_width: float = 0.25,
         ridge_alpha: float = 1.0,
+        normalize_distances: bool = False,
     ) -> tuple[BaseSurrogate, float]:
         """Fit a surrogate model and compute its R-squared score.
 
         Args:
             method: The surrogate method to use.
-            perturbations: Sequence of binary perturbation vectors.
-            similarities: Sequence of (text, similarity) pairs (target variable).
-            wmd_scores: Sequence of (text, distance) pairs.
+            x: 2D array of perturbation feature vectors (binary matrix).
+            y: 1D array of target predictions or similarity scores.
+            distances: 1D array of distances between original and perturbed inputs.
             seed: Random seed.
             kernel_width: Kernel width for weighting.
             ridge_alpha: Ridge regularization strength.
+            normalize_distances: Whether to scale distances by their max
+                                 value (used in images).
 
         Returns:
             tuple[BaseSurrogate, float]: Trained model and its weighted R2 score.
 
         """
         logger.debug(f"  Testing surrogate method: {method}")
-        x = np.vstack(perturbations)
-        y = np.array([s for _, s in similarities])
-        weights = cls.compute_weights(method, wmd_scores, kernel_width)
+
+        weights = cls.compute_weights(
+            method=method,
+            distances=distances,
+            kernel_width=kernel_width,
+            normalize_distances=normalize_distances,
+        )
 
         surrogate = SurrogateFactory.create(
             method=method, seed=seed, ridge_alpha=ridge_alpha
@@ -93,22 +104,25 @@ class SurrogateTrainer:
     def find_best(
         cls,
         *,
-        perturbations: Sequence[np.ndarray],
-        similarities: Sequence[tuple[str, float]],
-        wmd_scores: Sequence[tuple[str, float]],
+        x: np.ndarray,
+        y: np.ndarray,
+        distances: np.ndarray,
         seed: int = 1024,
         kernel_width: float = 0.25,
         ridge_alpha: float = 1.0,
+        normalize_distances: bool = False,
     ) -> tuple[SurrogateType, float]:
         """Find the best surrogate model across all available types.
 
         Args:
-            perturbations: Sequence of binary perturbation vectors.
-            similarities: Sequence of (text, similarity) pairs.
-            wmd_scores: Sequence of (text, distance) pairs.
+            x: 2D array of perturbation feature vectors (binary matrix).
+            y: 1D array of target predictions or similarity scores.
+            distances: 1D array of distances between original and perturbed inputs.
             seed: Random seed.
             kernel_width: Kernel width.
             ridge_alpha: Ridge alpha.
+            normalize_distances: Whether to scale distances by their max
+                                 value (used in images).
 
         Returns:
             tuple[SurrogateType, float]: The best surrogate method type and
@@ -123,12 +137,13 @@ class SurrogateTrainer:
             try:
                 _, score = cls.fit_and_evaluate(
                     method=method,
-                    perturbations=perturbations,
-                    similarities=similarities,
-                    wmd_scores=wmd_scores,
+                    x=x,
+                    y=y,
+                    distances=distances,
                     seed=seed,
                     kernel_width=kernel_width,
                     ridge_alpha=ridge_alpha,
+                    normalize_distances=normalize_distances,
                 )
 
                 logger.debug(f"    {method} R²ω: {score:.4f}")
