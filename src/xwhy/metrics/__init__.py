@@ -1,5 +1,6 @@
 """Metrics module."""
 
-from .regression import RegressionMetricResult, RegressionMetrics
+from xwhy.metrics.image import ImageCoverageMetrics
+from xwhy.metrics.regression import RegressionMetricResult, RegressionMetrics
 
-__all__ = ["RegressionMetricResult", "RegressionMetrics"]
+__all__ = ["ImageCoverageMetrics", "RegressionMetricResult", "RegressionMetrics"]
