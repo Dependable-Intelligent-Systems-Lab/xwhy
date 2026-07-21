@@ -62,6 +62,9 @@ test-config:
 test-providers:
     uv run pytest tests/providers
 
+test-models:
+    uv run pytest tests/models
+
 test-models-classification:
     uv run pytest tests/models/classification
 

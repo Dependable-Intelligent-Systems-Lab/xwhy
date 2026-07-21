@@ -259,3 +259,109 @@ def test_get_cache_dir_fallback() -> None:
 
     expected_path = Path.home() / ".cache" / "xwhy" / "embeddings"
     assert embedder._get_cache_dir() == expected_path
+
+
+def test_dinov2_model_property_unloaded(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test model property raises RuntimeError when not loaded."""
+    dinov2_embedding._model = None
+    dinov2_embedding._model_name = "dinov2"
+    with pytest.raises(RuntimeError, match="not loaded"):
+        _ = dinov2_embedding.model
+
+
+def test_dinov2_processor_property_unloaded(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test processor property raises RuntimeError when unloaded."""
+    dinov2_embedding._processor = None
+    dinov2_embedding._model_name = "dinov2"
+    with pytest.raises(RuntimeError, match="not loaded"):
+        _ = dinov2_embedding.processor
+
+
+def test_dinov2_call_loads_if_none(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test __call__ loads model and processor if they are None."""
+    dinov2_embedding._processor = None
+    dinov2_embedding._model = None
+
+    mock_processor = MagicMock()
+    mock_model = MagicMock()
+    mock_mean = MagicMock()
+    mock_mean.squeeze().cpu().numpy.return_value = np.array([4.0])
+    mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
+
+    dinov2_embedding.load = MagicMock(return_value=(mock_processor, mock_model))  # type: ignore[method-assign]
+    dinov2_embedding(inputs=MagicMock())
+
+    dinov2_embedding.load.assert_called_once()
+
+
+def test_dinov2_call_with_image(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test __call__ correctly processes a PIL Image input."""
+    mock_processor = MagicMock()
+    mock_processor.return_value.to.return_value = {"pixel_values": "tensors"}
+    dinov2_embedding._processor = mock_processor
+
+    mock_model = MagicMock()
+    mock_mean = MagicMock()
+    mock_mean.squeeze().cpu().numpy.return_value = np.array([1.0])
+    mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
+    dinov2_embedding._model = mock_model
+
+    image = MagicMock(spec=Image.Image)
+    result = dinov2_embedding(inputs=image)
+
+    mock_processor.assert_called_once()
+    assert isinstance(result, np.ndarray)
+
+
+def test_dinov2_call_with_dict(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test __call__ correctly processes a dictionary of tensors."""
+    dinov2_embedding._processor = MagicMock()
+    mock_model = MagicMock()
+    mock_mean = MagicMock()
+    mock_mean.squeeze().cpu().numpy.return_value = np.array([2.0])
+    mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
+    dinov2_embedding._model = mock_model
+
+    mock_tensor = MagicMock()
+    mock_tensor.to.return_value = "moved_tensor"
+
+    _ = dinov2_embedding(inputs={"pixel_values": mock_tensor})
+
+    mock_tensor.to.assert_called_once_with(dinov2_embedding._device)
+    mock_model.assert_called_once_with(pixel_values="moved_tensor")
+
+
+def test_dinov2_call_with_tensor(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test __call__ correctly processes a single tensor input."""
+    dinov2_embedding._processor = MagicMock()
+    mock_model = MagicMock()
+    mock_mean = MagicMock()
+    mock_mean.squeeze().cpu().numpy.return_value = np.array([3.0])
+    mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
+    dinov2_embedding._model = mock_model
+
+    mock_tensor = MagicMock()
+    mock_tensor.to.return_value = "moved_tensor"
+
+    dinov2_embedding(inputs=mock_tensor)
+
+    mock_tensor.to.assert_called_once_with(dinov2_embedding._device)
+    mock_model.assert_called_once_with("moved_tensor")
+
+
+def test_dinov2_model_property_loaded(dinov2_embedding: Dinov2Embedding) -> None:
+    """Test model property returns the model when it is successfully loaded."""
+    dinov2_embedding._model = "dummy_loaded_model"
+
+    # It should not raise an error and should return the exact assigned value
+    assert dinov2_embedding.model == "dummy_loaded_model"
+
+
+def test_dinov2_processor_property_loaded(
+    dinov2_embedding: Dinov2Embedding,
+) -> None:
+    """Test processor property returns the processor when it is successfully loaded."""
+    dinov2_embedding._processor = "dummy_loaded_processor"
+
+    # It should not raise an error and should return the exact assigned value
+    assert dinov2_embedding.processor == "dummy_loaded_processor"

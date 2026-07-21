@@ -187,6 +187,16 @@ class TestTorchvisionSegmentation:
 class TestTorchvisionSegmentationMethods:
     """Test internal methods, load logic, and prediction paths."""
 
+    @pytest.fixture
+    def instance(self) -> TorchvisionSegmentation:
+        """Provide a mocked TorchvisionSegmentation instance."""
+        obj = TorchvisionSegmentation.__new__(TorchvisionSegmentation)
+        obj._model = None
+        obj._model_name = "test_seg"
+        obj._preprocess = MagicMock()
+        obj._device = torch.device("cpu")
+        return obj
+
     @patch("torch.cuda.is_available", return_value=True)
     @patch("torch.cuda.manual_seed_all")
     @patch("torch.manual_seed")
@@ -269,3 +279,44 @@ class TestTorchvisionSegmentationMethods:
         mock_load.assert_called_once()
         mock_model.assert_called_once()
         assert torch.equal(result, expected_logits)
+
+    def test_model_property_unloaded(self, instance: TorchvisionSegmentation) -> None:
+        """Test model property raises RuntimeError when unloaded."""
+        with pytest.raises(RuntimeError, match="not loaded"):
+            _ = instance.model
+
+    def test_model_property_loaded(self, instance: TorchvisionSegmentation) -> None:
+        """Test model property returns the loaded model."""
+        instance._model = "dummy_model"
+        assert instance.model == "dummy_model"
+
+    def test_preprocess_fn(self, instance: TorchvisionSegmentation) -> None:
+        """Test preprocess_fn returns the internal preprocess function."""
+        assert instance.preprocess_fn == instance._preprocess
+
+    def test_call_unloaded_dict_output(self, instance: TorchvisionSegmentation) -> None:
+        """Test __call__ loads model and extracts 'out' key from dict."""
+        mock_model = MagicMock(return_value={"out": "logits"})
+        instance.load = MagicMock(return_value=(None, mock_model))  # type: ignore[method-assign]
+
+        mock_input = MagicMock()
+        mock_input.to.return_value = "device_inputs"
+
+        result = instance(inputs=mock_input)
+
+        instance.load.assert_called_once()
+        mock_input.to.assert_called_once_with(torch.device("cpu"))
+        assert result == "logits"
+
+    def test_call_loaded_tensor_output(self, instance: TorchvisionSegmentation) -> None:
+        """Test __call__ uses existing model and returns tensor directly."""
+        mock_model = MagicMock(return_value="tensor_logits")
+        instance._model = mock_model
+
+        mock_input = MagicMock()
+        mock_input.to.return_value = "device_inputs"
+
+        result = instance(inputs=mock_input)
+
+        mock_model.assert_called_once_with("device_inputs")
+        assert result == "tensor_logits"

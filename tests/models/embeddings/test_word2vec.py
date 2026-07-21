@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from gensim.models import KeyedVectors
 
 from xwhy.config import Settings
 from xwhy.models.embeddings.word2vec import Word2VecEmbedding
@@ -905,3 +906,52 @@ def test_download_paragram_dimension_filtering(
     embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     mock_kv_load.assert_called_once()
+
+
+def test_word2vec_model_property_unloaded() -> None:
+    """Test model property raises RuntimeError when unloaded."""
+    obj = create_embedding()
+    obj._model = None
+    with pytest.raises(RuntimeError, match="not loaded"):
+        _ = obj.model
+
+
+def test_word2vec_processor_property() -> None:
+    """Test processor property always returns None."""
+    obj = create_embedding()
+    assert obj.processor is None
+
+
+def test_word2vec_call_invalid_model() -> None:
+    """Test __call__ raises ValueError if model is not KeyedVectors."""
+    obj = create_embedding()
+    obj._model = "not_a_keyed_vector"
+    with pytest.raises(ValueError, match="WMDDistance requires a gensim KeyedVectors"):
+        obj(inputs="test")
+
+
+def test_word2vec_call_tuple_input_valid_words() -> None:
+    """Test __call__ with tuple input and matching words computes WMD."""
+    obj = create_embedding()
+    mock_model = MagicMock(spec=KeyedVectors)
+    mock_model.__contains__.side_effect = lambda x: x in ["hello", "world"]
+    mock_model.wmdistance.return_value = 0.42
+    obj._model = mock_model
+
+    result = obj(inputs=("Hello!", "World..."))
+
+    mock_model.wmdistance.assert_called_once_with(["hello"], ["world"])
+    assert result == 0.42
+
+
+def test_word2vec_call_kwargs_missing_words() -> None:
+    """Test __call__ returns 1.0 if words are completely missing."""
+    obj = create_embedding()
+    mock_model = MagicMock(spec=KeyedVectors)
+    mock_model.__contains__.return_value = False
+    obj._model = mock_model
+
+    result = obj(inputs="Hello", target="World")
+
+    assert result == 1.0
+    mock_model.wmdistance.assert_not_called()

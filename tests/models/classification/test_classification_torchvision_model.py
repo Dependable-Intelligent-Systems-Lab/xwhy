@@ -68,6 +68,16 @@ class TestTorchvisionClassificationInit:
 class TestTorchvisionClassificationMethods:
     """Test internal methods, load logic, and prediction paths."""
 
+    @pytest.fixture
+    def instance(self) -> TorchvisionClassification:
+        """Provide a mocked TorchvisionClassification instance."""
+        obj = TorchvisionClassification.__new__(TorchvisionClassification)
+        obj._model = None
+        obj._model_name = "test_model"
+        obj._preprocess = MagicMock()
+        obj._device = torch.device("cpu")
+        return obj
+
     @patch("torch.cuda.is_available", return_value=True)
     @patch("torch.cuda.manual_seed_all")
     @patch("torch.manual_seed")
@@ -266,3 +276,42 @@ class TestTorchvisionClassificationMethods:
                     assert mod == mock_model_instance
                     assert model._model == mock_model_instance
                     assert model._preprocess == mock_transforms
+
+    def test_model_property_unloaded(self, instance: TorchvisionClassification) -> None:
+        """Test model property raises RuntimeError when not loaded."""
+        with pytest.raises(RuntimeError, match="not loaded"):
+            _ = instance.model
+
+    def test_model_property_loaded(self, instance: TorchvisionClassification) -> None:
+        """Test model property returns the loaded model."""
+        instance._model = "dummy_model"
+        assert instance.model == "dummy_model"
+
+    def test_preprocess_fn_unloaded(self, instance: TorchvisionClassification) -> None:
+        """Test preprocess_fn raises RuntimeError when model is None."""
+        with pytest.raises(RuntimeError, match="not loaded"):
+            _ = instance.preprocess_fn
+
+    def test_preprocess_fn_loaded(self, instance: TorchvisionClassification) -> None:
+        """Test preprocess_fn returns preprocess function when loaded."""
+        instance._model = MagicMock()
+        assert instance.preprocess_fn == instance._preprocess
+
+    def test_call_unloaded(self, instance: TorchvisionClassification) -> None:
+        """Test __call__ raises RuntimeError when model is None."""
+        with pytest.raises(RuntimeError, match="not loaded"):
+            instance(inputs=MagicMock())
+
+    def test_call_loaded(self, instance: TorchvisionClassification) -> None:
+        """Test __call__ processes inputs and returns correct output."""
+        mock_model = MagicMock(return_value="outputs")
+        instance._model = mock_model
+
+        mock_input = MagicMock()
+        mock_input.to.return_value = "device_inputs"
+
+        result = instance(inputs=mock_input)
+
+        mock_input.to.assert_called_once_with(torch.device("cpu"))
+        mock_model.assert_called_once_with("device_inputs")
+        assert result == "outputs"
