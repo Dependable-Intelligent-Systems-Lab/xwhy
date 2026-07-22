@@ -14,6 +14,7 @@ Explainability is a foundational pillar for establishing this missing trust. **X
 *   [Installation](#installation)
 *   [Quick Start & General Usage](#quick-start)
 *   [Rich Visualizations](#rich-visualizations)
+*   [Contributors](#contributors)
 *   [Advanced Feature: LLM Explainer](llm_explainer.md) — *Learn how to interpret LLM prompt-response dynamics.*
 
 ---
@@ -134,6 +135,14 @@ After computing statistical attributions through the SMILE engine, XWhy can gene
 * **Force Plots** to show how individual features push a prediction toward or away from a reference value
 * **Waterfall Plots** to trace how feature contributions move the output step by step
 * **Summary and Bar Plots** to rank feature importance at local or global level
+
+---
+
+## Contributors
+
+Thanks goes to these wonderful people:
+
+[![Contributors](https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy)](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors)
 
 ---
 
