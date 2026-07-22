@@ -142,3 +142,45 @@
   font-weight: 700;
   text-align: center;
 }
+
+.xwhy-example {
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.2rem;
+  margin: 1.25rem 0;
+  overflow: hidden;
+}
+
+.xwhy-example__header {
+  align-items: center;
+  background: var(--md-code-bg-color);
+  border-bottom: 0.05rem solid var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color--light);
+  display: flex;
+  font-size: 0.68rem;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.03em;
+  padding: 0.5rem 0.9rem;
+  text-transform: uppercase;
+}
+
+.xwhy-example__body {
+  padding: 1rem 1.1rem 0.2rem;
+}
+
+.xwhy-example__body > .highlight:first-child,
+.xwhy-example__body > pre:first-child {
+  margin-top: 0;
+}
+
+.xwhy-example__output {
+  border: 0.05rem solid var(--md-default-fg-color--lightest);
+  border-radius: 0.15rem;
+  margin: 0.9rem 0;
+  padding: 0.6rem;
+}
+
+.xwhy-example__output img {
+  display: block;
+  margin: 0 auto;
+}

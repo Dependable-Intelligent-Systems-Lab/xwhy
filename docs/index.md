@@ -43,7 +43,8 @@ uv add xwhy
 
 If you intend to use specific cloud platforms or specific model deployment environments, you can install the target optional dependencies.
 
-> 💡 **Note for Shell Users:** Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
+!!! note "Note for Shell Users"
+    Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
 
 | Extra Name | Description | Target Cloud Engine / SDK |
 | --- | --- | --- |
