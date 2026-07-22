@@ -1,5 +1,6 @@
 site_name: XWhy Documentation
 site_description: Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)
+site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
 repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
 
 theme:
@@ -23,12 +24,29 @@ plugins:
         - docs/gen_ref_pages.py
   - literate-nav:
       nav_file: SUMMARY.md
+  - llmstxt:
+      markdown_description: >-
+        XWhy (Explain Why) implements SMILE (Statistical Model-agnostic
+        Interpretability with Local Explanations), a model-agnostic
+        explainability library for machine learning models.
+      full_output: llms-full.txt
+      sections:
+        Documentation:
+          - index.md: XWhy overview, installation, and quick start
+          - llm_explainer.md: Guide to explaining LLM prompt-response behavior
+          - contribute/contributing.md: How to contribute to XWhy
+          - RELEASING.md: Release process for maintainers
 
 extra_css:
   - assets/stylesheets/extra.css
 
 extra_javascript:
   - assets/javascripts/ai-links.js
+
+extra:
+  analytics:
+    provider: google
+    property: G-DV6YD3JCZ8
 
 nav:
   - Home: index.md

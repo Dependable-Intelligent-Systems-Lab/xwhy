@@ -49,15 +49,15 @@
     return pageUrl();
   }
 
-  function createLink(provider, icon, label) {
+  function createLink(provider, icon, label, linkClass, iconClass) {
     var link = document.createElement("a");
-    link.className = "xwhy-ai-panel__link";
+    link.className = linkClass;
     link.href = providerUrl(provider);
     link.target = "_blank";
     link.rel = "noopener noreferrer";
 
     var iconNode = document.createElement("span");
-    iconNode.className = "xwhy-ai-panel__icon";
+    iconNode.className = iconClass;
     iconNode.setAttribute("aria-hidden", "true");
     iconNode.textContent = icon;
 
@@ -67,6 +67,13 @@
     link.appendChild(iconNode);
     link.appendChild(textNode);
     return link;
+  }
+
+  function appendProviderLinks(parent, linkClass, iconClass) {
+    parent.appendChild(createLink("openai", "AI", "Open in ChatGPT", linkClass, iconClass));
+    parent.appendChild(createLink("anthropic", "A", "Open in Claude", linkClass, iconClass));
+    parent.appendChild(createLink("google", "G", "Open in Gemini", linkClass, iconClass));
+    parent.appendChild(createLink("kimi", "K", "Open in Kimi", linkClass, iconClass));
   }
 
   function injectPanel() {
@@ -83,17 +90,82 @@
     title.textContent = "Explore with AI";
 
     panel.appendChild(title);
-    panel.appendChild(createLink("openai", "AI", "Open in ChatGPT"));
-    panel.appendChild(createLink("anthropic", "A", "Open in Claude"));
-    panel.appendChild(createLink("google", "G", "Open in Gemini"));
-    panel.appendChild(createLink("kimi", "K", "Open in Kimi"));
+    appendProviderLinks(panel, "xwhy-ai-panel__link", "xwhy-ai-panel__icon");
 
     sidebar.appendChild(panel);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", injectPanel);
-  } else {
+  function injectAskAiButton() {
+    if (document.querySelector(".xwhy-ask-ai")) {
+      return;
+    }
+
+    var wrapper = document.createElement("div");
+    wrapper.className = "xwhy-ask-ai";
+
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "xwhy-ask-ai__button";
+    button.setAttribute("aria-expanded", "false");
+    button.setAttribute("aria-haspopup", "true");
+
+    var label = document.createElement("span");
+    label.textContent = "Ask AI";
+
+    var icon = document.createElement("span");
+    icon.className = "xwhy-ask-ai__button-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "💬";
+
+    button.appendChild(label);
+    button.appendChild(icon);
+
+    var menu = document.createElement("div");
+    menu.className = "xwhy-ask-ai__menu";
+    menu.hidden = true;
+    appendProviderLinks(menu, "xwhy-ask-ai__link", "xwhy-ask-ai__icon");
+
+    function closeMenu() {
+      menu.hidden = true;
+      button.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleMenu() {
+      var isHidden = menu.hidden;
+      menu.hidden = !isHidden;
+      button.setAttribute("aria-expanded", isHidden ? "true" : "false");
+    }
+
+    button.addEventListener("click", function (event) {
+      event.stopPropagation();
+      toggleMenu();
+    });
+
+    document.addEventListener("click", function (event) {
+      if (!wrapper.contains(event.target)) {
+        closeMenu();
+      }
+    });
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeMenu();
+      }
+    });
+
+    wrapper.appendChild(menu);
+    wrapper.appendChild(button);
+    document.body.appendChild(wrapper);
+  }
+
+  function init() {
     injectPanel();
+    injectAskAiButton();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
   }
 })();
