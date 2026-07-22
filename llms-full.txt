@@ -1,0 +1,771 @@
+# XWhy Documentation
+
+> Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)
+
+XWhy (Explain Why) implements SMILE (Statistical Model-agnostic Interpretability with Local Explanations), a model-agnostic explainability library for machine learning models.
+
+# Documentation
+
+# Welcome to XWhy
+
+**Explaining black boxes with a SMILE.**
+
+Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) models is trustworthiness. Most state-of-the-art ML models operate as complex "black boxes"—their inner workings opaque, mysterious, and difficult to audit.
+
+Explainability is a foundational pillar for establishing this missing trust. **XWhy** was built to bridge this gap. Powered by a novel method called **SMILE** (*Statistical Model-agnostic Interpretability with Local Explanations*), XWhy improves upon previous local explainability frameworks by leveraging robust statistical distance measures. This ensures stable, reliable, and mathematically grounded local explanations applicable across a wide variety of input data domains.
+
+______________________________________________________________________
+
+## Table of Contents
+
+- [Home Overview](https://dependable-intelligent-systems-lab.github.io/xwhy/index.md)
+- [Installation](#installation)
+- [Quick Start & General Usage](#quick-start)
+- [Rich Visualizations](#rich-visualizations)
+- [Contributors](#contributors)
+- [Advanced Feature: LLM Explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md) — *Learn how to interpret LLM prompt-response dynamics.*
+
+______________________________________________________________________
+
+## Installation
+
+XWhy is distributed on PyPI and can be installed using standard Python package managers.
+
+### 1. Core Package
+
+To install the core engine with standard explainers and baseline visualization support:
+
+**Using pip:**
+
+```
+pip install xwhy
+```
+
+**Using uv:**
+
+```
+uv add xwhy
+```
+
+### 2. Optional Cloud Ecosystems (Extras)
+
+If you intend to use specific cloud platforms or specific model deployment environments, you can install the target optional dependencies.
+
+Note for Shell Users
+
+Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
+
+| Extra Name | Description                            | Target Cloud Engine / SDK |
+| ---------- | -------------------------------------- | ------------------------- |
+| `vertex`   | Google Cloud Vertex AI support         | `google-cloud-aiplatform` |
+| `aws`      | Core AWS provider utilities            | `boto3`, `botocore`       |
+| `bedrock`  | Amazon Bedrock foundation models       | `boto3`, `botocore`       |
+| `all`      | Installs all available cloud providers | Full ecosystem bundle     |
+
+#### Example: Installing Specific Backends
+
+**Using pip:**
+
+```
+# Install specific provider extras
+pip install "xwhy[vertex]"
+pip install "xwhy[aws,bedrock]"
+
+# Install all cloud providers at once
+pip install "xwhy[all]"
+```
+
+**Using uv:**
+
+```
+# Install specific provider extras
+uv add "xwhy[vertex]"
+uv add "xwhy[aws,bedrock]"
+
+# Install all cloud providers at once
+uv add "xwhy[all]"
+```
+
+______________________________________________________________________
+
+## Quick Start
+
+XWhy is entirely model-agnostic, meaning you can hook it up to any model architecture. Here is a high-level conceptual example of how to initialize an explainer and generate feature importance metrics:
+
+```
+import xwhy
+
+# Initialize a standard model-agnostic explainer
+explainer = xwhy.Explainer(model=your_blackbox_model, data_domain="text")
+
+# Generate local attribution values for a specific instance
+explanation = explainer.explain(instance="Your input data sample here")
+
+# Print structural evaluation metrics
+print(explanation.metrics)
+```
+
+### Enabling Logging & Progress Tracking
+
+XWhy follows standard Python logging best practices and uses a `NullHandler` by default to keep your environment clean. If you are working in an interactive environment like Jupyter Notebook or Google Colab and want to view internal pipeline progress (such as perturbation status and surrogate model selection) in real-time, configure the package logger before running your explainer:
+
+```
+import logging
+import sys
+
+# Get the internal xwhy logger
+xwhy_logger = logging.getLogger("xwhy")
+
+# Set the logging level to INFO to capture pipeline events
+xwhy_logger.setLevel(logging.INFO)
+
+# Create a stream handler directing logs to standard output
+handler = logging.StreamHandler(sys.stdout)
+
+# Define a structured, clean format for execution logs
+formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+handler.setFormatter(formatter)
+
+# Attach the handler to track live progress
+xwhy_logger.addHandler(handler)
+```
+
+______________________________________________________________________
+
+## Rich Visualizations
+
+Providing raw numerical attributions is only half the battle; human interpretability also requires clear and intuitive visual interfaces. XWhy includes a flexible visualization layer for presenting local and global explanation results in formats that are easy to inspect and compare.
+
+After computing statistical attributions through the SMILE engine, XWhy can generate several complementary visualizations, including:
+
+- **Force Plots** to show how individual features push a prediction toward or away from a reference value
+- **Waterfall Plots** to trace how feature contributions move the output step by step
+- **Summary and Bar Plots** to rank feature importance at local or global level
+
+______________________________________________________________________
+
+## Contributors
+
+Thanks goes to these wonderful people:
+
+______________________________________________________________________
+
+Next Step: If you are looking to explain foundational language models, proceed directly to our [LLM Explainer Guide](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md).
+
+# Large Language Model (LLM) Explainer
+
+Large Language Models (LLMs) can be difficult to interpret because their outputs depend on many interacting words, tokens, and contextual relationships.
+
+The **XWhy LLM Explainer** provides a model-agnostic way to examine an LLM as a black-box system. It perturbs the input text, observes how the model response changes, and estimates which input words or tokens had the strongest local influence on the generated output.
+
+This guide starts with the simplest setup for explaining an OpenAI model. Advanced configuration for other cloud providers, routers, and local models is provided later.
+
+______________________________________________________________________
+
+## Quick Start: Explain an OpenAI Model
+
+For a first test, you only need:
+
+1. An LLM API provider key
+1. A credential setup approach (either a `.env` file or direct notebook/runtime configuration)
+1. A short Python script
+
+### 1. Create a Simple `.env` File
+
+Create a file named `.env` in the root directory of your project and add your OpenAI API key:
+
+```
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+> Keep API keys private. Do not commit the `.env` file to GitHub or include it in shared code.
+
+### 2. Alternative: Notebook & Runtime Configuration (No `.env` Required)
+
+If you are working in an interactive environment like Google Colab or Jupyter Notebooks, managing a physical `.env` file can be cumbersome. XWhy provides two flexible alternatives to configure your credentials on the fly directly inside your code.
+
+#### Approach A: Modifying Global Settings
+
+You can dynamically assign values to the global `settings` object immediately after importing `xwhy`. This updates the internal config registry before the explainer is initialized:
+
+```
+import xwhy
+
+# Manually set keys at runtime (Overrides .env)
+xwhy.settings.openai_api_key = "sk-proj-your_key_here"
+xwhy.settings.gemini_api_key = "your_gemini_key_here"
+```
+
+#### Approach B: Inline Arguments via LLMExplainer (`kwargs`)
+
+You can pass credentials and client settings directly into the `LLMExplainer` constructor. These parameters bypass the global state and are forwarded straight to the provider's underlying engine:
+
+```
+from xwhy import LLMExplainer
+
+# Pass parameters directly into the explainer constructor
+explainer = LLMExplainer(
+    provider="openai",
+    api_key="sk-proj-your_key_here",
+    use_best_surrogate=True
+)
+```
+
+> ⚠️ **Critical Requirement on Parameter Names:** When passing credentials directly into `LLMExplainer`, the key arguments **must match the native parameter names expected by the underlying provider's official SDK client**, not XWhy's global setting aliases. For example, use **`api_key`** for OpenAI, Anthropic, or Gemini, but you must use **`token`** when instantiating a Hugging Face client, as shown below:
+
+```
+# For OpenAI/Anthropic/Gemini, the SDK client expects 'api_key'
+openai_explainer = LLMExplainer(provider="openai", api_key="sk-...")
+
+# For Hugging Face, the native InferenceClient SDK expects 'token'
+hf_explainer = LLMExplainer(provider="huggingface", token="hf_...")
+```
+
+### 3. Run a Basic Explanation
+
+The following example explains the input text using an OpenAI model and displays a token-level heatmap:
+
+```
+import xwhy
+from xwhy import LLMExplainer
+
+# Required for interactive plots in notebook environments
+xwhy.plots.initjs()
+
+try:
+    # Create an explainer for an OpenAI model
+    # (Credentials will look up your .env, xwhy.settings, or explicit kwargs)
+    explainer = LLMExplainer(
+        provider="openai",
+        use_best_surrogate=True,
+    )
+
+    # Explain the model response for the supplied input
+    result = explainer.explain(
+        instance="Machine learning is fascinating.",
+        model_name="gpt-5-nano",
+        fidelity_plot=False,
+    )
+
+    # Print the explanation-quality metrics
+    print(result.metrics)
+
+    # Display the fidelity plot
+    result.plot()
+
+    # Display the token-level explanation
+    xwhy.plots.text_heatmap(result)
+
+except Exception as error:
+    print(f"The explanation could not be generated: {error}")
+```
+
+### 4. Read the Result
+
+The explanation highlights words or tokens according to their estimated influence on the model response.
+
+The returned `result` object also contains evaluation metrics that can be used to examine the quality and reliability of the local explanation. These metrics should be interpreted as evidence about the explanation produced by XWhy, rather than as direct access to the LLM's internal reasoning process.
+
+______________________________________________________________________
+
+## Additional Explanation Plots
+
+After generating a valid `result`, you can use the following visualisations:
+
+```
+xwhy.plots.bar(result)
+xwhy.plots.waterfall(result)
+xwhy.plots.text(result)
+xwhy.plots.force(result)
+xwhy.plots.decision(result)
+```
+
+A complete example that generates all supported plots is provided later in this guide.
+
+______________________________________________________________________
+
+## Advanced Configuration
+
+Use this section when you want to work with providers other than OpenAI, use proxy services, connect to cloud platforms, or run local models.
+
+### 1. Full Environment Variable Template
+
+Create a `.env` file in the root directory of your project. You only need to populate the variables required by the providers you intend to use.
+
+```
+############################
+# XWhy Provider Configuration
+############################
+
+# OpenAI
+OPENAI_API_KEY=
+
+# Google Gemini
+GEMINI_API_KEY=
+
+# Anthropic Claude
+ANTHROPIC_API_KEY=
+
+# Z.AI
+ZAI_API_KEY=
+
+# Groq
+GROQ_API_KEY=
+
+# Cohere
+COHERE_API_KEY=
+
+# Fireworks AI
+FIREWORKS_API_KEY=
+
+# Grok (xAI)
+GROK_API_KEY=
+
+# OpenRouter
+OPENROUTER_API_KEY=
+
+# ByteDance
+BYTEDANCE_API_KEY=
+
+# LM Studio
+LMSTUDIO_API_KEY=
+LMSTUDIO_BASE_URL=
+
+# Azure OpenAI
+AZURE_API_KEY=
+AZURE_API_VERSION="2024-02-01"
+AZURE_ENDPOINT=
+
+# AWS / Bedrock
+AWS_ACCESS_KEY=
+AWS_SECRET_KEY=
+AWS_SESSION_TOKEN=
+AWS_REGION="us-east-1"
+ANTHROPIC_AWS_WORKSPACE_ID=
+
+# Google Cloud: Gemini and Anthropic Vertex
+GCP_PROJECT=
+GCP_LOCATION="us-central1"
+
+# Microsoft Foundry: Anthropic
+ANTHROPIC_FOUNDRY_API_KEY=
+ANTHROPIC_FOUNDRY_RESOURCE=
+
+# Hugging Face
+HUGGINGFACE_TOKEN=
+
+############################
+# Embedding Cache
+############################
+
+EMBEDDING_CACHE_DIR=~/.cache/xwhy/embeddings
+```
+
+### 2. Select a Provider in Python
+
+Change the `provider` value when creating the explainer:
+
+```
+from xwhy import LLMExplainer
+
+explainer = LLMExplainer(
+    provider="openai",
+    use_best_surrogate=True,
+)
+```
+
+For another supported provider, replace `"openai"` with the provider identifier required by XWhy and ensure that the corresponding environment variables are configured.
+
+### 3. Embedding Storage Configuration
+
+The `EMBEDDING_CACHE_DIR` variable specifies where local text-embedding files are stored.
+
+- **Pre-cached models:** If the required embedding files already exist in this directory, XWhy can load them locally.
+- **Automatic fallback:** If the required files are missing, XWhy can download and cache them for future explanation runs.
+
+The configured directory must be writable by the current user.
+
+______________________________________________________________________
+
+## Supported Ecosystems
+
+### Supported LLM Providers
+
+XWhy supports commercial APIs, cloud platforms, proxy routers, and local inference services, including:
+
+- OpenAI
+- Google Gemini
+- Anthropic
+- Hugging Face
+- Z.AI
+- Groq
+- Cohere
+- Fireworks AI
+- Grok (xAI)
+- OpenRouter
+- Ollama
+- LM Studio
+- ByteDance
+- Azure OpenAI
+- GCP Gemini
+- Anthropic Bedrock
+- Anthropic Bedrock Mantle
+- Anthropic AWS
+- Anthropic Vertex
+- Anthropic Foundry
+
+### Supported Embedding Engines
+
+XWhy currently supports the following local embedding engines for measuring changes between perturbed text representations:
+
+- Word2Vec
+- GloVe
+- Paragram-sl
+- Paragram-WS
+
+______________________________________________________________________
+
+## Complete End-to-End Example
+
+The following example creates the explainer, generates an explanation, prints the metrics, and displays all available diagnostic plots.
+
+```
+import xwhy
+from xwhy import LLMExplainer
+
+# Initialize interactive JavaScript-based plots
+xwhy.plots.initjs()
+
+try:
+    # Configure the target provider and surrogate-selection behaviour
+    explainer = LLMExplainer(
+        provider="openai",
+        use_best_surrogate=True,
+    )
+
+    # Generate a local explanation for the selected model and input
+    result = explainer.explain(
+        instance="Machine learning is fascinating.",
+        model_name="gpt-5-nano",
+    )
+
+    # Inspect the explanation metrics
+    print(result.metrics)
+    print("Explanation generated successfully.")
+
+    # Token-level heatmap
+    xwhy.plots.text_heatmap(result)
+
+    # Additional diagnostic plots
+    xwhy.plots.bar(result)
+    xwhy.plots.waterfall(result)
+    xwhy.plots.text(result)
+    xwhy.plots.force(result)
+    xwhy.plots.decision(result)
+
+except Exception as error:
+    print(f"Error during the explanation pipeline: {error}")
+```
+
+______________________________________________________________________
+
+## Common Setup Problems
+
+### API Key Not Found
+
+Confirm that:
+
+- the file is named exactly `.env`;
+- it is located in the project root directory; and
+- the relevant API key variable is populated.
+
+### Model Access Error
+
+The selected model must be available through your provider account. If the model is unavailable, replace `model_name` with a model that your account can access.
+
+### Embedding Download or Cache Error
+
+Confirm that the path assigned to `EMBEDDING_CACHE_DIR` exists or can be created, and that the current user has permission to write to it.
+
+______________________________________________________________________
+
+## Interpretation Note
+
+XWhy produces a local, perturbation-based approximation of input influence. It can help identify which words or tokens are associated with changes in a particular model response. It does not expose private chain-of-thought reasoning, recover the model's exact internal decision process, or prove that a highlighted token was the sole cause of the generated output.
+
+# Examples
+
+Worked examples of XWhy in action — real code, real output, and a plain-language read of what each result means. Pick the explainer you're working with:
+
+- **[LLM Explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/llm-explainer/index.md)** — comparing word-embedding backends, reading fidelity scores, and interpreting heatmap/bar/waterfall/decision plots for a single sentence.
+
+More explainer walkthroughs (image classifiers, tabular models, and others) will be added here as their own pages as XWhy's coverage grows.
+
+# Example Walkthrough: LLM Explainer in Action
+
+This page walks through a real run of XWhy's `LLMExplainer` on a single sentence, comparing four word-embedding backends and showing exactly what each plot means. Every code snippet, metric, and image below comes directly from an executed notebook run.
+
+______________________________________________________________________
+
+## Setup
+
+Install XWhy and, optionally, turn on XWhy's logger to watch the pipeline progress (perturbation generation, embedding loading, surrogate model selection) in real time:
+
+```
+import logging
+import sys
+import xwhy
+from xwhy import LLMExplainer
+
+xwhy_logger = logging.getLogger("xwhy")
+xwhy_logger.setLevel(logging.INFO)
+
+handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+handler.setFormatter(formatter)
+xwhy_logger.addHandler(handler)
+```
+
+The example instance explained throughout this page is the sentence:
+
+> *"Machine learning is fascinating."*
+
+______________________________________________________________________
+
+## Case 1: Google News (word2vec) Embedding
+
+Run the explainerxwhy.LLMExplainer
+
+```
+explainer = LLMExplainer(provider="openai", use_best_surrogate=True, api_key=api_key)
+result = explainer.explain(instance="Machine learning is fascinating.", model_name="gpt-5-nano")
+
+print(result.metrics)
+xwhy.plots.text_heatmap(result)
+result.plot()
+```
+
+Behind the scenes, XWhy queries the model, generates perturbations of the input sentence, embeds them with the `GoogleNews-vectors-negative300` word2vec model, computes Word Mover's Distance (WMD) similarities, and searches for the best-fitting surrogate model:
+
+```
+Optimization complete. Selected surrogate model: 'randomforest' (Best Score: 0.9150)
+
+--------------------------------------------------------------------------------
+Fidelity Metrics:
+  Mean Squared Error (MSE)            0.0061
+  Mean Absolute Error (MAE)           0.0334
+  Weighted R-squared (R²ω)            0.9150
+  Weighted Adjusted R-squared (R^²ω)  0.9092
+--------------------------------------------------------------------------------
+```
+
+The **weighted R²** tells you how faithfully the local surrogate model reproduces the LLM's original behavior around this instance — closer to 1.0 means the explanation can be trusted more.
+
+Text heatmapxwhy.plots.text_heatmap(result)
+
+Darker red means the word contributed more to the model's output.
+
+`learning` (0.47) and `is` (0.40) dominate the response, while `Machine` and `fascinating.` contribute comparatively little.
+
+Fidelity plotresult.plot()
+
+Each point is a perturbed sample; the closer it sits to the red dashed line, the better the surrogate model's prediction matches the real model's output for that sample. Point size/color encode the sample's importance weight.
+
+Bar plotxwhy.plots.bar(result)
+
+A ranked view of the same per-word contributions.
+
+Waterfall plotxwhy.plots.waterfall(result)
+
+Shows how each word pushes the output from the base expectation `E[f(X)] = 0` up to the final prediction `f(x) = 1`, one word at a time.
+
+Decision plotxwhy.plots.decision(result)
+
+Traces the cumulative effect of each feature as a single path from left to right.
+
+______________________________________________________________________
+
+## Comparing Embedding Backends
+
+The same sentence and model were re-explained using three other embeddings, each swapping only the `embedding_type` argument:
+
+```
+explainer = LLMExplainer(provider="openai", use_best_surrogate=True, api_key=api_key)
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    model_name="gpt-5-nano",
+    embedding_type="glove",       # or "paragram_sl" / "paragram_ws"
+    fidelity_plot=True,
+)
+```
+
+Tip
+
+Pass `fidelity_plot=True` the first time you try a new embedding backend, so you can sanity-check the surrogate fit before trusting the explanation it produces.
+
+| Case | Embedding             | Weighted R² | Adjusted R² | MAE        |
+| ---- | --------------------- | ----------- | ----------- | ---------- |
+| 1    | word2vec (GoogleNews) | 0.9150      | 0.9092      | 0.0334     |
+| 2    | GloVe                 | 0.8802      | 0.8721      | 0.0362     |
+| 3    | Paragram-SL           | **0.9716**  | **0.9697**  | **0.0219** |
+| 4    | Paragram-WS           | 0.8646      | 0.8554      | 0.0436     |
+
+Paragram-SL produced the best-fitting surrogate for this sentence, and its word-importance heatmap agrees closely with word2vec's. Paragram-WS tells a noticeably different story — worth keeping in mind when picking an embedding for your own explanations.
+
+GloVeembedding_type="glove"
+
+Paragram-SLembedding_type="paragram_sl"
+
+Paragram-WSembedding_type="paragram_ws"
+
+Notice how Paragram-WS spreads importance much more evenly across all four words (0.21 / 0.13 / 0.34 / 0.33) instead of concentrating it on `learning` and `is` like the other three embeddings.
+
+______________________________________________________________________
+
+## Graceful Handling of Filtered Provider Responses
+
+Not every prompt gets a usable response back from a provider — safety filters or provider-side anomalies can return an empty completion. XWhy surfaces this as a clear, catchable error instead of crashing the pipeline:
+
+Filtered responsetry / except
+
+```
+try:
+    explainer = LLMExplainer(provider="openai", use_best_surrogate=True, api_key=api_key)
+    result = explainer.explain(instance="...", model_name="gpt-5-nano", embedding_type="paragram_ws")
+    print(result.metrics)
+except Exception as e:
+    print(f"Error during pipeline execution: {e}")
+```
+
+```
+Error during pipeline execution: Received an empty response from the OpenAI API.
+This could be due to safety guardrails, network filtering (anti-filter), or
+provider-side anomalies.
+```
+
+This came up twice in testing (once for a time-travel/physics question, once for a first-aid question) — both unrelated to XWhy's own logic, and both handled the same predictable way.
+
+______________________________________________________________________
+
+## Takeaways
+
+- **Fidelity varies by embedding.** For this sentence, Paragram-SL gave the most trustworthy local surrogate (R² = 0.97); GloVe and Paragram-WS trailed noticeably behind word2vec.
+- **Word importance isn't embedding-invariant.** Three of the four embeddings agreed that `learning` and `is` mattered most — Paragram-WS disagreed substantially. If an explanation looks surprising, try a second embedding before trusting it.
+- **Errors are explicit.** When a provider returns nothing usable, XWhy raises a descriptive exception rather than failing silently or crashing.
+
+Next step: see the [LLM Explainer Guide](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md) for the full API reference.
+
+# Contributing Guidelines
+
+When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
+
+Please note we have a code of conduct, please follow it in all your interactions with the project.
+
+## Pull Request Process
+
+1. Ensure any install or build dependencies are removed before the end of the layer when doing a build.
+1. Update the README.md with details of changes to the interface, this includes new environment variables, exposed ports, useful file locations and container parameters.
+1. Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
+1. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
+
+## Code of Conduct
+
+### Our Pledge
+
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
+
+### Our Standards
+
+Examples of behavior that contributes to creating a positive environment include:
+
+- Using welcoming and inclusive language
+- Being respectful of differing viewpoints and experiences
+- Gracefully accepting constructive criticism
+- Focusing on what is best for the community
+- Showing empathy towards other community members
+
+Examples of unacceptable behavior by participants include:
+
+- The use of sexualized language or imagery and unwelcome sexual attention or advances
+- Trolling, insulting/derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information, such as a physical or electronic address, without explicit permission
+- Other conduct which could reasonably be considered inappropriate in a professional setting
+
+### Our Responsibilities
+
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+
+### Scope
+
+This Code of Conduct applies both within project spaces and in public spaces when an individual is representing the project or its community. Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+
+### Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at [koo.ec2008@gmail.com]. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
+
+Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+
+### Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant](http://contributor-covenant.org), version 1.4, available at [http://contributor-covenant.org/version/1/4](http://contributor-covenant.org/version/1/4/)
+
+For more information please contact Koorosh Aslansefat: koo.ec2008@gmail.com
+
+## xwhy Release Procedures & Checklist
+
+This document outlines the step-by-step workflow for releasing a new semantic version of the `xwhy` package. Following this exact sequence ensures that our automated GitHub Actions pipeline successfully runs multi-version tests via Nox, publishes the distribution to PyPI using Trusted Publishing (OIDC), and generates a clean GitHub Release with attached assets.
+
+______________________________________________________________________
+
+### Pre-Release Sanity Check
+
+Before updating any versions, make sure your local environment is up to date and your working directory is clean.
+
+- Run `git pull origin main` to ensure you have the latest upstream changes.
+- Run `uv run nox` locally to ensure all linting checks and test matrices pass seamlessly.
+
+______________________________________________________________________
+
+### The Release Sequence
+
+1. **1. Bump the Version:** pyproject.toml. Open your `pyproject.toml` file and update the `version` field under the `[project]` table following **Semantic Versioning** rules (`MAJOR.MINOR.PATCH`).
+
+```
+[project]
+name = "xwhy"
+version = "0.1.0"  # Update this line accordingly
+```
+
+1. **2. Commit the Version Change:** Git Commit. Stage and commit the change to `pyproject.toml`. Use a clear, conventional commit message to keep the git history semantic.
+
+```
+git add pyproject.toml
+git commit -m "chore: bump version to 0.1.0"
+```
+
+1. **3. Create a Semantic Git Tag:** Git Tagging. Create a local Git tag that matches your new version exactly. \*\*Always prefix the tag with a lowercase `v**` (e.g., `v0.1.0`) to match the pattern expected by the deployment workflow.
+
+```
+git tag v0.1.0
+```
+
+1. **4. Push to GitHub:** Git Push. Push both your commit and the newly created tag to the remote repository. Pushing the tag is the definitive action that triggers the `publish.yml` pipeline.
+
+```
+git push origin main
+git push origin v0.1.0
+```
+
+1. **5. Monitor the Automation Pipeline:** GitHub Actions. Navigate to the **Actions** tab of your GitHub repository and track the progress of the **Publish to PyPI and GitHub Releases** workflow. The automation will:
+1. Perform a final pre-release sanity check via Nox.
+1. Build the source distribution and wheel packages using `uv build`.
+1. Authenticate securely with PyPI via OIDC and upload the package.
+1. Compile an automated Changelog based on recent commits and PRs.
+1. Publish an official GitHub Release with the compiled Changelog and attach the built files from `dist/*` as release assets.
+
+______________________________________________________________________
+
+> **Crucial Rule:** Never modify the `version` string in `pyproject.toml` without immediately tagging that exact commit. If the version inside the code does not match the Git tag, PyPI will reject the deployment due to version conflicts, or your GitHub Releases page will display mismatched metadata.

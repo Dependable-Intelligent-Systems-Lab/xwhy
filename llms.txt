@@ -1,0 +1,15 @@
+# XWhy Documentation
+
+> Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)
+
+XWhy (Explain Why) implements SMILE (Statistical Model-agnostic Interpretability with Local Explanations), a model-agnostic explainability library for machine learning models.
+
+## Documentation
+
+- [Home](https://dependable-intelligent-systems-lab.github.io/xwhy/index.md): XWhy overview, installation, and quick start
+- [LLM Explainer Guide](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md): Guide to explaining LLM prompt-response behavior
+- [Overview](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/index.md): Index of worked examples
+- [LLM Explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/llm-explainer/index.md): Worked example comparing embedding backends with real outputs
+- [Contribute](https://dependable-intelligent-systems-lab.github.io/xwhy/contribute/contributing/index.md): How to contribute to XWhy
+- [Releasing](https://dependable-intelligent-systems-lab.github.io/xwhy/RELEASING/index.md): Release process for maintainers
+
