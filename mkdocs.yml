@@ -40,7 +40,8 @@ plugins:
         Documentation:
           - index.md: XWhy overview, installation, and quick start
           - llm_explainer.md: Guide to explaining LLM prompt-response behavior
-          - examples.md: Worked example comparing embedding backends with real outputs
+          - examples/index.md: Index of worked examples
+          - examples/llm-explainer.md: Worked example comparing embedding backends with real outputs
           - contribute/contributing.md: How to contribute to XWhy
           - RELEASING.md: Release process for maintainers
 
@@ -58,7 +59,9 @@ extra:
 nav:
   - Home: index.md
   - LLM Explainer Guide: llm_explainer.md
-  - Examples: examples.md
+  - Examples:
+      - Overview: examples/index.md
+      - LLM Explainer: examples/llm-explainer.md
   - Contribute: contribute/contributing.md
   - API Reference: reference/
   - Development Guide:

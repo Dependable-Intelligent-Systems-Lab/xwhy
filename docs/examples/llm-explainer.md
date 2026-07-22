@@ -80,7 +80,7 @@ explanation can be trusted more.
 Darker red means the word contributed more to the model's output.
 
 <div class="xwhy-example__output" markdown>
-![Text heatmap for Case 1](graphics/examples/case1-word2vec-heatmap.png)
+![Text heatmap for Case 1](../graphics/examples/case1-word2vec-heatmap.png)
 </div>
 
 `learning` (0.47) and `is` (0.40) dominate the response, while `Machine` and
@@ -98,7 +98,7 @@ the better the surrogate model's prediction matches the real model's output
 for that sample. Point size/color encode the sample's importance weight.
 
 <div class="xwhy-example__output" markdown>
-![Fidelity plot for Case 1](graphics/examples/case1-word2vec-fidelity.png)
+![Fidelity plot for Case 1](../graphics/examples/case1-word2vec-fidelity.png)
 </div>
 
 </div>
@@ -111,7 +111,7 @@ for that sample. Point size/color encode the sample's importance weight.
 A ranked view of the same per-word contributions.
 
 <div class="xwhy-example__output" markdown>
-![Bar plot for Case 1](graphics/examples/case1-bar.png)
+![Bar plot for Case 1](../graphics/examples/case1-bar.png)
 </div>
 
 </div>
@@ -125,7 +125,7 @@ Shows how each word pushes the output from the base expectation `E[f(X)] = 0`
 up to the final prediction `f(x) = 1`, one word at a time.
 
 <div class="xwhy-example__output" markdown>
-![Waterfall plot for Case 1](graphics/examples/case1-waterfall.png)
+![Waterfall plot for Case 1](../graphics/examples/case1-waterfall.png)
 </div>
 
 </div>
@@ -138,7 +138,7 @@ up to the final prediction `f(x) = 1`, one word at a time.
 Traces the cumulative effect of each feature as a single path from left to right.
 
 <div class="xwhy-example__output" markdown>
-![Decision plot for Case 1](graphics/examples/case1-decision.png)
+![Decision plot for Case 1](../graphics/examples/case1-decision.png)
 </div>
 
 </div>
@@ -182,8 +182,8 @@ for your own explanations.
 <div class="xwhy-example__header"><span>GloVe</span><span>embedding_type="glove"</span></div>
 <div class="xwhy-example__body" markdown>
 <div class="xwhy-example__output" markdown>
-![Fidelity plot, GloVe](graphics/examples/case2-glove-fidelity.png)
-![Heatmap, GloVe](graphics/examples/case2-glove-heatmap.png)
+![Fidelity plot, GloVe](../graphics/examples/case2-glove-fidelity.png)
+![Heatmap, GloVe](../graphics/examples/case2-glove-heatmap.png)
 </div>
 </div>
 </div>
@@ -192,8 +192,8 @@ for your own explanations.
 <div class="xwhy-example__header"><span>Paragram-SL</span><span>embedding_type="paragram_sl"</span></div>
 <div class="xwhy-example__body" markdown>
 <div class="xwhy-example__output" markdown>
-![Fidelity plot, Paragram-SL](graphics/examples/case3-paragram-sl-fidelity.png)
-![Heatmap, Paragram-SL](graphics/examples/case3-paragram-sl-heatmap.png)
+![Fidelity plot, Paragram-SL](../graphics/examples/case3-paragram-sl-fidelity.png)
+![Heatmap, Paragram-SL](../graphics/examples/case3-paragram-sl-heatmap.png)
 </div>
 </div>
 </div>
@@ -202,8 +202,8 @@ for your own explanations.
 <div class="xwhy-example__header"><span>Paragram-WS</span><span>embedding_type="paragram_ws"</span></div>
 <div class="xwhy-example__body" markdown>
 <div class="xwhy-example__output" markdown>
-![Fidelity plot, Paragram-WS](graphics/examples/case4-paragram-ws-fidelity.png)
-![Heatmap, Paragram-WS](graphics/examples/case4-paragram-ws-heatmap.png)
+![Fidelity plot, Paragram-WS](../graphics/examples/case4-paragram-ws-fidelity.png)
+![Heatmap, Paragram-WS](../graphics/examples/case4-paragram-ws-heatmap.png)
 </div>
 
 Notice how Paragram-WS spreads importance much more evenly across all four
@@ -263,4 +263,4 @@ handled the same predictable way.
 * **Errors are explicit.** When a provider returns nothing usable, XWhy raises
   a descriptive exception rather than failing silently or crashing.
 
-Next step: see the [LLM Explainer Guide](llm_explainer.md) for the full API reference.
+Next step: see the [LLM Explainer Guide](../llm_explainer.md) for the full API reference.
