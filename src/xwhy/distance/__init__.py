@@ -11,6 +11,7 @@ from xwhy.distance.distances import (
     WassersteinDistance,
 )
 from xwhy.distance.normalization import DistanceNormalizer
+from xwhy.distance.types import DistanceType
 from xwhy.distance.wmd import WMDDistance
 
 __all__ = [
@@ -20,6 +21,7 @@ __all__ = [
     "CosineDistance",
     "CvMDistance",
     "DistanceNormalizer",
+    "DistanceType",
     "KSDistance",
     "KuiperDistance",
     "WMDDistance",

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import random
+import warnings
 from typing import Any, cast
 
 import numpy as np
 from scipy.spatial.distance import cosine
 from scipy.stats import (
-    PermutationMethod,
     anderson_ksamp,
     cramervonmises_2samp,
     ks_2samp,
@@ -135,7 +135,15 @@ class AndersonDarlingDistance(BaseNumericDistance):
     """Anderson-Darling (k-sample) distance metric."""
 
     def _compute_1d(self, a: np.ndarray, b: np.ndarray) -> Any:  # noqa: ANN401
-        return anderson_ksamp([a, b], variant="midrank", method=PermutationMethod())
+        # Omit the 'method' parameter to prevent Out-Of-Memory (OOM) errors
+        # caused by PermutationMethod on large inputs (e.g., flattened images).
+        # We use warnings.catch_warnings() to cleanly suppress SciPy's
+        # "p-value floored/capped" UserWarning. This warning is irrelevant
+        # for our XAI pipeline because we solely rely on the distance statistic
+        # to weight the neighborhood, not the statistical significance (p-value).
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            return anderson_ksamp([a, b], variant="midrank")
 
 
 class KuiperDistance(BaseNumericDistance):
