@@ -94,20 +94,96 @@ class Dinov2Embedding(BaseEmbedding):
             )
         return self._processor
 
-    def __call__(
-        self, inputs: Image.Image | torch.Tensor | dict[str, torch.Tensor]
-    ) -> np.ndarray:
-        """Execute the forward pass to extract and pool image embeddings.
+    def _prepare_image(
+        self,
+        image: Image.Image | np.ndarray,
+    ) -> Image.Image:
+        """Validate and convert an image into a PIL image.
 
         Args:
-            inputs: Can be a PIL Image object, a raw PyTorch tensor, or a
-                dictionary of tensors generated directly by the AutoImageProcessor.
+            image:
+                Input image as either a ``PIL.Image.Image`` or a
+                ``numpy.ndarray``.
 
         Raises:
-            RuntimeError: If the model or processor has not been loaded yet.
+            TypeError:
+                If the input type is unsupported or the NumPy array does not
+                have a numeric dtype.
+
+            ValueError:
+                If the NumPy array does not represent a valid image.
 
         Returns:
-            A numpy array representing the mean-pooled embedding vector.
+            A validated PIL image ready for preprocessing.
+
+        """
+        if isinstance(image, Image.Image):
+            return image
+
+        if not isinstance(image, np.ndarray):
+            raise TypeError(
+                "Expected image to be either a PIL.Image.Image or a "
+                f"numpy.ndarray. Got {type(image).__name__}."
+            )
+
+        img_array: np.ndarray = image
+
+        if img_array.ndim not in (2, 3):
+            raise ValueError(
+                "NumPy image must have shape (H, W) or (H, W, C). "
+                f"Got shape {img_array.shape}."
+            )
+
+        if img_array.ndim == 3 and img_array.shape[2] not in (1, 3, 4):
+            raise ValueError(
+                "NumPy image must have 1, 3, or 4 channels. Got shape"
+                f" {img_array.shape}."
+            )
+
+        if not np.issubdtype(img_array.dtype, np.number):
+            raise TypeError(
+                f"NumPy image must have a numeric dtype. Got {img_array.dtype}."
+            )
+
+        if img_array.dtype != np.uint8:
+            img_array = img_array.astype(np.float32)
+
+            # Handle normalized images.
+            if img_array.min() >= 0.0 and img_array.max() <= 1.0:
+                img_array *= 255.0
+
+            img_array = np.clip(img_array, 0.0, 255.0).astype(np.uint8)
+
+        return Image.fromarray(img_array)
+
+    def __call__(
+        self,
+        inputs: (Image.Image | np.ndarray | torch.Tensor | dict[str, torch.Tensor]),
+    ) -> np.ndarray:
+        """Extract a DINOv2 embedding from supported input types.
+
+        Args:
+            inputs:
+                One of the following supported input types:
+
+                - ``PIL.Image.Image``
+                - ``numpy.ndarray`` representing an image
+                - ``torch.Tensor``
+                - ``dict[str, torch.Tensor]`` produced by
+                ``AutoImageProcessor``
+
+        Raises:
+            RuntimeError:
+                If the model or processor has not been loaded.
+
+            TypeError:
+                If the input type is unsupported.
+
+            ValueError:
+                If a NumPy image is malformed.
+
+        Returns:
+            The mean-pooled image embedding as a NumPy array.
 
         """
         if self._processor is None or self._model is None:
@@ -116,25 +192,41 @@ class Dinov2Embedding(BaseEmbedding):
             processor = self._processor
             model = self._model
 
-        # Handle different input types dynamically and robustly
-        if isinstance(inputs, Image.Image):
+        if isinstance(inputs, (Image.Image, np.ndarray)):
+            image = self._prepare_image(inputs)
+
             processed_inputs = processor(
-                images=inputs,
+                images=image,
                 return_tensors="pt",
                 do_rescale=False,
             ).to(self._device)
+
             with torch.no_grad():
                 outputs = model(**processed_inputs)
+
         elif isinstance(inputs, dict):
-            processed_inputs = {k: v.to(self._device) for k, v in inputs.items()}
+            processed_inputs = {
+                key: value.to(self._device) for key, value in inputs.items()
+            }
+
             with torch.no_grad():
                 outputs = model(**processed_inputs)
-        else:
+
+        elif isinstance(inputs, torch.Tensor):
             tensor_inputs = inputs.to(self._device)
+
             with torch.no_grad():
                 outputs = model(tensor_inputs)
 
-        # Average pooling over the token sequence
+        else:
+            raise TypeError(
+                "Unsupported input type for Dinov2Embedding. "
+                "Expected one of "
+                "(PIL.Image.Image, numpy.ndarray, torch.Tensor, "
+                "dict[str, torch.Tensor]). "
+                f"Got {type(inputs).__name__}."
+            )
+
         emb = outputs.last_hidden_state.mean(dim=1)
         emb_array: np.ndarray = emb.squeeze().cpu().numpy()
 
@@ -197,20 +289,26 @@ class Dinov2Embedding(BaseEmbedding):
 
         return self._processor, self._model
 
-    def encode_image(self, image: Image.Image) -> np.ndarray:
-        """Extract an image embedding using the DINOv2 model.
+    def encode_image(
+        self,
+        image: Image.Image | np.ndarray,
+    ) -> np.ndarray:
+        """Extract an embedding from an image.
 
-        This is a specialized method optimized for the Explainer pipeline
-        where the image is already preprocessed and loaded in memory.
+        This is a convenience wrapper around ``__call__`` used throughout
+        the explainability pipeline. Images may be provided either as a
+        PIL image or as a NumPy array.
 
         Args:
-            image: The PIL Image object to be encoded.
+            image:
+                Input image as either a ``PIL.Image.Image`` or a
+                ``numpy.ndarray``.
 
         Returns:
-            A numpy array representing the extracted embedding vector.
+            Extracted image embedding as a NumPy array.
 
         """
-        return self.__call__(image)
+        return self(image)
 
     def encode(self, text: str) -> list[float]:
         """Encode an image into a list of floats from a file path.

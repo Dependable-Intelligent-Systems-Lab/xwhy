@@ -289,7 +289,10 @@ def test_dinov2_call_loads_if_none(dinov2_embedding: Dinov2Embedding) -> None:
     mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
 
     dinov2_embedding.load = MagicMock(return_value=(mock_processor, mock_model))  # type: ignore[method-assign]
-    dinov2_embedding(inputs=MagicMock())
+
+    mock_input = MagicMock(spec=torch.Tensor)
+
+    dinov2_embedding(inputs=mock_input)
 
     dinov2_embedding.load.assert_called_once()
 
@@ -340,7 +343,7 @@ def test_dinov2_call_with_tensor(dinov2_embedding: Dinov2Embedding) -> None:
     mock_model.return_value.last_hidden_state.mean.return_value = mock_mean
     dinov2_embedding._model = mock_model
 
-    mock_tensor = MagicMock()
+    mock_tensor = MagicMock(spec=torch.Tensor)
     mock_tensor.to.return_value = "moved_tensor"
 
     dinov2_embedding(inputs=mock_tensor)
