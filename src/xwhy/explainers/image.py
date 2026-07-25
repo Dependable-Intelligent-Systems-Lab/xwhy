@@ -7,6 +7,7 @@ from typing import Any, cast
 import numpy as np
 import skimage.transform
 import torch
+import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
 
@@ -20,6 +21,7 @@ from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.metrics.image import ImageCoverageMetrics
 from xwhy.metrics.regression import RegressionMetrics
+from xwhy.models.classification.custom_torch import CustomTorchClassification
 from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.factory import EmbeddingFactory
@@ -51,6 +53,9 @@ class ImageClassificationExplainer(
     def __init__(
         self,
         config: ImageClassificationConfig | None = None,
+        custom_model: Any = None,  # noqa: ANN401
+        custom_preprocess: Any = None,  # noqa: ANN401
+        categories: Any = None,  # noqa: ANN401
         classification_type: str | ClassificationType = ClassificationType.INCEPTION_V3,
         use_model_preprocess: bool = True,
         use_embedding_model: bool = False,
@@ -74,6 +79,12 @@ class ImageClassificationExplainer(
 
         Args:
             config: Optional configuration for the explainer.
+            custom_model: Optional user-defined PyTorch classification
+                          model (nn.Module).
+            custom_preprocess: Optional preprocessing transform pipeline for
+                               the custom model.
+            categories: Optional list of human-readable class names corresponding
+                        to model outputs.
             classification_type: Type of the classification model to explain.
             use_model_preprocess: Whether to use the classfication model's official
                                   preprocessing.
@@ -109,6 +120,9 @@ class ImageClassificationExplainer(
 
         if config is None:
             config = ImageClassificationConfig(
+                custom_model=custom_model,
+                custom_preprocess=custom_preprocess,
+                categories=categories,
                 classification_type=classification_type,
                 use_model_preprocess=use_model_preprocess,
                 use_embedding_model=use_embedding_model,
@@ -142,22 +156,44 @@ class ImageClassificationExplainer(
     def _initialize(self) -> None:
         """Initialize runtime resources."""
         # 1. Load Classification Model
-        logger.info(f"Loading classification model: {self.config.classification_type}")  # type: ignore
+        if getattr(self.config, "custom_model", None) is not None:
+            logger.info("Loading custom classification model...")
 
-        if not isinstance(self.config.classification_type, ClassificationType):  # type: ignore
-            raise ValueError(
-                f"Invalid classification type '{self.config.classification_type}'."  # type: ignore
+            if not isinstance(self.config.custom_model, nn.Module):  # type: ignore
+                raise TypeError(
+                    "The provided 'custom_model' must be an instance "
+                    "of torch.nn.Module."
+                )
+
+            self.state.classification_model = CustomTorchClassification(
+                model=self.config.custom_model,  # type: ignore
+                preprocess_fn=getattr(self.config, "custom_preprocess", None),
+                categories=getattr(self.config, "categories", None),
+                device=self.state.device,
+            )
+            self.state.classification_model.load()
+
+            self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+
+        else:
+            logger.info(
+                f"Loading classification model: {self.config.classification_type}"  # type: ignore[union-attr]
             )
 
-        self.state.classification_model = ClassificationFactory.create(
-            classification=self.config.classification_type,  # type: ignore
-            device=self.state.device,
-        )
-        self.state.classification_model.load()
+            if not isinstance(self.config.classification_type, ClassificationType):  # type: ignore
+                raise ValueError(
+                    f"Invalid classification type '{self.config.classification_type}'."  # type: ignore
+                )
 
-        # Extract the transform function directly from the adapter
-        if self.config.use_model_preprocess:  # type: ignore[union-attr]
-            self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+            self.state.classification_model = ClassificationFactory.create(
+                classification=self.config.classification_type,  # type: ignore
+                device=self.state.device,
+            )
+            self.state.classification_model.load()
+
+            # Extract the transform function directly from the adapter
+            if self.config.use_model_preprocess:  # type: ignore[union-attr]
+                self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
 
         # 2. Load Embedding Model (if enabled)
         if self.config.use_embedding_model:  # type: ignore
@@ -294,6 +330,7 @@ class ImageClassificationExplainer(
         self,
         instance: str,
         fidelity_plot: bool = False,
+        ground_truth_mask: Any = None,  # noqa: ANN401
         **kwargs: Any,  # noqa: ANN401
     ) -> ImageClassificationXWhyResult:
         """Generate an explanation for an input image.
@@ -301,6 +338,7 @@ class ImageClassificationExplainer(
         Args:
             instance: Path to the image that should be explained.
             fidelity_plot: Rendering fidelity scatter plot.
+            ground_truth_mask: Provided ground-truth mask for evaluation.
             **kwargs: Additional explainer-specific options.
 
         Returns:
@@ -342,7 +380,7 @@ class ImageClassificationExplainer(
         class_to_explain = top_preds.indices[0].item()
 
         # Log top predictions
-        categories = self.state.classification_model.weights.meta["categories"]  # type: ignore[attr-defined]
+        categories = self.state.classification_model.weights.meta["categories"]
         for prob, idx in zip(top_preds.values, top_preds.indices, strict=False):
             logger.info(f"Prediction: {categories[idx]}: {prob.item():.4f}")
 
@@ -430,44 +468,60 @@ class ImageClassificationExplainer(
             item=base_image_numpy, mask=top_features_mask, segments=superpixels
         )
 
-        if self.state.segmentation_model is None:
-            raise RuntimeError("Segmentation model is required for this operation.")
+        sem_mask = None
+        cov = 0.0
+        w_cov = 0.0
+
+        if ground_truth_mask is not None:
+            logger.info("Using provided ground-truth mask for evaluation.")
+            sem_mask = ground_truth_mask
 
         # Evaluation against Ground Truth
-        _, sem_mask = get_segmentation_mask(
-            image_path=image_path,
-            segmentation_model=self.state.segmentation_model,
-            transform_fn=transform_fn,
-            device=self.config.device,  # type: ignore[union-attr]
-            class_names=self.state.segmentation_model.class_names,
-        )
-
-        # Resize explanation image to match original mask spatial dimensions if needed
-        if explanation_image.shape[:2] != sem_mask.shape[:2]:
-            # Preserve channels if explanation_image is 3D (H, W, C)
-            target_shape = (*sem_mask.shape[:2], *explanation_image.shape[2:])
-
-            resized = skimage.transform.resize(
-                explanation_image,
-                target_shape,
-                order=0,  # Nearest-neighbor interpolation preserves discrete values
-                preserve_range=True,
-                anti_aliasing=False,
-            )  # type: ignore[no-untyped-call]
-
-            explanation_image = cast(np.ndarray, resized).astype(
-                explanation_image.dtype
+        if self.state.segmentation_model is not None:
+            try:
+                _, sem_mask = get_segmentation_mask(
+                    image_path=image_path,
+                    segmentation_model=self.state.segmentation_model,
+                    transform_fn=transform_fn,
+                    device=self.config.device,  # type: ignore[union-attr]
+                    class_names=self.state.segmentation_model.class_names,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to generate ground truth mask: {e}")
+        else:
+            logger.info(
+                "Segmentation model is disabled. Skipping ground-truth "
+                "evaluation metrics."
             )
 
-        cov, w_cov = ImageCoverageMetrics.evaluate_all(
-            explanation_image=explanation_image,
-            semantic_mask=sem_mask,
-        )
+        if sem_mask is not None:
+            # Resize explanation image to match original mask spatial
+            # dimensions if needed
+            if explanation_image.shape[:2] != sem_mask.shape[:2]:
+                # Preserve channels if explanation_image is 3D (H, W, C)
+                target_shape = (*sem_mask.shape[:2], *explanation_image.shape[2:])
 
-        logger.info("--- Evaluation Metrics ---")
-        logger.info(f"Coverage with True Label: {cov:.4f}")
-        logger.info(f"Weighted coverage with True Label: {w_cov:.4f}")
-        logger.info("--------------------------")
+                resized = skimage.transform.resize(
+                    explanation_image,
+                    target_shape,
+                    order=0,  # Nearest-neighbor interpolation preserves discrete values
+                    preserve_range=True,
+                    anti_aliasing=False,
+                )  # type: ignore[no-untyped-call]
+
+                explanation_image = cast(np.ndarray, resized).astype(
+                    explanation_image.dtype
+                )
+
+            cov, w_cov = ImageCoverageMetrics.evaluate_all(
+                explanation_image=explanation_image,
+                semantic_mask=sem_mask,
+            )
+
+            logger.info("--- Evaluation Metrics ---")
+            logger.info(f"Coverage with True Label: {cov:.4f}")
+            logger.info(f"Weighted coverage with True Label: {w_cov:.4f}")
+            logger.info("--------------------------")
 
         # Compile final Result Object
         raw_data = {

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from xwhy.distance.types import DistanceType
@@ -33,6 +36,11 @@ class ImageClassificationConfig(ExplainerConfig):
     embedding_type: EmbeddingType = EmbeddingType.DINOV2
 
     classification_type: ClassificationType = ClassificationType.INCEPTION_V3
+
+    # Custom Model
+    custom_model: Any = None
+    custom_preprocess: Callable[..., Any] | None = None
+    categories: Any = None
 
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType = SegmentationType.DEEPLABV3_RESNET101

@@ -15,6 +15,11 @@ class DummyClassification(BaseClassification):
         return "dummy_model"
 
     @property
+    def weights(self) -> Any:  # noqa: ANN401
+        """Return a dummy weights."""
+        return "dummy_model"
+
+    @property
     def preprocess_fn(self) -> Callable[..., Any] | None:
         """Return a dummy preprocess function."""
         return None

@@ -26,6 +26,20 @@ class BaseClassification(ABC):
 
     @property
     @abstractmethod
+    def weights(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the model weights.
+
+        RuntimeError:
+            If the weights has not been loaded yet.
+
+        Returns:
+            The loaded raw classification weights object.
+
+        """
+        pass
+
+    @property
+    @abstractmethod
     def preprocess_fn(self) -> Callable[..., Any] | None:
         """Read-only property to access the preprocessing transform function.
 
