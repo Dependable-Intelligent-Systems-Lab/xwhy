@@ -73,6 +73,7 @@ class TestTorchvisionClassificationMethods:
         """Provide a mocked TorchvisionClassification instance."""
         obj = TorchvisionClassification.__new__(TorchvisionClassification)
         obj._model = None
+        obj._weights = None
         obj._model_name = "test_model"
         obj._preprocess = MagicMock()
         obj._device = torch.device("cpu")
@@ -286,6 +287,18 @@ class TestTorchvisionClassificationMethods:
         """Test model property returns the loaded model."""
         instance._model = "dummy_model"
         assert instance.model == "dummy_model"
+
+    def test_weights_property_unloaded(
+        self, instance: TorchvisionClassification
+    ) -> None:
+        """Test weights property raises RuntimeError when not loaded."""
+        with pytest.raises(RuntimeError, match="not loaded"):
+            _ = instance.weights
+
+    def test_weights_property_loaded(self, instance: TorchvisionClassification) -> None:
+        """Test weights property returns the loaded weights."""
+        instance._weights = "dummy_weights"
+        assert instance.weights == "dummy_weights"
 
     def test_preprocess_fn_unloaded(self, instance: TorchvisionClassification) -> None:
         """Test preprocess_fn raises RuntimeError when model is None."""

@@ -368,3 +368,74 @@ def test_dinov2_processor_property_loaded(
 
     # It should not raise an error and should return the exact assigned value
     assert dinov2_embedding.processor == "dummy_loaded_processor"
+
+
+def test_dinov2_call_unsupported_input_type(
+    dinov2_embedding: Dinov2Embedding,
+) -> None:
+    """Raise TypeError for unsupported input type in __call__."""
+    dinov2_embedding._processor = MagicMock()
+    dinov2_embedding._model = MagicMock()
+    with pytest.raises(TypeError, match="Unsupported input type for Dinov2Embedding"):
+        dinov2_embedding(inputs=123)  # type: ignore[arg-type]
+
+
+def test_prepare_image_pil(dinov2_embedding: Dinov2Embedding) -> None:
+    """Verify image preparation with a PIL image."""
+    img = Image.new("RGB", (10, 10))
+    result = dinov2_embedding._prepare_image(img)
+    assert result is img
+
+
+def test_prepare_image_invalid_type(dinov2_embedding: Dinov2Embedding) -> None:
+    """Raise TypeError for unsupported image input type."""
+    with pytest.raises(TypeError, match="Expected image to be"):
+        dinov2_embedding._prepare_image("not_an_image")  # type: ignore[arg-type]
+
+
+def test_prepare_image_invalid_ndim(dinov2_embedding: Dinov2Embedding) -> None:
+    """Raise ValueError for invalid numpy array dimensions."""
+    arr = np.zeros((10,))
+    with pytest.raises(ValueError, match="NumPy image must have shape"):
+        dinov2_embedding._prepare_image(arr)
+
+
+def test_prepare_image_invalid_channels(
+    dinov2_embedding: Dinov2Embedding,
+) -> None:
+    """Raise ValueError for invalid channel count."""
+    arr = np.zeros((10, 10, 5), dtype=np.uint8)
+    with pytest.raises(ValueError, match="NumPy image must have 1, 3, or 4 channels"):
+        dinov2_embedding._prepare_image(arr)
+
+
+def test_prepare_image_non_numeric(dinov2_embedding: Dinov2Embedding) -> None:
+    """Raise TypeError for non-numeric numpy dtype."""
+    arr = np.array([["a", "b"]], dtype=object)
+    with pytest.raises(TypeError, match="NumPy image must have a numeric dtype"):
+        dinov2_embedding._prepare_image(arr)
+
+
+def test_prepare_image_float_normalized(
+    dinov2_embedding: Dinov2Embedding,
+) -> None:
+    """Prepare normalized float32 numpy array."""
+    arr = np.ones((10, 10, 3), dtype=np.float32) * 0.5
+    result = dinov2_embedding._prepare_image(arr)
+    assert isinstance(result, Image.Image)
+
+
+def test_prepare_image_float_unnormalized(
+    dinov2_embedding: Dinov2Embedding,
+) -> None:
+    """Prepare unnormalized float32 numpy array."""
+    arr = np.ones((10, 10, 3), dtype=np.float32) * 150.0
+    result = dinov2_embedding._prepare_image(arr)
+    assert isinstance(result, Image.Image)
+
+
+def test_prepare_image_uint8(dinov2_embedding: Dinov2Embedding) -> None:
+    """Prepare uint8 numpy array directly."""
+    arr = np.zeros((10, 10, 3), dtype=np.uint8)
+    result = dinov2_embedding._prepare_image(arr)
+    assert isinstance(result, Image.Image)

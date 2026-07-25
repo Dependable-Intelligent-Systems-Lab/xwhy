@@ -17,7 +17,7 @@ class DummyClassification(BaseClassification):
     @property
     def weights(self) -> Any:  # noqa: ANN401
         """Return a dummy weights."""
-        return "dummy_model"
+        return "dummy_weights"
 
     @property
     def preprocess_fn(self) -> Callable[..., Any] | None:
@@ -42,6 +42,7 @@ def test_base_classification_methods() -> None:
     obj = DummyClassification()
 
     assert obj.model == "dummy_model"
+    assert obj.weights == "dummy_weights"
     assert obj.preprocess_fn is None
     assert obj(inputs="test") == "called"
 
@@ -49,6 +50,7 @@ def test_base_classification_methods() -> None:
 def test_base_classification_abstract_methods() -> None:
     """Test abstract methods in BaseClassification to cover pass bodies."""
     # Call original abstract properties and methods directly to execute 'pass'
+    assert BaseClassification.weights.fget(None) is None  # type: ignore[attr-defined]
     assert BaseClassification.model.fget(None) is None  # type: ignore[attr-defined]
     assert BaseClassification.preprocess_fn.fget(None) is None  # type: ignore[attr-defined]
     assert BaseClassification.__call__(None, inputs="dummy") is None  # type: ignore[arg-type]

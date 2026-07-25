@@ -1,5 +1,6 @@
 """Tests for image plotting utilities."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -59,6 +60,23 @@ def test_prepare_image_for_display_pil() -> None:
     assert np.allclose(result, 1.0)
 
 
+def test_prepare_image_for_display_path_and_string(tmp_path: Path) -> None:
+    """Verify image loading from string path and pathlib.Path."""
+    img_path = tmp_path / "test.jpg"
+    dummy_pil = Image.new("RGB", (2, 2), color="red")
+    dummy_pil.save(img_path)
+
+    # Test with pathlib.Path
+    result_path = _prepare_image_for_display(img_path)
+    assert result_path.shape == (2, 2, 3)
+    assert isinstance(result_path, np.ndarray)
+
+    # Test with string path
+    result_str = _prepare_image_for_display(str(img_path))
+    assert result_str.shape == (2, 2, 3)
+    assert isinstance(result_str, np.ndarray)
+
+
 def test_prepare_image_for_display_numpy_uint8() -> None:
     """Test preparation of a uint8 Numpy array."""
     np_img = np.ones((2, 2, 3), dtype=np.uint8) * 255
@@ -79,6 +97,49 @@ def test_prepare_image_for_display_unsupported_type() -> None:
     """Test unsupported types raise TypeError."""
     with pytest.raises(TypeError, match="Unsupported image type"):
         _prepare_image_for_display(123)
+
+
+def test_prepare_image_for_display_tensor_3d_permute() -> None:
+    """Ensure 3D tensors (C, H, W) are permuted correctly to (H, W, C)."""
+    tensor_img = torch.ones(3, 4, 5) * 0.5
+
+    result = _prepare_image_for_display(tensor_img)
+
+    assert result.shape == (4, 5, 3), (
+        f"Expected shape (4, 5, 3), but got {result.shape}"
+    )
+
+    assert isinstance(result, np.ndarray), "Output should be a numpy array"
+
+
+def test_prepare_image_for_display_tensor_3d_no_permute() -> None:
+    """Test the False branch of the permute condition in tensor preparation.
+
+    This ensures that if a 3D tensor is passed but its first dimension is
+    NOT 3 (e.g., an image already in HxWxC format or a 1-channel image),
+    the permute operation is skipped and dimensions remain untouched.
+    """
+    # Create a tensor with shape (4, 5, 3).
+    # Since ndim == 3 but shape[0] == 4 (not 3), it should bypass the IF.
+    tensor_img = torch.ones(4, 5, 3) * 0.5
+
+    result = _prepare_image_for_display(tensor_img)
+
+    # Shape must remain exactly the same since permute was NOT called
+    assert result.shape == (4, 5, 3)
+    assert isinstance(result, np.ndarray)
+
+
+def test_prepare_image_for_display_tensor_2d() -> None:
+    """Test with a 2D tensor to bypass ndim == 3 and ndim == 4 conditions."""
+    # Create a 2D grayscale tensor with shape (10, 10)
+    tensor_img = torch.ones(10, 10) * 0.5
+
+    result = _prepare_image_for_display(tensor_img)
+
+    # Shape must remain (10, 10)
+    assert result.shape == (10, 10)
+    assert isinstance(result, np.ndarray)
 
 
 @patch("xwhy.plots.image.plt.close")
@@ -205,46 +266,3 @@ def test_plot_image_heatmap_save(
     mock_axis.assert_called_once_with("off")
     mock_savefig.assert_called_once_with("heatmap_output.png", bbox_inches="tight")
     mock_close.assert_called_once()
-
-
-def test_prepare_image_for_display_tensor_3d_permute() -> None:
-    """Ensure 3D tensors (C, H, W) are permuted correctly to (H, W, C)."""
-    tensor_img = torch.ones(3, 4, 5) * 0.5
-
-    result = _prepare_image_for_display(tensor_img)
-
-    assert result.shape == (4, 5, 3), (
-        f"Expected shape (4, 5, 3), but got {result.shape}"
-    )
-
-    assert isinstance(result, np.ndarray), "Output should be a numpy array"
-
-
-def test_prepare_image_for_display_tensor_3d_no_permute() -> None:
-    """Test the False branch of the permute condition in tensor preparation.
-
-    This ensures that if a 3D tensor is passed but its first dimension is
-    NOT 3 (e.g., an image already in HxWxC format or a 1-channel image),
-    the permute operation is skipped and dimensions remain untouched.
-    """
-    # Create a tensor with shape (4, 5, 3).
-    # Since ndim == 3 but shape[0] == 4 (not 3), it should bypass the IF.
-    tensor_img = torch.ones(4, 5, 3) * 0.5
-
-    result = _prepare_image_for_display(tensor_img)
-
-    # Shape must remain exactly the same since permute was NOT called
-    assert result.shape == (4, 5, 3)
-    assert isinstance(result, np.ndarray)
-
-
-def test_prepare_image_for_display_tensor_2d() -> None:
-    """Test with a 2D tensor to bypass ndim == 3 and ndim == 4 conditions."""
-    # Create a 2D grayscale tensor with shape (10, 10)
-    tensor_img = torch.ones(10, 10) * 0.5
-
-    result = _prepare_image_for_display(tensor_img)
-
-    # Shape must remain (10, 10)
-    assert result.shape == (10, 10)
-    assert isinstance(result, np.ndarray)

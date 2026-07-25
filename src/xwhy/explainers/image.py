@@ -376,7 +376,7 @@ class ImageClassificationExplainer(
             probs = torch.nn.functional.softmax(output[0], dim=0)
 
         num_top = self.config.num_top_predictions  # type: ignore[union-attr]
-        top_preds = probs.topk(num_top)
+        top_preds = probs.topk(k=num_top)
         class_to_explain = top_preds.indices[0].item()
 
         # Log top predictions

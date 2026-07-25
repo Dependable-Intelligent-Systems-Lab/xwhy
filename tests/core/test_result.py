@@ -7,7 +7,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from xwhy.core.result import BaseXWhyResult, TextXWhyResult
+from xwhy.core.result import (
+    BaseXWhyResult,
+    ImageClassificationXWhyResult,
+    TextXWhyResult,
+)
 from xwhy.metrics.regression import RegressionMetricResult
 
 
@@ -166,3 +170,153 @@ class TestBaseXWhyResult:
             save_path=save_path,
             show=False,
         )
+
+
+def test_image_classification_result_initialization(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify result initialization with defaults."""
+    coeffs = np.array([0.1, 0.2])
+    orig_img = np.zeros((10, 10, 3))
+    superpixels = np.ones((10, 10))
+    top_features = np.array([0, 1])
+
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+        superpixels=superpixels,
+        top_features=top_features,
+        coverage=0.8,
+        weighted_coverage=0.75,
+    )
+
+    np.testing.assert_array_equal(result.coefficients, coeffs)
+    assert result.metrics == mock_metrics
+    np.testing.assert_array_equal(result.original_image, orig_img)
+    np.testing.assert_array_equal(result.superpixels, superpixels)
+    np.testing.assert_array_equal(result.top_features, top_features)
+    assert result.coverage == 0.8
+    assert result.weighted_coverage == 0.75
+
+
+def test_image_classification_result_properties(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify feature_names and data properties."""
+    coeffs = np.array([0.5, 0.3])
+    orig_img = np.ones((5, 5, 3))
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+    )
+
+    assert result.feature_names == ["Superpixel 0", "Superpixel 1"]
+    np.testing.assert_array_equal(result.data, orig_img)
+
+
+@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.plots.image.create_image_heat_mask")
+def test_to_shap_with_superpixels_ndim_3(
+    mock_create_mask: MagicMock,
+    mock_shap_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_shap with superpixels for 3D image."""
+    coeffs = np.array([0.5])
+    orig_img = np.zeros((10, 10, 3))
+    superpixels = np.ones((10, 10), dtype=int)
+    mock_create_mask.return_value = np.zeros((10, 10))
+
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+        superpixels=superpixels,
+    )
+
+    out_obj = result.to_shap()
+
+    mock_create_mask.assert_called_once_with(superpixels, coeffs)
+    mock_shap_explanation.assert_called_once()
+    assert out_obj == mock_shap_explanation.return_value
+
+
+@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.plots.image.create_image_heat_mask")
+def test_to_shap_with_superpixels_ndim_2(
+    mock_create_mask: MagicMock,
+    mock_shap_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_shap with superpixels for 2D image."""
+    coeffs = np.array([0.5])
+    orig_img = np.zeros((10, 10))
+    superpixels = np.ones((10, 10), dtype=int)
+    mock_create_mask.return_value = np.zeros((10, 10))
+
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+        superpixels=superpixels,
+    )
+
+    out_obj = result.to_shap()
+
+    mock_create_mask.assert_called_once()
+    mock_shap_explanation.assert_called_once()
+    assert out_obj == mock_shap_explanation.return_value
+
+
+@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.plots.image.create_image_heat_mask")
+def test_to_shap_with_superpixels_ndim_4(
+    mock_create_mask: MagicMock,
+    mock_shap_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_shap with superpixels for 4D image."""
+    coeffs = np.array([0.5])
+    orig_img = np.zeros((1, 10, 10, 3))
+    superpixels = np.ones((10, 10), dtype=int)
+    mock_create_mask.return_value = np.zeros((10, 10))
+
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+        superpixels=superpixels,
+    )
+
+    out_obj = result.to_shap()
+
+    mock_create_mask.assert_called_once()
+    mock_shap_explanation.assert_called_once()
+    assert out_obj == mock_shap_explanation.return_value
+
+
+@patch("xwhy.core.result.shap.Explanation")
+def test_to_shap_without_superpixels(
+    mock_shap_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_shap conversion with empty superpixels."""
+    coeffs = np.array([0.5, 0.2])
+    orig_img = np.zeros((10, 10, 3))
+
+    result = ImageClassificationXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_image=orig_img,
+        superpixels=np.zeros(0),
+    )
+
+    out_obj = result.to_shap()
+
+    mock_shap_explanation.assert_called_once()
+    called_kwargs = mock_shap_explanation.call_args.kwargs
+    np.testing.assert_array_equal(called_kwargs["values"], coeffs)
+    np.testing.assert_array_equal(called_kwargs["data"], orig_img)
+    assert out_obj == mock_shap_explanation.return_value

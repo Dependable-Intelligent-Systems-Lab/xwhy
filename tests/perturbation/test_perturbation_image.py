@@ -114,6 +114,19 @@ def test_apply_mask_with_segments(perturber: ImagePerturbation) -> None:
     assert np.allclose(perturbed_img[1, 0], [0.0, 0.0, 0.0])  # Inactive
 
 
+def test_apply_mask_with_positional_segments(
+    perturber: ImagePerturbation,
+) -> None:
+    """Verify apply_mask accepts segments via positional argument."""
+    img = np.ones((2, 2, 3), dtype=np.float32)
+    segments = np.array([[0, 1], [2, 3]])
+    mask = np.array([1, 1, 1, 1])
+
+    perturbed_img = perturber.apply_mask(img, mask, segments)
+    assert perturbed_img.shape == (2, 2, 3)
+    assert np.allclose(perturbed_img, 1.0)
+
+
 def test_apply_mask_missing_segments(perturber: ImagePerturbation) -> None:
     """Test ValueError when segments parameter is missing."""
     img = np.ones((2, 2, 3), dtype=np.float32)
