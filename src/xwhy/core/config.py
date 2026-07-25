@@ -27,8 +27,7 @@ class ImageClassificationConfig(ExplainerConfig):
         str_strip_whitespace=True,
     )
 
-    use_model_preprocess: bool = False
-    need_normalization: bool = False
+    use_model_preprocess: bool = True
 
     use_embedding_model: bool = False
     embedding_type: EmbeddingType = EmbeddingType.DINOV2

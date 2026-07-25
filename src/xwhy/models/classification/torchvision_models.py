@@ -104,6 +104,21 @@ class TorchvisionClassification(BaseClassification):
         return self._model
 
     @property
+    def weights(self) -> Any:  # noqa: ANN401
+        """Read-only property to access the underlying raw weights.
+
+        Raises:
+            RuntimeError: If the weights has not been loaded yet.
+
+        Returns:
+            The loaded torchvision weights.
+
+        """
+        if self._weights is None:
+            raise RuntimeError("Weights is not loaded. Call .load() first.")
+        return self._weights
+
+    @property
     def preprocess_fn(self) -> Callable[..., Any] | None:
         """Read-only property to access the preprocessing transform function.
 

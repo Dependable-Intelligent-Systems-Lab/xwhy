@@ -100,3 +100,24 @@ class TextXWhyResult(BaseXWhyResult):
     def data(self) -> np.ndarray:
         """The underlying raw data tokens as a numpy array."""
         return np.array(self.words)
+
+
+@dataclass
+class ImageClassificationXWhyResult(BaseXWhyResult):
+    """Container for image classification explanation results."""
+
+    original_image: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    superpixels: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    top_features: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    coverage: float = 0.0
+    weighted_coverage: float = 0.0
+
+    @property
+    def feature_names(self) -> Sequence[str]:
+        """Sequence of feature names corresponding to superpixels."""
+        return [f"Superpixel {i}" for i in range(len(self.coefficients))]
+
+    @property
+    def data(self) -> np.ndarray:
+        """The underlying original image as a numpy array."""
+        return self.original_image

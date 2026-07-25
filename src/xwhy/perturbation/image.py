@@ -122,8 +122,14 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
             ValueError: If `segments` is not provided.
 
         """
+        if segments is None and args:
+            segments = args[0]
+
         if segments is None:
-            raise ValueError("segments (superpixel map) must be provided in kwargs.")
+            raise ValueError(
+                "segments (superpixel map) must be provided either "
+                "as a positional or keyword argument."
+            )
 
         active_pixels = np.where(mask == 1)[0]
         binary_mask = np.zeros_like(segments, dtype=float)
