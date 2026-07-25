@@ -7,6 +7,7 @@ from typing import Any, cast
 import numpy as np
 import skimage.transform
 import torch
+from PIL import Image
 from tqdm import tqdm
 
 from xwhy.core.config import ImageClassificationConfig
@@ -322,7 +323,7 @@ class ImageClassificationExplainer(
         denormalize = bool(self.config.use_model_preprocess)  # type: ignore[union-attr]
 
         # Load Data
-        input_batch, _ = load_image_as_tensor(
+        input_batch, original_img = load_image_as_tensor(
             image_path=image_path, transform_fn=transform_fn
         )
 
@@ -482,6 +483,11 @@ class ImageClassificationExplainer(
             raw_data["best_surrogate_method"] = method
         else:
             raw_data["surrogate_method"] = method
+
+        if isinstance(original_img, Image.Image):
+            base_image_numpy = np.array(original_img)
+        else:
+            base_image_numpy = np.array(original_img)
 
         result = ImageClassificationXWhyResult(
             coefficients=coeffs,

@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from xwhy.core.result import ImageClassificationXWhyResult
 from xwhy.utils.image import denormalize_tensor
 
 
@@ -18,10 +19,10 @@ def _prepare_image_for_display(
     mean: Sequence[float] | None = None,
     std: Sequence[float] | None = None,
 ) -> np.ndarray:
-    """Prepare an image (Tensor, Numpy, PIL) for matplotlib display.
+    """Prepare an image (Tensor, Numpy, PIL, or Path) for matplotlib display.
 
     Args:
-        img: Input image (torch.Tensor, np.ndarray, or PIL.Image).
+        img: Input image (torch.Tensor, np.ndarray, PIL.Image or Path).
         denormalize: Whether to apply denormalization.
         mean: Sequence of mean values (required if denormalize=True).
         std: Sequence of std values (required if denormalize=True).
@@ -35,7 +36,13 @@ def _prepare_image_for_display(
 
     """
     # -----------------------------
-    # Case 0: numpy array and need denormalization
+    # Case 0: String or Path (Load image)
+    # -----------------------------
+    if isinstance(img, (str, Path)):
+        img = Image.open(str(img)).convert("RGB")
+
+    # -----------------------------
+    # Case 1: numpy array and need denormalization
     # -----------------------------
     if isinstance(img, np.ndarray) and denormalize:
         if mean is None or std is None:
@@ -47,7 +54,7 @@ def _prepare_image_for_display(
         img = denormalize_tensor(tensor_bchw, mean, std)
 
     # -----------------------------
-    # Case 1: PyTorch Tensor
+    # Case 2: PyTorch Tensor
     # -----------------------------
     if torch.is_tensor(img):
         img_tensor = img.detach().cpu()
@@ -63,13 +70,13 @@ def _prepare_image_for_display(
         img_np = img_tensor.numpy()
 
     # -----------------------------
-    # Case 2: PIL Image => convert to numpy
+    # Case 3: PIL Image => convert to numpy
     # -----------------------------
     elif isinstance(img, Image.Image):
         img_np = np.array(img).astype(np.float32) / 255.0
 
     # -----------------------------
-    # Case 3: already numpy array
+    # Case 4: already numpy array
     # -----------------------------
     elif isinstance(img, np.ndarray):
         img_np = img.astype(np.float32)
@@ -101,7 +108,7 @@ def plot_image(
     std: Sequence[float] | None = None,
     save_path: str | Path | None = None,
 ) -> None:
-    """Display or save an image (Tensor, Numpy, PIL).
+    """Display an image (Tensor, Numpy, PIL, or Path).
 
     Args:
         img: Input image. Can be a torch.Tensor, numpy.ndarray, or PIL.Image.
@@ -158,24 +165,22 @@ def create_image_heat_mask(
     return heat_mask
 
 
-def plot_image_heatmap(
-    superpixels: np.ndarray,
-    coeffs: Sequence[float] | np.ndarray,
-    title: str = "Heatmap of Coefficients",
-    save_path: str | Path | None = None,
-) -> np.ndarray:
+def image_heatmap(
+    result: ImageClassificationXWhyResult,
+    **kwargs: Any,  # noqa: ANN401
+) -> None:
     """Plot a heatmap of feature importance over image superpixels.
 
     Args:
-        superpixels: Superpixel segmentation mask of the image.
-        coeffs: Importance coefficients for each superpixel.
-        title: Title for the heatmap plot.
-        save_path: Path to save the plot. If None, plt.show() is called.
-
-    Returns:
-        np.ndarray: The generated heatmap array.
+        result: Text explanation result.
+        **kwargs: Additional plotting arguments (e.g., title, save_path).
 
     """
+    superpixels: np.ndarray = result.superpixels
+    coeffs: Sequence[float] | np.ndarray = result.coefficients
+    title: str = str(kwargs.pop("title", "Image Heatmap"))
+    save_path: str | Path | None = kwargs.pop("save_path", None)
+
     heat_mask = create_image_heat_mask(superpixels, coeffs)
 
     plt.figure(figsize=(8, 6))
@@ -190,5 +195,3 @@ def plot_image_heatmap(
         plt.show()
 
     plt.close()
-
-    return heat_mask

@@ -12,6 +12,7 @@ import shap
 
 from xwhy.core.result import BaseXWhyResult, TextXWhyResult
 from xwhy.plots.factory import TextPlotterFactory
+from xwhy.plots.image import image_heatmap, plot_image  # noqa: F401
 from xwhy.plots.types import TextPlotterType
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -251,14 +252,28 @@ def monitoring(ind: Any, result: BaseXWhyResult, features: Any, **kwargs: Any) -
 
 @replace_shap_label
 def image(result: BaseXWhyResult, pixel_values: Any = None, **kwargs: Any) -> None:  # noqa: ANN401
-    """Plot SHAP values for image inputs (requires 3D/4D image arrays)."""
-    if result.coefficients.ndim < 3:
+    """Plot SHAP values for image inputs."""
+    is_image_result = hasattr(result, "superpixels") or hasattr(
+        result, "original_image"
+    )
+
+    if result.coefficients.ndim < 3 and not is_image_result:
         raise ValueError(
-            "The 'image' plot requires image-structured "
-            "explanations (3D or 4D arrays). "
+            "The 'image' plot requires image-structured explanations "
+            "(3D or 4D arrays) or a result containing superpixels. "
             "It is not supported for 1D text explanations from LLMExplainer."
         )
-    shap.plots.image(result.to_shap(), pixel_values, **kwargs)
+
+    shap_obj = result.to_shap()
+
+    if pixel_values is not None:
+        pixel_values = np.asarray(pixel_values)
+        if pixel_values.ndim == 3:  # (H, W, C)
+            pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, H, W, C)
+        elif pixel_values.ndim == 2:  # (H, W)
+            pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, H, W)
+
+    shap.plots.image(shap_obj, pixel_values=pixel_values, **kwargs)
 
 
 @replace_shap_label
@@ -267,13 +282,28 @@ def image_to_text(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN40
 
     Requires multimodal data.
     """
-    if result.coefficients.ndim < 3:
+    is_image_result = hasattr(result, "superpixels") or hasattr(
+        result, "original_image"
+    )
+
+    if result.coefficients.ndim < 3 and not is_image_result:
         raise ValueError(
             "The 'image_to_text' plot requires multimodal "
-            "image-to-text explanations (3D+ arrays). "
-            "It is not supported for 1D text explanations from LLMExplainer."
+            "image-to-text explanations (3D+ arrays) or a result containing "
+            "superpixels. It is not supported for 1D text explanations from "
+            "LLMExplainer."
         )
-    shap.plots.image_to_text(result.to_shap(), **kwargs)
+
+    shap_obj = result.to_shap()
+
+    if shap_obj.values.ndim < 5:  # type: ignore[attr-defined]
+        raise ValueError(
+            "The 'image_to_text' plot is designed for multimodal text generation "
+            "models (e.g., Image captioning) and requires 5D explanations. "
+            "For Image Classification models, please use `xwhy.plots.image()` instead."
+        )
+
+    shap.plots.image_to_text(shap_obj, **kwargs)
 
 
 initjs = shap.plots.initjs

@@ -463,7 +463,13 @@ def test_image_wrapper(
     """Verify image plot wrapper triggers SHAP underlying implementation."""
     pixels = np.ones((28, 28))
     image(mock_xwhy_result_3d, pixels, label="test")
-    mock_shap_image.assert_called_once_with(mock_shap_explanation, pixels, label="test")
+    expected_pixels = np.expand_dims(pixels, axis=0)
+
+    mock_shap_image.assert_called_once()
+    args, kwargs = mock_shap_image.call_args
+    assert args[0] == mock_shap_explanation
+    np.testing.assert_array_equal(kwargs["pixel_values"], expected_pixels)
+    assert kwargs["label"] == "test"
 
 
 @patch("shap.plots.image_to_text")
@@ -473,6 +479,7 @@ def test_image_to_text_wrapper(
     mock_shap_explanation: MagicMock,
 ) -> None:
     """Verify image to text plot wrapper triggers SHAP underlying implementation."""
+    mock_shap_explanation.values.ndim = 5
     image_to_text(mock_xwhy_result_3d)
     mock_shap_itt.assert_called_once_with(mock_shap_explanation)
 

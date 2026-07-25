@@ -10,8 +10,8 @@ from PIL import Image
 from xwhy.plots.image import (
     _prepare_image_for_display,
     create_image_heat_mask,
+    image_heatmap,
     plot_image,
-    plot_image_heatmap,
 )
 
 
@@ -78,7 +78,7 @@ def test_prepare_image_for_display_negative_values() -> None:
 def test_prepare_image_for_display_unsupported_type() -> None:
     """Test unsupported types raise TypeError."""
     with pytest.raises(TypeError, match="Unsupported image type"):
-        _prepare_image_for_display("not_an_image")
+        _prepare_image_for_display(123)
 
 
 @patch("xwhy.plots.image.plt.close")
@@ -150,7 +150,7 @@ def test_create_image_heat_mask() -> None:
 @patch("xwhy.plots.image.plt.colorbar")
 @patch("xwhy.plots.image.plt.imshow")
 @patch("xwhy.plots.image.plt.figure")
-def test_plot_image_heatmap_show(
+def test_image_heatmap_show(
     mock_figure: MagicMock,
     mock_imshow: MagicMock,
     mock_colorbar: MagicMock,
@@ -159,14 +159,12 @@ def test_plot_image_heatmap_show(
     mock_show: MagicMock,
     mock_close: MagicMock,
 ) -> None:
-    """Test plot_image_heatmap displays when save_path is None."""
-    superpixels = np.array([[0, 1], [0, 1]])
-    coeffs = [0.2, 0.8]
+    """Test image_heatmap displays when save_path is None."""
+    mock_result = MagicMock()
+    mock_result.superpixels = np.array([[0, 1], [0, 1]], dtype=int)
+    mock_result.coefficients = np.array([0.2, 0.8])
 
-    mask = plot_image_heatmap(superpixels, coeffs, title="Test Heatmap")
-
-    expected_mask = np.array([[0.2, 0.8], [0.2, 0.8]])
-    np.testing.assert_array_equal(mask, expected_mask)
+    image_heatmap(mock_result, title="Test Heatmap")
 
     mock_figure.assert_called_once_with(figsize=(8, 6))
     mock_imshow.assert_called_once()
@@ -193,13 +191,12 @@ def test_plot_image_heatmap_save(
     mock_savefig: MagicMock,
     mock_close: MagicMock,
 ) -> None:
-    """Test plot_image_heatmap saves the figure when save_path is provided."""
-    superpixels = np.array([[0, 1], [0, 1]])
-    coeffs = [0.2, 0.8]
+    """Test image_heatmap saves the figure when save_path is provided."""
+    mock_result = MagicMock()
+    mock_result.superpixels = np.array([[0, 1], [0, 1]], dtype=int)
+    mock_result.coefficients = np.array([0.2, 0.8])
 
-    plot_image_heatmap(
-        superpixels, coeffs, title="Saved Heatmap", save_path="heatmap_output.png"
-    )
+    image_heatmap(mock_result, title="Saved Heatmap", save_path="heatmap_output.png")
 
     mock_figure.assert_called_once_with(figsize=(8, 6))
     mock_imshow.assert_called_once()
