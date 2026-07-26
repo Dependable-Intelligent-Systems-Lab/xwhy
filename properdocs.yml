@@ -62,6 +62,7 @@ nav:
   - Examples:
       - Overview: examples/index.md
       - LLM Explainer: examples/llm-explainer.md
+  - Image Classification Explainer Guide: image_classification_explainer.md
   - Contribute: contribute/contributing.md
   - API Reference: reference/
   - Development Guide:
