@@ -14,6 +14,7 @@ Explainability is a foundational pillar for establishing this missing trust. **X
 *   [Installation](#installation)
 *   [Quick Start & General Usage](#quick-start)
 *   [Rich Visualizations](#rich-visualizations)
+*   [Contributors](#contributors)
 *   [Advanced Feature: LLM Explainer](llm_explainer.md) — *Learn how to interpret LLM prompt-response dynamics.*
 
 ---
@@ -42,7 +43,8 @@ uv add xwhy
 
 If you intend to use specific cloud platforms or specific model deployment environments, you can install the target optional dependencies.
 
-> 💡 **Note for Shell Users:** Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
+!!! note "Note for Shell Users"
+    Always wrap the package name and brackets in quotes (e.g., `"xwhy[all]"`) to prevent your shell from interpreting the square brackets as file-matching wildcards.
 
 | Extra Name | Description | Target Cloud Engine / SDK |
 | --- | --- | --- |
@@ -134,6 +136,14 @@ After computing statistical attributions through the SMILE engine, XWhy can gene
 * **Force Plots** to show how individual features push a prediction toward or away from a reference value
 * **Waterfall Plots** to trace how feature contributions move the output step by step
 * **Summary and Bar Plots** to rank feature importance at local or global level
+
+---
+
+## Contributors
+
+Thanks goes to these wonderful people:
+
+[![Contributors](https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy)](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors)
 
 ---
 

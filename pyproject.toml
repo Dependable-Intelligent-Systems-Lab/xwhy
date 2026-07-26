@@ -39,7 +39,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
@@ -82,7 +81,7 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"
+Homepage = "https://dependable-intelligent-systems-lab.github.io/xwhy/"
 Repository = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy.git"
 Issues = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/issues"
 
@@ -100,6 +99,8 @@ dev = [
     "mkdocs-jupyter>=0.26.3",
     "mkdocs-gen-files>=0.6.1",
     "mkdocs-literate-nav>=0.6.3",
+    "mkdocs-llmstxt>=0.2.0",
+    "properdocs>=1.6.7",
 ]
 
 ################################################################################

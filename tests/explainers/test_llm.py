@@ -157,3 +157,60 @@ def test_run_calls_explain_for_string_instance(explainer: LLMExplainer) -> None:
         mock_explain.assert_called_once_with(instance, extra_param=1)
 
         assert result == mock_result
+
+
+@patch("xwhy.explainers.llm.TextXWhyResult.plot")
+@patch("xwhy.explainers.llm.TextPerturbation")
+@patch("xwhy.explainers.llm.EmbeddingFactory")
+@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.DistanceNormalizer")
+@patch("xwhy.explainers.llm.SurrogateTrainer")
+@patch("xwhy.explainers.llm.SurrogateFactory")
+@patch("xwhy.explainers.llm.RegressionMetrics")
+def test_explain_fidelity_plot_flag(
+    mock_metrics: MagicMock,
+    mock_surrogate_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_wmd: MagicMock,
+    mock_embedding_factory: MagicMock,
+    mock_perturbation: MagicMock,
+    mock_plot: MagicMock,
+    explainer: LLMExplainer,
+) -> None:
+    """Test that the fidelity_plot flag correctly triggers the plot method.
+
+    Verifies that calling explain with fidelity_plot=True invokes the plot
+    method on the result object, and fidelity_plot=False (or default) does not.
+    """
+    # Setup basic mocks to allow the explain pipeline to run without errors
+    explainer.use_best_surrogate = False
+    explainer.default_surrogate = SurrogateType.LIME
+
+    mock_perturbation.return_value.generate.return_value = (
+        ["res1"],
+        [np.array([1, 0])],
+    )
+    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
+    mock_wmd.return_value.compute_batch.return_value = np.array([0.5])
+    mock_normalizer.min_max.return_value = [("val", 0.5)]
+
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1])
+    mock_surrogate.predict.return_value = np.array([0.5])
+    mock_surrogate_factory.create.return_value = mock_surrogate
+
+    # Execute explain with fidelity_plot=True
+    explainer.explain("test prompt", fidelity_plot=True)
+
+    # Assert plot was called exactly once with show=True
+    mock_plot.assert_called_once_with(show=True)
+
+    # Reset the mock to test the False/default condition
+    mock_plot.reset_mock()
+
+    # Execute explain without the flag (default is False)
+    explainer.explain("test prompt")
+
+    # Assert plot was NOT called
+    mock_plot.assert_not_called()

@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from typing import Any, ClassVar
 
+import gdown
 import gensim.downloader as api
 import requests
 from gensim.models import KeyedVectors
@@ -27,24 +28,28 @@ class Word2VecEmbedding(BaseEmbedding):
             "binary": True,
             "gensim": True,
             "no_header": False,
+            "google_id": "1vAjPzr5R1RQiuh9NOgHVFGhBmCuYWnJU",
         },
         "glove.840B.300d": {
             "file": "glove.840B.300d.txt",
             "binary": False,
             "gensim": True,
             "no_header": True,
+            "google_id": "19cJAKkgrYAiT1gU-OnWTN6GaGcd7pLZI",
         },
         "paragram_300_sl999": {
             "file": "paragram_300_sl999.txt",
             "binary": False,
             "gensim": True,
             "no_header": True,
+            "google_id": "1c-16FP0jvaJeyaM8JcqqKPdoVw7uqVkK",
         },
         "paragram-300-WS353": {
             "file": "paragram_300_ws353.txt",
             "binary": False,
             "gensim": True,
             "no_header": True,
+            "google_id": "1bBLz6F6MJ_qx9xnSZUgI8W0QZhJYgBdu",
         },
     }
 
@@ -89,7 +94,15 @@ class Word2VecEmbedding(BaseEmbedding):
             )
             return self._model
 
-        # 2. gensim
+        # 2. gdown direct download option
+        gdown_model = self._try_gdown_download(
+            model_info=model_info,
+            bin_cache_path=bin_cache_path,
+        )
+        if gdown_model is not None:
+            return gdown_model
+
+        # 3. gensim
         if model_info["gensim"]:
             logger.debug(f"Loading embedding model via gensim: {self._model_name}")
             try:
@@ -102,7 +115,7 @@ class Word2VecEmbedding(BaseEmbedding):
             except Exception:
                 pass
 
-        # 3. fallback download for specific models
+        # 4. fallback download for specific models
         if self._model_name == "word2vec-google-news-300":
             return self._download_google_news(cache_dir, bin_cache_path)
         elif self._model_name == "glove.840B.300d":
@@ -138,6 +151,39 @@ class Word2VecEmbedding(BaseEmbedding):
     def _get_cache_dir(self) -> Path:
         cache_dir = self._settings.embedding_cache_dir
         return cache_dir if cache_dir else Path(Path.home() / ".cache/xwhy/embeddings")
+
+    def _try_gdown_download(
+        self,
+        model_info: dict[str, Any],
+        bin_cache_path: Path,
+    ) -> KeyedVectors | None:
+        """Attempt to download pre-converted binary model from Google Drive."""
+        google_id: str | None = model_info.get("google_id")
+
+        if not google_id or self._force_download:
+            return None
+
+        logger.debug(f"Attempting binary download via gdown for ID: {google_id}")
+
+        try:
+            # Download directly to bin_cache_path since the GDrive file is already .bin
+            gdown.download(id=google_id, output=str(bin_cache_path), quiet=False)
+
+            # All files on GDrive are pre-converted binary format. Force binary=True.
+            model = KeyedVectors.load_word2vec_format(
+                str(bin_cache_path),
+                binary=True,
+                no_header=False,
+            )
+
+            self._model = model
+            return self._model
+
+        except Exception as err:
+            logger.debug(f"gdown route failed for {self._model_name}: {err}")
+            if bin_cache_path.exists():
+                bin_cache_path.unlink()
+            return None
 
     def _download_google_news(
         self,
@@ -186,7 +232,7 @@ class Word2VecEmbedding(BaseEmbedding):
             cleaned_path = txt_path.with_name(txt_path.name + ".cleaned")
             if not cleaned_path.exists():
                 seen = set()
-                logger.info("De-duplicating GloVe file to suppress warnings...")
+                logger.info("De-duplicating GloVe file...")
                 with (
                     open(txt_path, encoding="utf-8", errors="ignore") as fin,
                     open(cleaned_path, "w", encoding="utf-8") as fout,
@@ -197,9 +243,7 @@ class Word2VecEmbedding(BaseEmbedding):
                             fout.write(line)
                             seen.add(word)
 
-            logger.info(
-                "Loading cleaned GloVe text (this takes time but only happens once)..."
-            )
+            logger.info("Loading cleaned GloVe text...")
             model = KeyedVectors.load_word2vec_format(
                 str(cleaned_path), binary=False, no_header=True
             )
@@ -214,15 +258,12 @@ class Word2VecEmbedding(BaseEmbedding):
             self._model = model
             return self._model
         except Exception as error:
-            raise RuntimeError("Failed to load GloVe 840B 300d model") from error
+            raise RuntimeError("Failed to load GloVe model") from error
 
     def _download_paragram(
         self, cache_dir: Path, bin_path: Path, txt_path: Path
     ) -> KeyedVectors:
-        """Download and convert Paragram models from Google Drive to binary."""
-        import gdown
-
-        # Google Drive file IDs based on model name
+        """Download and convert Paragram models to binary."""
         gdrive_ids = {
             "paragram_300_sl999": "0B9w48e1rj-MOck1fRGxaZW1LU2M",
             "paragram-300-WS353": "0B9w48e1rj-MOLVdZRzFfTlNsem8",
@@ -231,18 +272,13 @@ class Word2VecEmbedding(BaseEmbedding):
 
         try:
             if not txt_path.exists():
-                logger.info(
-                    f"Downloading {self._model_name} from Google Drive via gdown..."
-                )
+                logger.info(f"Downloading {self._model_name} via gdown...")
 
                 temp_path = txt_path.with_suffix(".tmp")
                 gdown.download(id=file_id, output=str(temp_path), quiet=False)
 
                 if zipfile.is_zipfile(str(temp_path)):
-                    logger.info(
-                        "Downloaded file is a zip archive. "
-                        "Extracting (Cross-Platform)..."
-                    )
+                    logger.info("Extracting zip archive...")
                     with zipfile.ZipFile(str(temp_path), "r") as zf:
                         # Find the text file name inside the zip archive
                         txt_filename = next(
@@ -250,9 +286,7 @@ class Word2VecEmbedding(BaseEmbedding):
                             None,
                         )
                         if not txt_filename:
-                            raise FileNotFoundError(
-                                "No .txt file found inside the zip archive."
-                            )
+                            raise FileNotFoundError("No .txt file found inside zip.")
 
                         # Manually extract with Python to bypass CRC errors
                         with open(txt_path, "wb") as f_out:
@@ -260,17 +294,12 @@ class Word2VecEmbedding(BaseEmbedding):
                                 with zf.open(txt_filename) as f_in:
                                     shutil.copyfileobj(f_in, f_out)
                             except zipfile.BadZipFile:
-                                logger.warning(
-                                    "Ignored CRC error during extraction. "
-                                    "The file is mostly intact."
-                                )
+                                logger.warning("Ignored CRC error.")
                     temp_path.unlink()
                 else:
                     temp_path.rename(txt_path)
 
-            logger.info(
-                "Sanitizing text file (removing malformed lines) and adding header..."
-            )
+            logger.info("Sanitizing text file and adding header...")
             clean_txt_path = txt_path.with_suffix(".clean.txt")
             expected_dim = 300
 
@@ -303,7 +332,7 @@ class Word2VecEmbedding(BaseEmbedding):
                 unicode_errors="ignore",
             )
 
-            logger.info(f"Converting {self._model_name} to fast binary format...")
+            logger.info(f"Converting {self._model_name} to binary...")
             model.save_word2vec_format(str(bin_path), binary=True)
 
             # Clean up both text files (original and cleaned) to free up disk space
@@ -315,14 +344,14 @@ class Word2VecEmbedding(BaseEmbedding):
             self._model = model
             return self._model
         except Exception as error:
-            raise RuntimeError(f"Failed to load {self._model_name} model") from error
+            raise RuntimeError(f"Failed to load {self._model_name}") from error
 
     @staticmethod
     def _download_file(url: str, path: Path) -> None:
-        """Download a file using streaming requests with a size sanity check."""
+        """Download a file using streaming requests."""
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            logger.debug(f"Attempting direct download from {url} to {path}...")
+            logger.debug(f"Attempting direct download from {url}...")
             response = requests.get(url, stream=True, timeout=600)
             response.raise_for_status()
             total_size = int(response.headers.get("content-length", 0))
