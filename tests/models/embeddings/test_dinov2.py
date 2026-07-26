@@ -43,24 +43,31 @@ def test_initialization(mock_settings: Settings) -> None:
 def test_load_caching_and_seed(
     mock_processor: MagicMock,
     mock_model: MagicMock,
-    dinov2_embedding: Dinov2Embedding,
+    mock_settings: Settings,
+    tmp_path: Path,
 ) -> None:
     """Test loading the model uses the cache directory and caches instances."""
+    mock_cache_dir = tmp_path / "mock_cache"
+
+    mock_settings.embedding_cache_dir = mock_cache_dir
+
+    dinov2_embedding = Dinov2Embedding(
+        settings=mock_settings,
+    )
+
     mock_model_instance = MagicMock()
     mock_model.return_value.to.return_value = mock_model_instance
 
     processor, model = dinov2_embedding.load()
 
-    expected_cache_dir = str(Path("/mock/cache/dir"))
-
     mock_processor.assert_called_once_with(
         "facebook/dinov2-base",
         backend="torchvision",
-        cache_dir=expected_cache_dir,
+        cache_dir=str(mock_cache_dir),
     )
     mock_model.assert_called_once_with(
         "facebook/dinov2-base",
-        cache_dir=expected_cache_dir,
+        cache_dir=str(mock_cache_dir),
     )
 
     assert processor == mock_processor.return_value
