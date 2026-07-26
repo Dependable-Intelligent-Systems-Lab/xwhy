@@ -10,6 +10,7 @@ from xwhy.distance.distances import (
     AndersonDarlingDistance,
     CosineDistance,
     CvMDistance,
+    DTSDistance,
     KSDistance,
     KuiperDistance,
     WassersteinDistance,
@@ -25,6 +26,7 @@ _DISTANCE_MAP = {
     DistanceType.ANDERSON_DARLING: AndersonDarlingDistance,
     DistanceType.KUIPER: KuiperDistance,
     DistanceType.WMD: WMDDistance,
+    DistanceType.DTS: DTSDistance,
 }
 
 
@@ -66,5 +68,5 @@ def calculate_distance(
 
     # Dispatch
     distance_class = _DISTANCE_MAP[metric_type]
-    calculator = distance_class()
+    calculator = distance_class()  # type: ignore[abstract]
     return calculator.compute(source=source, target=target, **kwargs)

@@ -146,6 +146,32 @@ class AndersonDarlingDistance(BaseNumericDistance):
             return anderson_ksamp([a, b], variant="midrank")
 
 
+class DTSDistance(BaseNumericDistance):
+    """DTS distance metric (Combination of Anderson-Darling and Cramer-Von Mises)."""
+
+    def _compute_1d(self, a: np.ndarray, b: np.ndarray) -> float:
+        """Compute the combined DTS distance using AD and CvM statistics.
+
+        Args:
+            a (np.ndarray): First sample.
+            b (np.ndarray): Second sample.
+
+        Returns:
+            float: The sum of the Anderson-Darling and Cramer-Von Mises statistics.
+
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            ad_result = anderson_ksamp([a, b], variant="midrank")
+
+        cvm_result = cramervonmises_2samp(a, b)
+
+        ad_stat = self._extract_statistic(ad_result)
+        cvm_stat = self._extract_statistic(cvm_result)
+
+        return float(ad_stat + cvm_stat)
+
+
 class KuiperDistance(BaseNumericDistance):
     """Kuiper distance metric using custom numpy optimization."""
 

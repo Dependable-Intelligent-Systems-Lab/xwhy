@@ -10,6 +10,7 @@ from xwhy.distance.distances import (
     BaseNumericDistance,
     CosineDistance,
     CvMDistance,
+    DTSDistance,
     KSDistance,
     KuiperDistance,
     WassersteinDistance,
@@ -69,6 +70,7 @@ def test_specific_metrics_execution() -> None:
     assert isinstance(CvMDistance().compute(a, b), float)
     assert isinstance(AndersonDarlingDistance().compute(a, b), float)
     assert isinstance(KuiperDistance().compute(a, b), float)
+    assert isinstance(DTSDistance().compute(a, b), float)
 
 
 def test_wasserstein_p_value() -> None:
@@ -79,3 +81,19 @@ def test_wasserstein_p_value() -> None:
     p, wd = dist.compute_with_p_value(a, b, n_bootstrap=10)
     assert 0 <= p <= 1
     assert wd >= 0
+
+
+def test_dts_distance_combination() -> None:
+    """Verify that DTSDistance correctly sums Anderson-Darling and CvM statistics."""
+    a = np.array([1.1, 2.2, 3.3, 4.4, 5.5])
+    b = np.array([1.2, 2.3, 3.4, 4.5, 5.6])
+
+    # Compute individually
+    ad_val = AndersonDarlingDistance().compute(a, b)
+    cvm_val = CvMDistance().compute(a, b)
+
+    # Compute using DTS
+    dts_val = DTSDistance().compute(a, b)
+
+    # Check if DTS is exactly the sum of AD and CvM (using np.isclose for float safety)
+    assert np.isclose(dts_val, ad_val + cvm_val)
