@@ -11,6 +11,7 @@ from xwhy.distance.types import DistanceType
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.segmentation.types import SegmentationType
+from xwhy.providers.types import ProviderType
 from xwhy.surrogate.types import SurrogateType
 
 
@@ -18,6 +19,27 @@ class ExplainerConfig(BaseModel):
     """Explainer config."""
 
     pass
+
+
+class LLMConfig(ExplainerConfig):
+    """Configuration for the LLM explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    provider_type: ProviderType | str = ProviderType.OPENAI
+    model_name: str = "gpt-3.5-turbo-instruct"
+    max_tokens: int = Field(default=200, gt=0)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    seed: int = 1024
+    num_perturbations: int = Field(default=64, gt=0)
+    embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True
 
 
 class ImageClassificationConfig(ExplainerConfig):
@@ -33,9 +55,9 @@ class ImageClassificationConfig(ExplainerConfig):
     use_model_preprocess: bool = True
 
     use_embedding_model: bool = False
-    embedding_type: EmbeddingType = EmbeddingType.DINOV2
+    embedding_type: EmbeddingType | str = EmbeddingType.DINOV2
 
-    classification_type: ClassificationType = ClassificationType.INCEPTION_V3
+    classification_type: ClassificationType | str = ClassificationType.INCEPTION_V3
 
     # Custom Model
     custom_model: Any = None
@@ -43,7 +65,7 @@ class ImageClassificationConfig(ExplainerConfig):
     categories: Any = None
 
     use_segmentation_model: bool = True
-    segmentation_type: SegmentationType = SegmentationType.DEEPLABV3_RESNET101
+    segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
     seed: int = 222
@@ -53,8 +75,8 @@ class ImageClassificationConfig(ExplainerConfig):
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
     num_perturb: int = Field(default=150, gt=0)
 
-    distance_metric: DistanceType = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType = SurrogateType.LIME
+    distance_metric: DistanceType | str = DistanceType.WASSERSTEIN
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
 
     num_top_features: int = Field(default=4, gt=0)

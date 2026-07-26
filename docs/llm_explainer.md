@@ -55,6 +55,7 @@ from xwhy import LLMExplainer
 explainer = LLMExplainer(
     provider="openai",
     api_key="sk-proj-your_key_here",
+    model_name="gpt-5-nano",
     use_best_surrogate=True
 )
 
@@ -88,13 +89,13 @@ try:
     # (Credentials will look up your .env, xwhy.settings, or explicit kwargs)
     explainer = LLMExplainer(
         provider="openai",
+        model_name="gpt-5-nano",
         use_best_surrogate=True,
     )
 
     # Explain the model response for the supplied input
     result = explainer.explain(
         instance="Machine learning is fascinating.",
-        model_name="gpt-5-nano",
         fidelity_plot=False,
     )
 
@@ -224,6 +225,7 @@ from xwhy import LLMExplainer
 
 explainer = LLMExplainer(
     provider="openai",
+    model_name="gpt-5-nano",
     use_best_surrogate=True,
 )
 
@@ -295,13 +297,13 @@ try:
     # Configure the target provider and surrogate-selection behaviour
     explainer = LLMExplainer(
         provider="openai",
+        model_name="gpt-5-nano",
         use_best_surrogate=True,
     )
 
     # Generate a local explanation for the selected model and input
     result = explainer.explain(
         instance="Machine learning is fascinating.",
-        model_name="gpt-5-nano",
     )
 
     # Inspect the explanation metrics

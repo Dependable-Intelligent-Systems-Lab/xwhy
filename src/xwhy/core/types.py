@@ -8,6 +8,23 @@ from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
 from xwhy.models.segmentation.base import BaseSegmentation
 from xwhy.perturbation.image import ImagePerturbation
+from xwhy.perturbation.text import TextPerturbation
+from xwhy.providers.base import BaseProvider
+
+
+class LLMState:
+    """Runtime state for the LLM explainer."""
+
+    def __init__(self) -> None:
+        """Initialize the runtime state.
+
+        This object stores runtime resources that are created during the
+        explainer lifecycle. Unlike the configuration, these values are
+        mutable and are populated as models and providers are initialized.
+        """
+        self.provider: BaseProvider | None = None
+        self.perturbator: TextPerturbation | None = None
+        self.embedding_model: BaseEmbedding | None = None
 
 
 class ImageClassificationState:
