@@ -2,6 +2,7 @@
 
 from xwhy.plots.base import BaseTextPlotter
 from xwhy.plots.factory import TextPlotterFactory
+from xwhy.plots.image import image_heatmap, plot_image
 from xwhy.plots.plots import (
     bar,
     beeswarm,
@@ -37,10 +38,12 @@ __all__ = [
     "group_difference",
     "heatmap",
     "image",
+    "image_heatmap",
     "image_to_text",
     "initjs",
     "monitoring",
     "partial_dependence",
+    "plot_image",
     "scatter",
     "text",
     "text_heatmap",

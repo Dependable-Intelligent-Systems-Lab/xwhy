@@ -1,18 +1,32 @@
 """Unit tests for bootstrap module."""
 
 import re
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from xwhy.bootstrap import (
+    _build_deeplabv3_mobilenet_v3,
+    _build_deeplabv3_resnet50,
+    _build_deeplabv3_resnet101,
+    _build_dinov2,
+    _build_fcn_resnet50,
     _build_gemini_provider,
     _build_glove,
+    _build_inception_v3,
+    _build_lraspp_mobilenet_v3,
+    _build_mobilenet_v3,
     _build_openai_provider,
     _build_paragram_sl,
     _build_paragram_ws,
+    _build_resnet18,
+    _build_resnet50,
+    _build_vit_base,
     _build_word2vec,
 )
+from xwhy.config import settings
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.types import ProviderType
 
@@ -780,3 +794,84 @@ def test_build_paragram_ws(mock_word2vec_embedding: MagicMock) -> None:
         settings=pytest.importorskip("xwhy.config").settings,
     )
     assert result is mock_instance
+
+
+@pytest.mark.parametrize(
+    ("builder_func", "mock_target", "expected_model_name"),
+    [
+        # Embedding
+        (
+            _build_dinov2,
+            "xwhy.bootstrap.Dinov2Embedding",
+            "facebook/dinov2-base",
+        ),
+        # Classification
+        (
+            _build_inception_v3,
+            "xwhy.bootstrap.TorchvisionClassification",
+            "inception_v3",
+        ),
+        (
+            _build_resnet50,
+            "xwhy.bootstrap.TorchvisionClassification",
+            "resnet50",
+        ),
+        (
+            _build_resnet18,
+            "xwhy.bootstrap.TorchvisionClassification",
+            "resnet18",
+        ),
+        (
+            _build_mobilenet_v3,
+            "xwhy.bootstrap.TorchvisionClassification",
+            "mobilenet_v3",
+        ),
+        (
+            _build_vit_base,
+            "xwhy.bootstrap.TorchvisionClassification",
+            "vit_base",
+        ),
+        # Segmentation
+        (
+            _build_deeplabv3_resnet101,
+            "xwhy.bootstrap.TorchvisionSegmentation",
+            "deeplabv3_resnet101",
+        ),
+        (
+            _build_deeplabv3_resnet50,
+            "xwhy.bootstrap.TorchvisionSegmentation",
+            "deeplabv3_resnet50",
+        ),
+        (
+            _build_deeplabv3_mobilenet_v3,
+            "xwhy.bootstrap.TorchvisionSegmentation",
+            "deeplabv3_mobilenet_v3_large",
+        ),
+        (
+            _build_fcn_resnet50,
+            "xwhy.bootstrap.TorchvisionSegmentation",
+            "fcn_resnet50",
+        ),
+        (
+            _build_lraspp_mobilenet_v3,
+            "xwhy.bootstrap.TorchvisionSegmentation",
+            "lraspp_mobilenet_v3_large",
+        ),
+    ],
+)
+def test_model_builders(
+    builder_func: Callable[..., Any], mock_target: str, expected_model_name: str
+) -> None:
+    """Test that each builder instantiates the correct class with expected args."""
+    dummy_kwargs = {"device": "cpu", "seed": 42, "extra_param": "test"}
+
+    with patch(mock_target) as mock_class:
+        result = builder_func(**dummy_kwargs)
+
+        mock_class.assert_called_once_with(
+            model_name=expected_model_name,
+            settings=settings,
+            **dummy_kwargs,
+        )
+
+        assert result == mock_class.return_value

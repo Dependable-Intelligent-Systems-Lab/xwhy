@@ -53,7 +53,7 @@ def test_apply_mask_returns_selected_words() -> None:
     perturbation = TextPerturbation(seed=42)
 
     result = perturbation.apply_mask(
-        words=["hello", "beautiful", "world"],
+        item=["hello", "beautiful", "world"],
         mask=(1, 0, 1),
     )
 
@@ -65,7 +65,7 @@ def test_apply_mask_adds_random_words_if_needed() -> None:
     perturbation = TextPerturbation(seed=42)
 
     result = perturbation.apply_mask(
-        words=["hello", "beautiful", "world"],
+        item=["hello", "beautiful", "world"],
         mask=(1, 0, 0),
     )
 
@@ -146,7 +146,7 @@ def test_apply_mask_removes_duplicates() -> None:
     perturbation = TextPerturbation(seed=42)
 
     result = perturbation.apply_mask(
-        words=["hello", "hello", "world"],
+        item=["hello", "hello", "world"],
         mask=(1, 1, 1),
     )
 
@@ -158,7 +158,7 @@ def test_apply_mask_preserves_word_order() -> None:
     perturbation = TextPerturbation(seed=42)
 
     result = perturbation.apply_mask(
-        words=["a", "b", "c", "d"],
+        item=["a", "b", "c", "d"],
         mask=(1, 0, 1, 1),
     )
 
@@ -174,7 +174,7 @@ def test_apply_mask_adds_missing_words() -> None:
 
     with patch.object(perturbation, "_rng", fake_rng):
         result = perturbation.apply_mask(
-            words=["hello", "world", "python"],
+            item=["hello", "world", "python"],
             mask=(1, 0, 0),
         )
 
@@ -195,7 +195,7 @@ def test_apply_mask_returns_empty_when_no_candidates() -> None:
     perturbation = TextPerturbation(seed=42)
 
     result = perturbation.apply_mask(
-        words=["", "   "],
+        item=["", "   "],
         mask=(0, 0),
     )
 

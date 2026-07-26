@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import re
 from unittest.mock import MagicMock
+
+import pytest
+from gensim.models import KeyedVectors
 
 from xwhy.distance.wmd import WMDDistance
 
 
-class FakeModel:
+class FakeModel(KeyedVectors):  # type: ignore[misc]
     """Fake Word2Vec model."""
+
+    def __init__(self) -> None:
+        """Initialize fake model."""
+        pass
 
     def __contains__(self, key: str) -> bool:
         """Return whether a word exists."""
@@ -122,3 +130,10 @@ def test_compute_batch() -> None:
     ]
 
     assert distance.compute.call_count == 3
+
+
+def test_wmd_compute_missing_model() -> None:
+    """Verify error handling when the model is not provided."""
+    wmd = WMDDistance()
+    with pytest.raises(ValueError, match=re.escape("requires a gensim KeyedVectors")):
+        wmd.compute(source="a", target="b", model=None)

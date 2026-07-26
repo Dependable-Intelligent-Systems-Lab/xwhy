@@ -1,19 +1,22 @@
 """LLM explainer implementation."""
 
+from __future__ import annotations
+
 from typing import Any
 
 import numpy as np
 
-from xwhy.core.config import ExplainerConfig
+from xwhy.core.config import LLMConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TextXWhyResult
+from xwhy.core.types import LLMState
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.wmd import WMDDistance
-from xwhy.embeddings.factory import EmbeddingFactory
-from xwhy.embeddings.types import EmbeddingType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
+from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.perturbation.text import TextPerturbation
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.resolver import ProviderResolver
@@ -24,37 +27,121 @@ from xwhy.surrogate.types import SurrogateType
 
 
 class LLMExplainer(ExplanationPipeline, BaseExplainer):
-    """Explainer for LLM tasks integrating the full GSMILE pipeline."""
+    """Explainer for LLM tasks integrating the full GSMILE pipeline.
+
+    This explainer loads all required runtime resources only once and can
+    explain multiple text prompts throughout its lifetime.
+    """
 
     def __init__(
         self,
-        provider: str | ProviderType | BaseProvider,
-        config: ExplainerConfig | None = None,
+        config: LLMConfig | None = None,
+        provider: str | ProviderType | BaseProvider | None = None,
+        model_name: str = "gpt-3.5-turbo-instruct",
+        max_tokens: int = 200,
+        temperature: float = 0.0,
+        seed: int = 1024,
+        num_perturbations: int = 64,
+        embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
+        surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        default_surrogate: str | SurrogateType = SurrogateType.LIME,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the LLM explainer.
 
         Args:
-            provider: The provider instance, an enum, or a string identifier
-                      (e.g., "openai"). If a string or enum is passed, the
-                      hidden factory resolves it automatically.
             config: Optional configuration for the explainer.
+            provider: The provider instance, an enum, or a string identifier
+                (e.g., "openai"). If a string or enum is passed, the
+                factory resolves it automatically.
+            model_name: The LLM model name.
+            max_tokens: Max tokens for generation.
+            temperature: Sampling temperature.
+            seed: Random seed for reproducibility.
+            num_perturbations: Number of perturbed samples to generate.
+            embedding_type: Embedding method for WMD.
+            surrogate_type: The default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model
-                                automatically.
-            default_surrogate: The default surrogate method to use if the search is
-                               disabled.
+                automatically.
             **provider_kwargs: Additional provider-specific options.
 
-        """
-        # Resolve string/enum provider into a concrete instance using Hidden Factory
-        resolved_provider = ProviderResolver.resolve(provider, **provider_kwargs)
-        super().__init__(resolved_provider, config)
+        Raises:
+            ValueError: If the embedding type is invalid for LLM explanation.
 
-        self.provider = resolved_provider
-        self.use_best_surrogate = use_best_surrogate
-        self.default_surrogate = SurrogateType.from_str(default_surrogate)
+        """
+        embedding_type = EmbeddingType.from_str(embedding_type)
+
+        if not embedding_type.is_text_embedding:
+            raise ValueError(
+                f"Invalid embedding type '{embedding_type}' "
+                "for LLMExplainer. Must be a text embedding."
+            )
+
+        surrogate_type = SurrogateType.from_str(surrogate_type)
+
+        self._provider_kwargs = provider_kwargs
+        self.state = LLMState()
+
+        provider_type = ProviderType.OPENAI
+
+        if provider is not None:
+            if isinstance(provider, BaseProvider):
+                self.state.provider = provider
+                class_name = provider.__class__.__name__.lower().replace("provider", "")
+                try:
+                    provider_type = ProviderType.from_str(class_name)
+                except ValueError:
+                    logger.warning(
+                        f"Custom provider class '{provider.__class__.__name__}' mapped "
+                        "to default config type."
+                    )
+                    provider_type = ProviderType.OPENAI
+
+            elif isinstance(provider, ProviderType):
+                provider_type = provider
+            else:
+                provider_type = ProviderType.from_str(str(provider))
+
+        if config is None:
+            config = LLMConfig(
+                provider_type=provider_type,
+                model_name=model_name,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                seed=seed,
+                num_perturbations=num_perturbations,
+                embedding_type=embedding_type,
+                surrogate_type=surrogate_type,
+                use_best_surrogate=use_best_surrogate,
+            )
+
+        super().__init__(config)
+        self._initialize()
+
+    def _initialize(self) -> None:
+        """Initialize runtime resources."""
+        if self.state.provider is None:
+            logger.info(
+                f"Resolving provider type: {self.config.provider_type}"  # type: ignore[union-attr]
+            )
+            self.state.provider = ProviderResolver.resolve(
+                self.config.provider_type,  # type: ignore[union-attr]
+                **self._provider_kwargs,
+            )
+
+        logger.info(
+            f"Loading text embedding model: {self.config.embedding_type}"  # type: ignore[union-attr]
+        )
+        embedding_factory_result = EmbeddingFactory.create(
+            embedding=self.config.embedding_type  # type: ignore[union-attr]
+        )
+        self.state.embedding_model = embedding_factory_result.load()
+        self.state.embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+
+        logger.info("Initializing text perturbator...")
+        self.state.perturbator = TextPerturbation(
+            seed=self.config.seed  # type: ignore[union-attr]
+        )
 
     def run(self, instance: Any, **kwargs: Any) -> TextXWhyResult:  # noqa: ANN401
         """Run the full explanation pipeline (ExplanationPipeline implementation).
@@ -77,26 +164,13 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
     def explain(
         self,
         instance: str,
-        *,
-        model_name: str = "gpt-3.5-turbo-instruct",
-        max_tokens: int = 200,
-        temperature: float = 0.0,
-        seed: int = 1024,
-        num_perturbations: int = 64,
-        embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         fidelity_plot: bool = False,
-        **kwargs: object,
+        **kwargs: Any,  # noqa: ANN401
     ) -> TextXWhyResult:
         """Generate an explanation for the given prompt.
 
         Args:
             instance: The input prompt to explain.
-            model_name: The LLM model name.
-            max_tokens: Max tokens for generation.
-            temperature: Sampling temperature.
-            seed: Random seed for reproducibility.
-            num_perturbations: Number of perturbed samples to generate.
-            embedding_type: Embedding method for WMD.
             fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional explainer-specific options.
 
@@ -104,33 +178,41 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             TextXWhyResult: The structured explanation result object
                 containing visualization methods and evaluation metrics.
 
+        Raises:
+            TypeError: If instance is not a string.
+            RuntimeError: If runtime resources are not initialized.
+
         """
+        if not isinstance(instance, str):
+            raise TypeError("LLMExplainer requires the input prompt as a string.")
+
+        if (
+            self.state.provider is None
+            or self.state.embedding_model is None
+            or self.state.perturbator is None
+        ):
+            raise RuntimeError("LLMExplainer runtime resources are not initialized.")
+
         prompt = instance
-        embedding_type = EmbeddingType.from_str(embedding_type)
 
         logger.info("Querying provider for original response...")
-        original_output = self.provider.answer(
+        original_output = self.state.provider.answer(
             prompt=prompt,
-            model=model_name,
-            max_tokens=max_tokens,
-            temperature=temperature,
+            model=self.config.model_name,  # type: ignore[union-attr]
+            max_tokens=self.config.max_tokens,  # type: ignore[union-attr]
+            temperature=self.config.temperature,  # type: ignore[union-attr]
         )
 
         logger.info("Generating perturbations...")
-        text_perturbation = TextPerturbation(seed=seed)
-        perturbed_texts, binary_masks = text_perturbation.generate(
-            text=prompt, num_perturbations=num_perturbations
+        perturbed_texts, binary_masks = self.state.perturbator.generate(
+            text=prompt,
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
         )
-
-        logger.info("Loading embedding model...")
-        embedding = EmbeddingFactory.create(embedding=embedding_type)
-        embedding_model = embedding.load()
-        embedding_model.fill_norms(force=True)
 
         logger.info("Computing WMD scores...")
         wmd_distance = WMDDistance()
         wmd_scores = wmd_distance.compute_batch(
-            model=embedding_model,
+            model=self.state.embedding_model,
             original=original_output,
             perturbed_texts=perturbed_texts,
         )
@@ -142,16 +224,20 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             np.array(m, dtype=int) for m in binary_masks
         ]
 
-        if self.use_best_surrogate:
+        x_matrix = np.vstack(masks_as_arrays)
+        y_target = np.array([s for _, s in sims])
+        distances_array = np.array([d for _, d in wmd_scores])
+
+        if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info(
                 "Searching for the optimal surrogate model among available"
                 " candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                perturbations=masks_as_arrays,
-                similarities=sims,
-                wmd_scores=wmd_scores,
-                seed=seed,
+                x=x_matrix,
+                y=y_target,
+                distances=distances_array,
+                seed=self.config.seed,  # type: ignore[union-attr]
             )
             logger.info(
                 "Optimization complete. Selected surrogate model:"
@@ -160,17 +246,18 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 score,
             )
         else:
-            method = self.default_surrogate
+            method = self.config.surrogate_type  # type: ignore[union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
             )
 
-        x_matrix = np.vstack(masks_as_arrays)
-        y_target = np.array([s for _, s in sims])
-        weights = SurrogateTrainer.compute_weights(method, wmd_scores)
+        weights = SurrogateTrainer.compute_weights(method, distances_array)
 
-        surrogate = SurrogateFactory.create(method=method, seed=seed)
+        surrogate = SurrogateFactory.create(
+            method=method,
+            seed=self.config.seed,  # type: ignore[union-attr]
+        )
         surrogate.fit(x_matrix, y_target, weights)
 
         coeffs = surrogate.coefficients()
@@ -193,7 +280,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             "y_pred": y_pred,
         }
 
-        if self.use_best_surrogate:
+        if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method
         else:
             raw_data["surrogate_method"] = method

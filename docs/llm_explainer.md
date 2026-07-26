@@ -55,6 +55,7 @@ from xwhy import LLMExplainer
 explainer = LLMExplainer(
     provider="openai",
     api_key="sk-proj-your_key_here",
+    model_name="gpt-5-nano",
     use_best_surrogate=True
 )
 
@@ -69,6 +70,43 @@ openai_explainer = LLMExplainer(provider="openai", api_key="sk-...")
 
 # For Hugging Face, the native InferenceClient SDK expects 'token'
 hf_explainer = LLMExplainer(provider="huggingface", token="hf_...")
+
+```
+
+#### Approach C: Using an `LLMConfig` Object
+
+You can also centralize settings in an `LLMConfig` instance and pass it to the `LLMExplainer` constructor as a single `config` parameter. This avoids supplying individual keyword arguments for every option:
+
+```python
+from xwhy.core import LLMConfig
+from xwhy import LLMExplainer
+import xwhy
+
+llm_config = LLMConfig(
+    provider_type="openai",
+    model_name="gpt-3.5-turbo-instruct",
+    max_tokens=200,
+    temperature=0,
+    seed=1024,
+    num_perturbations=64,
+    embedding_type="word2vec",
+    surrogate_type="lime",
+    use_best_surrogate=True,
+)
+
+try:
+    explainer = LLMExplainer(config=llm_config)
+    # or use `explainer.run`
+    result = explainer.explain(
+        instance="Machine learning is fascinating.",
+        fidelity_plot=True,
+    )
+    print(result.metrics)
+    print("Explanation successful!")
+    xwhy.plots.text_heatmap(result)
+
+except Exception as e:
+    print(f"Error during pipeline execution: {e}")
 
 ```
 
@@ -88,13 +126,13 @@ try:
     # (Credentials will look up your .env, xwhy.settings, or explicit kwargs)
     explainer = LLMExplainer(
         provider="openai",
+        model_name="gpt-5-nano",
         use_best_surrogate=True,
     )
 
     # Explain the model response for the supplied input
     result = explainer.explain(
         instance="Machine learning is fascinating.",
-        model_name="gpt-5-nano",
         fidelity_plot=False,
     )
 
@@ -224,6 +262,7 @@ from xwhy import LLMExplainer
 
 explainer = LLMExplainer(
     provider="openai",
+    model_name="gpt-5-nano",
     use_best_surrogate=True,
 )
 
@@ -295,13 +334,13 @@ try:
     # Configure the target provider and surrogate-selection behaviour
     explainer = LLMExplainer(
         provider="openai",
+        model_name="gpt-5-nano",
         use_best_surrogate=True,
     )
 
     # Generate a local explanation for the selected model and input
     result = explainer.explain(
         instance="Machine learning is fascinating.",
-        model_name="gpt-5-nano",
     )
 
     # Inspect the explanation metrics

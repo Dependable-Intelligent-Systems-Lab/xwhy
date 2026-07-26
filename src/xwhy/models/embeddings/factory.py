@@ -3,8 +3,8 @@
 from collections.abc import Callable
 from typing import ClassVar
 
-from xwhy.embeddings import BaseEmbedding
-from xwhy.embeddings.types import EmbeddingType
+from xwhy.models.embeddings import BaseEmbedding
+from xwhy.models.embeddings.types import EmbeddingType
 
 
 class EmbeddingFactory:

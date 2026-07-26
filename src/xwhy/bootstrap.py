@@ -7,9 +7,16 @@ from sklearn.linear_model import BayesianRidge, LinearRegression, Ridge
 from xgboost import XGBRegressor
 
 from xwhy.config import settings
-from xwhy.embeddings.factory import EmbeddingFactory
-from xwhy.embeddings.types import EmbeddingType
-from xwhy.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.classification.factory import ClassificationFactory
+from xwhy.models.classification.torchvision_models import TorchvisionClassification
+from xwhy.models.classification.types import ClassificationType
+from xwhy.models.embeddings.dinov2 import Dinov2Embedding
+from xwhy.models.embeddings.factory import EmbeddingFactory
+from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.segmentation.factory import SegmentationFactory
+from xwhy.models.segmentation.torchvision_models import TorchvisionSegmentation
+from xwhy.models.segmentation.types import SegmentationType
 from xwhy.providers.anthropic import AnthropicProvider
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.factory import ProviderFactory
@@ -359,6 +366,66 @@ def _build_paragram_ws(**kwargs: Any) -> Word2VecEmbedding:  # noqa: ANN401
     )
 
 
+def _build_dinov2(**kwargs: Any) -> Dinov2Embedding:  # noqa: ANN401
+    return Dinov2Embedding(
+        model_name="facebook/dinov2-base", settings=settings, **kwargs
+    )
+
+
+def _build_inception_v3(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
+    return TorchvisionClassification(
+        model_name="inception_v3", settings=settings, **kwargs
+    )
+
+
+def _build_resnet50(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
+    return TorchvisionClassification(model_name="resnet50", settings=settings, **kwargs)
+
+
+def _build_resnet18(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
+    return TorchvisionClassification(model_name="resnet18", settings=settings, **kwargs)
+
+
+def _build_mobilenet_v3(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
+    return TorchvisionClassification(
+        model_name="mobilenet_v3", settings=settings, **kwargs
+    )
+
+
+def _build_vit_base(**kwargs: Any) -> TorchvisionClassification:  # noqa: ANN401
+    return TorchvisionClassification(model_name="vit_base", settings=settings, **kwargs)
+
+
+def _build_deeplabv3_resnet101(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_resnet101", settings=settings, **kwargs
+    )
+
+
+def _build_deeplabv3_resnet50(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_resnet50", settings=settings, **kwargs
+    )
+
+
+def _build_deeplabv3_mobilenet_v3(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="deeplabv3_mobilenet_v3_large", settings=settings, **kwargs
+    )
+
+
+def _build_fcn_resnet50(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="fcn_resnet50", settings=settings, **kwargs
+    )
+
+
+def _build_lraspp_mobilenet_v3(**kwargs: Any) -> TorchvisionSegmentation:  # noqa: ANN401
+    return TorchvisionSegmentation(
+        model_name="lraspp_mobilenet_v3_large", settings=settings, **kwargs
+    )
+
+
 def _build_glm_ols(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: ANN401
     return LinearRegressionSurrogate(model=LinearRegression())
 
@@ -457,10 +524,34 @@ def register_all() -> None:
         provider_cls=AnthropicProvider,
     )
 
+    # Register Embedding Type Models
     EmbeddingFactory.register(EmbeddingType.WORD2VEC, _build_word2vec)
     EmbeddingFactory.register(EmbeddingType.GLOVE, _build_glove)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM_SL, _build_paragram_sl)
     EmbeddingFactory.register(EmbeddingType.PARAGRAM_WS, _build_paragram_ws)
+    EmbeddingFactory.register(EmbeddingType.DINOV2, _build_dinov2)
+
+    # Register Classification Type Models
+    ClassificationFactory.register(ClassificationType.INCEPTION_V3, _build_inception_v3)
+    ClassificationFactory.register(ClassificationType.RESNET50, _build_resnet50)
+    ClassificationFactory.register(ClassificationType.RESNET18, _build_resnet18)
+    ClassificationFactory.register(ClassificationType.MOBILENET_V3, _build_mobilenet_v3)
+    ClassificationFactory.register(ClassificationType.VIT_BASE, _build_vit_base)
+
+    # Register Segmentation Type Models
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_RESNET101, _build_deeplabv3_resnet101
+    )
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_RESNET50, _build_deeplabv3_resnet50
+    )
+    SegmentationFactory.register(
+        SegmentationType.DEEPLABV3_MOBILENET_V3, _build_deeplabv3_mobilenet_v3
+    )
+    SegmentationFactory.register(SegmentationType.FCN_RESNET50, _build_fcn_resnet50)
+    SegmentationFactory.register(
+        SegmentationType.LRASPP_MOBILENET_V3, _build_lraspp_mobilenet_v3
+    )
 
     ProviderResolver.register(
         provider_type=ProviderType.OPENAI,

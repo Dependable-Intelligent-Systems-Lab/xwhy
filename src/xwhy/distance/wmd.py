@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from typing import Any
 
 from gensim.models import KeyedVectors
 
@@ -11,7 +12,7 @@ from xwhy.distance.base import BaseDistance
 
 
 class WMDDistance(BaseDistance):
-    """Word Mover's Distance implementation."""
+    """Word Mover's Distance implementation for Text Data."""
 
     def clean_text(
         self,
@@ -37,34 +38,30 @@ class WMDDistance(BaseDistance):
 
     def compute(
         self,
-        *,
-        model: KeyedVectors,
         source: str,
         target: str,
+        **kwargs: Any,  # noqa: ANN401
     ) -> float:
         """Compute Word Mover's Distance.
 
-        Only words that exist in the embedding vocabulary are used.
-        If either text contains no valid words, ``1.0`` is returned.
-
         Args:
-            model:
-                Loaded Word2Vec model.
-
-            source:
-                Source text.
-
-            target:
-                Target text.
+            source: Source text.
+            target: Target text.
+            **kwargs: Must contain 'model' (Loaded Word2Vec KeyedVectors).
 
         Returns:
-            Word Mover's Distance.
+            float: Word Mover's Distance.
 
         """
+        model = kwargs.get("model")
+        if not isinstance(model, KeyedVectors):
+            raise ValueError(
+                "WMDDistance requires a gensim KeyedVectors 'model' passed via kwargs."
+            )
+
         words1 = [
             word for word in self.clean_text(text=source).split() if word in model
         ]
-
         words2 = [
             word for word in self.clean_text(text=target).split() if word in model
         ]
@@ -101,9 +98,9 @@ class WMDDistance(BaseDistance):
 
         for text in perturbed_texts:
             distance = self.compute(
-                model=model,
                 source=original,
                 target=text,
+                model=model,
             )
 
             scores.append((text, distance))

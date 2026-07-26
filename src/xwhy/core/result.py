@@ -100,3 +100,56 @@ class TextXWhyResult(BaseXWhyResult):
     def data(self) -> np.ndarray:
         """The underlying raw data tokens as a numpy array."""
         return np.array(self.words)
+
+
+@dataclass
+class ImageClassificationXWhyResult(BaseXWhyResult):
+    """Container for image classification explanation results."""
+
+    original_image: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    superpixels: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    top_features: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    coverage: float = 0.0
+    weighted_coverage: float = 0.0
+
+    @property
+    def feature_names(self) -> Sequence[str]:
+        """Sequence of feature names corresponding to superpixels."""
+        return [f"Superpixel {i}" for i in range(len(self.coefficients))]
+
+    @property
+    def data(self) -> np.ndarray:
+        """The underlying original image as a numpy array."""
+        return self.original_image
+
+    def to_shap(self) -> object:
+        """Convert the XWhy image result into a SHAP Explanation object."""
+        from xwhy.plots.image import create_image_heat_mask
+
+        if self.superpixels.size > 0:
+            heat_mask = create_image_heat_mask(self.superpixels, self.coefficients)
+            data_arr = self.original_image
+
+            if data_arr.ndim == 3:
+                data_arr = np.expand_dims(data_arr, axis=0)  # (1, H, W, C)
+            elif data_arr.ndim == 2:
+                data_arr = np.expand_dims(data_arr, axis=0)  # (1, H, W)
+
+            if data_arr.ndim == 4:
+                # Add batch and channel dimention (1, H, W, 1)
+                values_arr = np.expand_dims(heat_mask, axis=(0, -1))
+            else:
+                values_arr = np.expand_dims(heat_mask, axis=0)
+
+            final_shap_values = values_arr
+
+        else:
+            data_arr = self.original_image
+            final_shap_values = np.asarray(self.coefficients)
+
+        return shap.Explanation(
+            values=final_shap_values,
+            base_values=self.base_values,
+            data=data_arr,
+            feature_names=self.feature_names,
+        )

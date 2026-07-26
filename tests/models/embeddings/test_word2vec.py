@@ -12,9 +12,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
+from gensim.models import KeyedVectors
 
 from xwhy.config import Settings
-from xwhy.embeddings.word2vec import Word2VecEmbedding
+from xwhy.models.embeddings.word2vec import Word2VecEmbedding
 
 
 class DummySettings:
@@ -83,8 +84,8 @@ def create_embedding(force_download: bool = False) -> Word2VecEmbedding:
 # ---------------------------------------------------------------------
 # Gensim load path
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.api.load")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.api.load")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_load_from_gensim(
     mock_kv_load: MagicMock,
     mock_api_load: MagicMock,
@@ -105,7 +106,7 @@ def test_load_from_gensim(
 # ---------------------------------------------------------------------
 # Cache path
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_load_from_cache(
     mock_kv_load: MagicMock,
     tmp_path: Path,
@@ -174,7 +175,7 @@ def test_encode_empty_text() -> None:
 # ---------------------------------------------------------------------
 # Download failure
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.requests.get")
+@patch("xwhy.models.embeddings.word2vec.requests.get")
 def test_download_file_failure(
     mock_get: MagicMock,
 ) -> None:
@@ -220,7 +221,7 @@ def test_load_unsupported_model() -> None:
         embedding.load()
 
 
-@patch("xwhy.embeddings.word2vec.api.load")
+@patch("xwhy.models.embeddings.word2vec.api.load")
 def test_load_gensim_fails_fallback_to_google_news(mock_api_load: MagicMock) -> None:
     """Test fallback mechanism when gensim fails for google news model."""
     mock_api_load.side_effect = Exception("gensim failed network or timeout")
@@ -235,7 +236,7 @@ def test_load_gensim_fails_fallback_to_google_news(mock_api_load: MagicMock) -> 
     embedding._download_google_news.assert_called_once()
 
 
-@patch("xwhy.embeddings.word2vec.api.load")
+@patch("xwhy.models.embeddings.word2vec.api.load")
 def test_load_gensim_fails_no_fallback(mock_api_load: MagicMock) -> None:
     """Test RuntimeError is raised when gensim fails and model has no fallback."""
     mock_api_load.side_effect = Exception("gensim failed")
@@ -243,7 +244,7 @@ def test_load_gensim_fails_no_fallback(mock_api_load: MagicMock) -> None:
     dummy_model_name = "test-model-no-fallback"
 
     with patch.dict(
-        "xwhy.embeddings.word2vec.Word2VecEmbedding._MODEL_FILE_MAP",
+        "xwhy.models.embeddings.word2vec.Word2VecEmbedding._MODEL_FILE_MAP",
         {dummy_model_name: {"file": "test.txt", "gensim": True}},
     ):
         embedding = Word2VecEmbedding(
@@ -262,9 +263,9 @@ def test_load_gensim_fails_no_fallback(mock_api_load: MagicMock) -> None:
 # ---------------------------------------------------------------------
 # GoogleNews Download and Extract logic
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._extract_gzip")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._extract_gzip")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_google_news_success(
     mock_download: MagicMock,
     mock_extract: MagicMock,
@@ -286,7 +287,7 @@ def test_download_google_news_success(
     mock_kv_load.assert_called_once()
 
 
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_google_news_failure(
     mock_download: MagicMock,
     tmp_path: Path,
@@ -301,7 +302,7 @@ def test_download_google_news_failure(
         embedding._download_google_news(tmp_path, model_path)
 
 
-@patch("xwhy.embeddings.word2vec.requests.get")
+@patch("xwhy.models.embeddings.word2vec.requests.get")
 def test_download_file_success(mock_get: MagicMock, tmp_path: Path) -> None:
     """Test successful streaming download."""
     embedding = create_embedding()
@@ -318,7 +319,7 @@ def test_download_file_success(mock_get: MagicMock, tmp_path: Path) -> None:
     assert dest_path.stat().st_size == len(large_chunk)
 
 
-@patch("xwhy.embeddings.word2vec.requests.get")
+@patch("xwhy.models.embeddings.word2vec.requests.get")
 def test_download_file_too_small(mock_get: MagicMock, tmp_path: Path) -> None:
     """Test download raises OSError and cleans up if file is too small."""
     embedding = create_embedding()
@@ -351,7 +352,7 @@ def test_extract_gzip(tmp_path: Path) -> None:
     assert dst_path.read_text() == "decompressed dummy data"
 
 
-@patch("xwhy.embeddings.word2vec.requests.get")
+@patch("xwhy.models.embeddings.word2vec.requests.get")
 def test_download_file_with_empty_chunk(mock_get: MagicMock, tmp_path: Path) -> None:
     """Test download file handles empty chunks correctly to satisfy branch coverage."""
     embedding = create_embedding()
@@ -373,7 +374,7 @@ def test_download_file_with_empty_chunk(mock_get: MagicMock, tmp_path: Path) -> 
 # ---------------------------------------------------------------------
 # Load logic edge cases - Fallbacks (GloVe & Paragram)
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.api.load")
+@patch("xwhy.models.embeddings.word2vec.api.load")
 def test_load_gensim_fails_fallback_to_glove(mock_api_load: MagicMock) -> None:
     """Test fallback mechanism when gensim fails for GloVe model."""
     mock_api_load.side_effect = Exception("gensim failed network or timeout")
@@ -392,7 +393,7 @@ def test_load_gensim_fails_fallback_to_glove(mock_api_load: MagicMock) -> None:
     embedding._download_glove.assert_called_once()
 
 
-@patch("xwhy.embeddings.word2vec.api.load")
+@patch("xwhy.models.embeddings.word2vec.api.load")
 def test_load_gensim_fails_fallback_to_paragram(mock_api_load: MagicMock) -> None:
     """Test fallback mechanism when gensim fails for Paragram model."""
     mock_api_load.side_effect = Exception("gensim failed network or timeout")
@@ -414,9 +415,9 @@ def test_load_gensim_fails_fallback_to_paragram(mock_api_load: MagicMock) -> Non
 # ---------------------------------------------------------------------
 # GoogleNews Cache Exists bypass
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._extract_gzip")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._extract_gzip")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_google_news_gz_exists(
     mock_download_file: MagicMock,
     mock_extract: MagicMock,
@@ -440,9 +441,9 @@ def test_download_google_news_gz_exists(
 # ---------------------------------------------------------------------
 # GloVe Download and Extract logic
 # ---------------------------------------------------------------------
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
-@patch("xwhy.embeddings.word2vec.zipfile.ZipFile")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.zipfile.ZipFile")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_glove_success(
     mock_download: MagicMock,
     mock_zip: MagicMock,
@@ -481,8 +482,8 @@ def test_download_glove_success(
     assert not txt_path.exists()
 
 
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_glove_cache_exists(
     mock_download: MagicMock,
     mock_kv_load: MagicMock,
@@ -506,7 +507,7 @@ def test_download_glove_cache_exists(
     mock_download.assert_not_called()  # Should skip download
 
 
-@patch("xwhy.embeddings.word2vec.Word2VecEmbedding._download_file")
+@patch("xwhy.models.embeddings.word2vec.Word2VecEmbedding._download_file")
 def test_download_glove_failure(mock_download: MagicMock, tmp_path: Path) -> None:
     """Test GloVe download catches errors and raises RuntimeError."""
     embedding = Word2VecEmbedding(
@@ -520,7 +521,7 @@ def test_download_glove_failure(mock_download: MagicMock, tmp_path: Path) -> Non
 
 
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_try_gdown_download_success(
     mock_kv_load: MagicMock, mock_download: MagicMock, tmp_path: Path
 ) -> None:
@@ -624,7 +625,7 @@ def test_load_gdown_shortcut_success(mock_try_gdown: MagicMock, tmp_path: Path) 
 # Paragram Download and Extract logic
 # =====================================================================
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_success_zip(
     mock_kv_load: MagicMock,
     mock_download: MagicMock,
@@ -656,7 +657,7 @@ def test_download_paragram_success_zip(
 
 
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_success_txt_no_zip(
     mock_kv_load: MagicMock,
     mock_download: MagicMock,
@@ -686,8 +687,8 @@ def test_download_paragram_success_txt_no_zip(
 
 
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.shutil.copyfileobj")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.shutil.copyfileobj")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_bad_zip_handling(
     mock_kv_load: MagicMock,
     mock_copy: MagicMock,
@@ -738,7 +739,7 @@ def test_download_paragram_no_txt_in_zip(
         embedding._download_paragram(tmp_path, tmp_path / "bin", tmp_path / "txt")
 
 
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_cache_exists(
     mock_kv_load: MagicMock,
     tmp_path: Path,
@@ -781,7 +782,7 @@ def test_download_paragram_failure(mock_download: MagicMock, tmp_path: Path) -> 
 # Paragram Cleanup Coverage (True & False branches)
 # =====================================================================
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_cleanup_files_exist_true_branch(
     mock_kv_load: MagicMock,
     mock_download: MagicMock,
@@ -820,7 +821,7 @@ def test_download_paragram_cleanup_files_exist_true_branch(
 
 
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_cleanup_files_missing_false_branch(
     mock_kv_load: MagicMock,
     mock_download: MagicMock,
@@ -858,7 +859,7 @@ def test_download_paragram_cleanup_files_missing_false_branch(
 
 
 @patch("gdown.download")
-@patch("xwhy.embeddings.word2vec.KeyedVectors.load_word2vec_format")
+@patch("xwhy.models.embeddings.word2vec.KeyedVectors.load_word2vec_format")
 def test_download_paragram_dimension_filtering(
     mock_kv_load: MagicMock,
     mock_download: MagicMock,
@@ -905,3 +906,52 @@ def test_download_paragram_dimension_filtering(
     embedding._download_paragram(tmp_path, bin_path, txt_path)
 
     mock_kv_load.assert_called_once()
+
+
+def test_word2vec_model_property_unloaded() -> None:
+    """Test model property raises RuntimeError when unloaded."""
+    obj = create_embedding()
+    obj._model = None
+    with pytest.raises(RuntimeError, match="not loaded"):
+        _ = obj.model
+
+
+def test_word2vec_processor_property() -> None:
+    """Test processor property always returns None."""
+    obj = create_embedding()
+    assert obj.processor is None
+
+
+def test_word2vec_call_invalid_model() -> None:
+    """Test __call__ raises ValueError if model is not KeyedVectors."""
+    obj = create_embedding()
+    obj._model = "not_a_keyed_vector"
+    with pytest.raises(ValueError, match="WMDDistance requires a gensim KeyedVectors"):
+        obj(inputs="test")
+
+
+def test_word2vec_call_tuple_input_valid_words() -> None:
+    """Test __call__ with tuple input and matching words computes WMD."""
+    obj = create_embedding()
+    mock_model = MagicMock(spec=KeyedVectors)
+    mock_model.__contains__.side_effect = lambda x: x in ["hello", "world"]
+    mock_model.wmdistance.return_value = 0.42
+    obj._model = mock_model
+
+    result = obj(inputs=("Hello!", "World..."))
+
+    mock_model.wmdistance.assert_called_once_with(["hello"], ["world"])
+    assert result == 0.42
+
+
+def test_word2vec_call_kwargs_missing_words() -> None:
+    """Test __call__ returns 1.0 if words are completely missing."""
+    obj = create_embedding()
+    mock_model = MagicMock(spec=KeyedVectors)
+    mock_model.__contains__.return_value = False
+    obj._model = mock_model
+
+    result = obj(inputs="Hello", target="World")
+
+    assert result == 1.0
+    mock_model.wmdistance.assert_not_called()

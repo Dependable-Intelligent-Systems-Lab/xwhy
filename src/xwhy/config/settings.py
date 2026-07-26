@@ -1,8 +1,10 @@
 """Application settings."""
 
+import os
 from pathlib import Path
+from typing import Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from xwhy.config.env import load_environment
@@ -21,6 +23,14 @@ class Settings(BaseSettings):
 
     embedding_cache_dir: Path = Field(
         default=Path.home() / ".cache" / "xwhy" / "embeddings",
+    )
+
+    classification_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "xwhy" / "classification",
+    )
+
+    segmentation_cache_dir: Path = Field(
+        default=Path.home() / ".cache" / "xwhy" / "segmentation",
     )
 
     anthropic_api_key: str | None = None
@@ -68,3 +78,10 @@ class Settings(BaseSettings):
     # Microsoft Foundry (Anthropic)
     anthropic_foundry_api_key: str | None = None
     anthropic_foundry_resource: str | None = None
+
+    @model_validator(mode="after")
+    def _export_hf_token(self) -> Self:
+        """Export huggingface_token to HF_TOKEN for the HF Hub client."""
+        if self.huggingface_token:
+            os.environ["HF_TOKEN"] = self.huggingface_token
+        return self

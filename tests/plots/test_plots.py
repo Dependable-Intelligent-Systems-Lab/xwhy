@@ -238,8 +238,10 @@ def test_plot_new_line_logic() -> None:
 
 @pytest.fixture
 def mock_shap_explanation() -> MagicMock:
-    """Fixture providing a mock SHAP Explanation object."""
-    return MagicMock()
+    """Provide a mock SHAP Explanation object."""
+    explanation = MagicMock()
+    explanation.values.ndim = 5
+    return explanation
 
 
 @pytest.fixture
@@ -463,7 +465,13 @@ def test_image_wrapper(
     """Verify image plot wrapper triggers SHAP underlying implementation."""
     pixels = np.ones((28, 28))
     image(mock_xwhy_result_3d, pixels, label="test")
-    mock_shap_image.assert_called_once_with(mock_shap_explanation, pixels, label="test")
+    expected_pixels = np.expand_dims(pixels, axis=0)
+
+    mock_shap_image.assert_called_once()
+    args, kwargs = mock_shap_image.call_args
+    assert args[0] == mock_shap_explanation
+    np.testing.assert_array_equal(kwargs["pixel_values"], expected_pixels)
+    assert kwargs["label"] == "test"
 
 
 @patch("shap.plots.image_to_text")
@@ -473,8 +481,100 @@ def test_image_to_text_wrapper(
     mock_shap_explanation: MagicMock,
 ) -> None:
     """Verify image to text plot wrapper triggers SHAP underlying implementation."""
+    mock_shap_explanation.values.ndim = 5
     image_to_text(mock_xwhy_result_3d)
     mock_shap_itt.assert_called_once_with(mock_shap_explanation)
+
+
+def test_image_value_error_low_dim(mock_xwhy_result_1d: MagicMock) -> None:
+    """Raise ValueError for low-dim result without image structure."""
+    with pytest.raises(ValueError, match="requires image-structured explanations"):
+        image(mock_xwhy_result_1d)
+
+
+def test_image_with_superpixels_low_dim(
+    mock_xwhy_result_1d: MagicMock, mock_shap_explanation: MagicMock
+) -> None:
+    """Bypass dimension check if superpixels attribute exists."""
+    mock_xwhy_result_1d.coefficients = np.zeros(5)
+    mock_xwhy_result_1d.superpixels = np.zeros((28, 28))
+
+    with patch("shap.plots.image") as mock_shap_image:
+        image(mock_xwhy_result_1d, pixel_values=None)
+        mock_shap_image.assert_called_once()
+
+
+@patch("shap.plots.image")
+def test_image_pixel_values_none(
+    mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
+) -> None:
+    """Trigger image plot with pixel_values set to None."""
+    image(mock_xwhy_result_3d, pixel_values=None)
+    mock_shap_image.assert_called_once()
+    _, kwargs = mock_shap_image.call_args
+    assert kwargs["pixel_values"] is None
+
+
+@patch("shap.plots.image")
+def test_image_pixel_values_3d(
+    mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
+) -> None:
+    """Expand 3D pixel_values array to 4D in image plot."""
+    pixels = np.ones((28, 28, 3))
+    image(mock_xwhy_result_3d, pixel_values=pixels)
+    _, kwargs = mock_shap_image.call_args
+    assert kwargs["pixel_values"].shape == (1, 28, 28, 3)
+
+
+@patch("shap.plots.image")
+def test_image_pixel_values_2d(
+    mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
+) -> None:
+    """Expand 2D pixel_values array to 3D in image plot."""
+    pixels = np.ones((28, 28))
+    image(mock_xwhy_result_3d, pixel_values=pixels)
+    _, kwargs = mock_shap_image.call_args
+    assert kwargs["pixel_values"].shape == (1, 28, 28)
+
+
+@patch("shap.plots.image")
+def test_image_pixel_values_4d(
+    mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
+) -> None:
+    """Bypass expansion branches when pixel_values is already 4D."""
+    pixels = np.ones((1, 28, 28, 3))
+    image(mock_xwhy_result_3d, pixel_values=pixels)
+    _, kwargs = mock_shap_image.call_args
+    assert kwargs["pixel_values"].shape == (1, 28, 28, 3)
+
+
+def test_image_to_text_value_error_low_dim(
+    mock_xwhy_result_1d: MagicMock,
+) -> None:
+    """Raise ValueError for low-dim coefficients in image_to_text."""
+    with pytest.raises(ValueError, match="requires multimodal"):
+        image_to_text(mock_xwhy_result_1d)
+
+
+def test_image_to_text_value_error_shap_dim(
+    mock_xwhy_result_3d: MagicMock, mock_shap_explanation: MagicMock
+) -> None:
+    """Raise ValueError when shap explanation values ndim is less than 5."""
+    mock_shap_explanation.values.ndim = 4
+    with pytest.raises(ValueError, match="requires 5D explanations"):
+        image_to_text(mock_xwhy_result_3d)
+
+
+@patch("shap.plots.image_to_text")
+def test_image_to_text_success(
+    mock_shap_itt: MagicMock,
+    mock_xwhy_result_3d: MagicMock,
+    mock_shap_explanation: MagicMock,
+) -> None:
+    """Verify successful execution of image_to_text plot wrapper."""
+    mock_shap_explanation.values.ndim = 5
+    image_to_text(mock_xwhy_result_3d, label="test")
+    mock_shap_itt.assert_called_once_with(mock_shap_explanation, label="test")
 
 
 @patch("xwhy.plots.plots.initjs")
