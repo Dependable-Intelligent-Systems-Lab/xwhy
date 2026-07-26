@@ -16,6 +16,7 @@ Explainability is a foundational pillar for establishing this missing trust. **X
 *   [Rich Visualizations](#rich-visualizations)
 *   [Contributors](#contributors)
 *   [Advanced Feature: LLM Explainer](llm_explainer.md) — *Learn how to interpret LLM prompt-response dynamics.*
+*   [Advanced Feature: Image Classification Explainer](image_classification_explainer.md) — *Learn how to interpret image classification models.*
 
 ---
 
@@ -147,4 +148,4 @@ Thanks goes to these wonderful people:
 
 ---
 
-Next Step: If you are looking to explain foundational language models, proceed directly to our [LLM Explainer Guide](llm_explainer.md).
+Next Step: If you are looking to explain foundational language models, proceed directly to our [LLM Explainer Guide](llm_explainer.md). For image classification models, see the [Image Classification Explainer Guide](image_classification_explainer.md).

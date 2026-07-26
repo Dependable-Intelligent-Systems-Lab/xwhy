@@ -73,6 +73,43 @@ hf_explainer = LLMExplainer(provider="huggingface", token="hf_...")
 
 ```
 
+#### Approach C: Using an `LLMConfig` Object
+
+You can also centralize settings in an `LLMConfig` instance and pass it to the `LLMExplainer` constructor as a single `config` parameter. This avoids supplying individual keyword arguments for every option:
+
+```python
+from xwhy.core import LLMConfig
+from xwhy import LLMExplainer
+import xwhy
+
+llm_config = LLMConfig(
+    provider_type="openai",
+    model_name="gpt-3.5-turbo-instruct",
+    max_tokens=200,
+    temperature=0,
+    seed=1024,
+    num_perturbations=64,
+    embedding_type="word2vec",
+    surrogate_type="lime",
+    use_best_surrogate=True,
+)
+
+try:
+    explainer = LLMExplainer(config=llm_config)
+    # or use `explainer.run`
+    result = explainer.explain(
+        instance="Machine learning is fascinating.",
+        fidelity_plot=True,
+    )
+    print(result.metrics)
+    print("Explanation successful!")
+    xwhy.plots.text_heatmap(result)
+
+except Exception as e:
+    print(f"Error during pipeline execution: {e}")
+
+```
+
 ### 3. Run a Basic Explanation
 
 The following example explains the input text using an OpenAI model and displays a token-level heatmap:
