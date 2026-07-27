@@ -19,8 +19,10 @@ Use `LLMExplainer` to perturb a text prompt, compare the resulting model respons
 
 [Open the LLM tutorial](../llm_explainer.md)
 
-## Do not use placeholder interfaces as implemented explainers
+## Do not use development interfaces as implemented explainers
 
-`TabularExplainer`, `TextExplainer`, `PointCloudExplainer`, and `Pix2PixExplainer` are currently public development interfaces. Their `explain()` methods are not implemented yet.
+`TabularExplainer`, `TextExplainer`, and `PointCloudExplainer` are currently public development interfaces whose `explain()` methods are not implemented.
+
+Image-generation explainability is also under construction. The current `Pix2PixExplainer` class is an early interface within the broader image-generation and image-editing roadmap; it is not yet an executable workflow.
 
 See the [explainer status matrix](../explainers/index.md) before designing a workflow.
