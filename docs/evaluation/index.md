@@ -38,7 +38,7 @@ The same broad reliability question therefore requires a modality-specific opera
 The following gSMILE figure illustrates how ATT accuracy, faithfulness, stability, and consistency are formulated around **token-level** explanations. Ground-truth token importance, repeated runs, and minimally changed prompts provide different comparison conditions.
 
 <figure markdown>
-  ![gSMILE framework for ATT accuracy, faithfulness, stability, and consistency](https://arxiv.org/html/Figures/evaluate_metrics_hq.png)
+  ![gSMILE framework for ATT accuracy, faithfulness, stability, and consistency](https://arxiv.org/html/2505.21657v5/Figures/evaluate_metrics_hq.png)
   <figcaption>
     Token-level attribution evaluation in gSMILE. Source: Dehghani et al., <a href="https://arxiv.org/html/2505.21657#S4.SS4">Explaining Large Language Models with gSMILE</a>, Figure 6.
   </figcaption>
@@ -47,7 +47,7 @@ The following gSMILE figure illustrates how ATT accuracy, faithfulness, stabilit
 ATT fidelity requires a separate comparison between the black-box response signal and the local surrogate response over the same perturbations.
 
 <figure markdown>
-  ![gSMILE ATT fidelity evaluation framework](https://arxiv.org/html/Figures/fidelity.png)
+  ![gSMILE ATT fidelity evaluation framework](https://arxiv.org/html/2505.21657v5/Figures/fidelity.png)
   <figcaption>
     ATT fidelity workflow in gSMILE. Source: Dehghani et al., <a href="https://arxiv.org/html/2505.21657#S4.SS4.SSS5">Explaining Large Language Models with gSMILE</a>, Figure 7.
   </figcaption>
