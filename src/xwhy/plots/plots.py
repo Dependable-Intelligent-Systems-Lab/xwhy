@@ -13,6 +13,12 @@ import shap
 from xwhy.core.result import BaseXWhyResult, TextXWhyResult
 from xwhy.plots.factory import TextPlotterFactory
 from xwhy.plots.image import image_heatmap, plot_image  # noqa: F401
+from xwhy.plots.tabular import (
+    plot_dataset,  # noqa: F401
+    plot_explanation_waterfall,  # noqa: F401
+    plot_feature_contributions,  # noqa: F401
+    plot_method_contributions,  # noqa: F401
+)
 from xwhy.plots.types import TextPlotterType
 
 F = TypeVar("F", bound=Callable[..., Any])

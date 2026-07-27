@@ -99,7 +99,7 @@ class TabularConfig(ExplainerConfig):
     num_distribution_samples: int = Field(default=100, gt=0)
     local_noise: float = Field(default=0.05, ge=0.0)
     perturbation_noise: float = Field(default=0.4, ge=0.0)
-    epsilon: float = Field(default=1.0, gt=0.0)
+    epsilon: float = Field(default=0.01, gt=0.0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True

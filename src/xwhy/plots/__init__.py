@@ -22,6 +22,12 @@ from xwhy.plots.plots import (
     violin,
     waterfall,
 )
+from xwhy.plots.tabular import (
+    plot_dataset,
+    plot_explanation_waterfall,
+    plot_feature_contributions,
+    plot_method_contributions,
+)
 from xwhy.plots.text import NativeHeatmapPlotter
 from xwhy.plots.types import TextPlotterType
 
@@ -43,7 +49,11 @@ __all__ = [
     "initjs",
     "monitoring",
     "partial_dependence",
+    "plot_dataset",
+    "plot_explanation_waterfall",
+    "plot_feature_contributions",
     "plot_image",
+    "plot_method_contributions",
     "scatter",
     "text",
     "text_heatmap",
