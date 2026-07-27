@@ -97,7 +97,7 @@ result.plot(show=True)
 In gSMILE, prompt perturbations are represented by token-retention vectors. The black-box target is the semantic output shift caused by each perturbed prompt, and the local surrogate predicts that shift from the interpretable token vector. The paper evaluates alignment using R-squared variants and error-based metrics.
 
 <figure markdown>
-  ![gSMILE ATT fidelity evaluation framework](https://arxiv.org/html/Figures/fidelity.png)
+  ![gSMILE ATT fidelity evaluation framework](https://arxiv.org/html/2505.21657v5/Figures/fidelity.png)
   <figcaption>
     ATT fidelity in gSMILE compares the black-box response signal with the local surrogate signal over the same prompt perturbations. Source: Dehghani et al., <a href="https://arxiv.org/html/2505.21657#S4.SS4.SSS5">Figure 7</a>.
   </figcaption>
