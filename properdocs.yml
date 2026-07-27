@@ -81,7 +81,12 @@ plugins:
           - concepts/local-explanations.md: Scope of local explanations
           - concepts/limitations.md: Limitations and responsible interpretation
         Evaluation:
-          - evaluation/index.md: Explanation-quality evaluation status
+          - evaluation/index.md: Modality-aware explanation evaluation overview
+          - evaluation/attribution-fidelity.md: ATT fidelity and implemented surrogate metrics
+          - evaluation/attribution-accuracy.md: ATT accuracy and image coverage functions
+          - evaluation/attribution-stability.md: ATT stability under small input changes
+          - evaluation/attribution-consistency.md: ATT consistency across repeated executions
+          - evaluation/attribution-faithfulness.md: ATT faithfulness under interventions
         Research:
           - research/index.md: Research and reproducibility entry point
           - research/citation.md: How to cite XWhy
@@ -140,7 +145,13 @@ nav:
       - Connect Custom Models: how-to/custom-models.md
       - Configure LLM Providers: how-to/providers.md
       - Reproducible Explanations: how-to/reproducibility.md
-  - Evaluation: evaluation/index.md
+  - Evaluation:
+      - Overview: evaluation/index.md
+      - ATT Fidelity: evaluation/attribution-fidelity.md
+      - ATT Accuracy: evaluation/attribution-accuracy.md
+      - ATT Stability: evaluation/attribution-stability.md
+      - ATT Consistency: evaluation/attribution-consistency.md
+      - ATT Faithfulness: evaluation/attribution-faithfulness.md
   - Research:
       - Overview: research/index.md
       - Publications: research/publications.md

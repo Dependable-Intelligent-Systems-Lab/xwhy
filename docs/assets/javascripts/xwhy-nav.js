@@ -24,6 +24,15 @@
     ["Point-Cloud Examples", "examples/point-cloud/"]
   ];
 
+  const evaluationLinks = [
+    ["Evaluation overview", "evaluation/"],
+    ["ATT Fidelity", "evaluation/attribution-fidelity/"],
+    ["ATT Accuracy", "evaluation/attribution-accuracy/"],
+    ["ATT Stability", "evaluation/attribution-stability/"],
+    ["ATT Consistency", "evaluation/attribution-consistency/"],
+    ["ATT Faithfulness", "evaluation/attribution-faithfulness/"]
+  ];
+
   const researchLinks = [
     ["Research overview", "research/"],
     ["Publications", "research/publications/"],
@@ -36,7 +45,7 @@
     ["Explainers", "explainers/", explainerLinks],
     ["Tutorials & Examples", "tutorials-and-examples/", tutorialLinks],
     ["How-to Guides", "how-to/"],
-    ["Evaluation", "evaluation/"],
+    ["Evaluation", "evaluation/", evaluationLinks],
     ["Research", "research/", researchLinks],
     ["Contributors", "contributors/"]
   ];
