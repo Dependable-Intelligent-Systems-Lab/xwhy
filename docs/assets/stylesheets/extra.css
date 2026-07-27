@@ -69,6 +69,126 @@
   text-align: left;
 }
 
+.xwhy-topnav {
+  background: color-mix(
+    in srgb,
+    var(--md-default-bg-color) 96%,
+    var(--md-accent-fg-color)
+  );
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  box-shadow: 0 0.25rem 0.85rem rgba(15, 23, 42, 0.06);
+  position: sticky;
+  top: 2.4rem;
+  z-index: 3;
+}
+
+.xwhy-topnav__inner {
+  margin: 0 auto;
+  max-width: 90rem;
+  padding: 0.3rem 1.2rem;
+}
+
+.xwhy-topnav__list,
+.xwhy-topnav__dropdown {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.xwhy-topnav__list {
+  align-items: center;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.12rem;
+  justify-content: center;
+}
+
+.xwhy-topnav__item {
+  position: relative;
+}
+
+.xwhy-topnav__link,
+.xwhy-topnav__dropdown-link {
+  align-items: center;
+  border-radius: 0.34rem;
+  color: var(--md-default-fg-color);
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 720;
+  line-height: 1.25;
+  min-height: 1.7rem;
+  padding: 0.4rem 0.48rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.xwhy-topnav__link:hover,
+.xwhy-topnav__link:focus,
+.xwhy-topnav__dropdown-link:hover,
+.xwhy-topnav__dropdown-link:focus {
+  background: color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent);
+  color: var(--md-accent-fg-color);
+  outline: none;
+}
+
+.xwhy-topnav__link--active,
+.xwhy-topnav__dropdown-link--active {
+  background: color-mix(in srgb, var(--md-accent-fg-color) 14%, transparent);
+  color: var(--md-accent-fg-color);
+}
+
+.xwhy-topnav__link--menu::after {
+  border-bottom: 0.21rem solid transparent;
+  border-left: 0.21rem solid transparent;
+  border-right: 0.21rem solid transparent;
+  border-top: 0.25rem solid currentcolor;
+  content: "";
+  margin-left: 0.34rem;
+  transform: translateY(0.08rem);
+}
+
+.xwhy-topnav__dropdown {
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.45rem;
+  box-shadow: 0 0.6rem 1.5rem rgba(15, 23, 42, 0.14);
+  left: 0;
+  max-height: min(70vh, 32rem);
+  min-width: 18rem;
+  opacity: 0;
+  overflow-y: auto;
+  padding: 0.36rem;
+  pointer-events: none;
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  transform: translateY(-0.25rem);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+  visibility: hidden;
+  z-index: 5;
+}
+
+.xwhy-topnav__item--has-menu:hover > .xwhy-topnav__dropdown,
+.xwhy-topnav__item--has-menu:focus-within > .xwhy-topnav__dropdown {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.xwhy-topnav__dropdown-link {
+  display: flex;
+  font-size: 0.7rem;
+  justify-content: flex-start;
+  padding: 0.44rem 0.52rem;
+  white-space: normal;
+}
+
+@media screen and (max-width: 76.24em) {
+  .xwhy-topnav {
+    display: none;
+  }
+}
+
 .xwhy-ask-ai {
   bottom: 1.25rem;
   position: fixed;
