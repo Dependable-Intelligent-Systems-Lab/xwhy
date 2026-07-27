@@ -36,7 +36,7 @@ The reference may come from human annotation, a semantic mask, domain-expert evi
 The gSMILE paper compares token attribution scores with ground-truth labels identifying relevant input words. It operationalises ATT accuracy with the ROC-AUC of attribution scores: a score of 1 indicates perfect ranking of relevant tokens above irrelevant tokens, while 0.5 corresponds to random ranking.
 
 <figure markdown>
-  ![gSMILE token attribution evaluation concepts](https://arxiv.org/html/Figures/evaluate_metrics_hq.png)
+  ![gSMILE token attribution evaluation concepts](https://arxiv.org/html/2505.21657v5/Figures/evaluate_metrics_hq.png)
   <figcaption>
     The gSMILE example compares token-level ground truth with generated token attributions. Source: Dehghani et al., <a href="https://arxiv.org/html/2505.21657#S4.SS4.SSS1">Figure 6 and Section 4.4.1</a>.
   </figcaption>
