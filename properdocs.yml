@@ -1,13 +1,20 @@
 site_name: XWhy Documentation
-site_description: Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)
+site_description: Model-agnostic explainability with XWhy and SMILE for image, LLM, text, tabular, point-cloud, and future multimodal systems.
+site_author: XWhy contributors
 site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
 repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
+repo_name: Dependable-Intelligent-Systems-Lab/xwhy
+
+copyright: Copyright &copy; XWhy contributors
 
 theme:
   name: material
   features:
     - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
     - navigation.top
+    - toc.follow
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -17,6 +24,9 @@ markdown_extensions:
   - pymdownx.details
   - attr_list
   - md_in_html
+  - tables
+  - toc:
+      permalink: true
 
 plugins:
   - search
@@ -32,18 +42,38 @@ plugins:
       nav_file: SUMMARY.md
   - llmstxt:
       markdown_description: >-
-        XWhy (Explain Why) implements SMILE (Statistical Model-agnostic
-        Interpretability with Local Explanations), a model-agnostic
-        explainability library for machine learning models.
+        XWhy is a Python library for model-agnostic local explainability using
+        SMILE. Image-classification and LLM explainers are currently available.
+        Additional modalities are being developed and are explicitly labelled
+        in the documentation.
       full_output: llms-full.txt
       sections:
-        Documentation:
-          - index.md: XWhy overview, installation, and quick start
-          - llm_explainer.md: Guide to explaining LLM prompt-response behavior
-          - examples/index.md: Index of worked examples
-          - examples/llm-explainer.md: Worked example comparing embedding backends with real outputs
-          - contribute/contributing.md: How to contribute to XWhy
-          - RELEASING.md: Release process for maintainers
+        Getting Started:
+          - index.md: XWhy overview and capability status
+          - getting-started/installation.md: Installation and optional dependencies
+          - getting-started/quick-start.md: First explanation workflow
+          - getting-started/choosing-an-explainer.md: Select the correct explainer
+        Explainers:
+          - explainers/index.md: Supported and planned explainers
+          - explainers/image/index.md: Image-classification explainability
+          - explainers/llm/index.md: LLM prompt-response explainability
+          - explainers/tabular.md: Tabular explainer development status
+          - explainers/text.md: Text explainer development status
+          - explainers/point-cloud.md: Point-cloud explainer development status
+          - explainers/pix2pix.md: Pix2Pix explainer development status
+          - explainers/time-series.md: Planned time-series explainability
+          - explainers/multimodal.md: Planned multimodal explainability
+        Concepts:
+          - concepts/smile.md: How the SMILE explanation workflow operates
+          - concepts/local-explanations.md: Scope of local explanations
+          - concepts/limitations.md: Limitations and responsible interpretation
+        Evaluation:
+          - evaluation/index.md: Explanation-quality evaluation status
+        Research:
+          - research/index.md: Research and reproducibility entry point
+          - research/citation.md: How to cite XWhy
+        API Reference:
+          - reference/: Generated Python API reference
 
 extra_css:
   - assets/stylesheets/extra.css
@@ -58,12 +88,50 @@ extra:
 
 nav:
   - Home: index.md
-  - LLM Explainer Guide: llm_explainer.md
+  - Get Started:
+      - Overview: getting-started/index.md
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Choose an Explainer: getting-started/choosing-an-explainer.md
+      - Explanation Results: getting-started/explanation-results.md
+      - Visualisation: getting-started/visualisation.md
+  - Explainers:
+      - Overview: explainers/index.md
+      - Image Classification: explainers/image/index.md
+      - LLM: explainers/llm/index.md
+      - Tabular: explainers/tabular.md
+      - Text: explainers/text.md
+      - Point Cloud: explainers/point-cloud.md
+      - Pix2Pix: explainers/pix2pix.md
+      - Time Series: explainers/time-series.md
+      - Multimodal: explainers/multimodal.md
+  - Tutorials:
+      - Image Classification Explainer: image_classification_explainer.md
+      - LLM Explainer: llm_explainer.md
   - Examples:
       - Overview: examples/index.md
       - LLM Explainer: examples/llm-explainer.md
-  - Image Classification Explainer Guide: image_classification_explainer.md
-  - Contribute: contribute/contributing.md
+      - Image: examples/image.md
+      - Tabular: examples/tabular.md
+      - Text: examples/text.md
+      - Point Cloud: examples/point-cloud.md
+  - How-to Guides:
+      - Overview: how-to/index.md
+      - Configure Logging: how-to/logging.md
+      - Connect Custom Models: how-to/custom-models.md
+      - Configure LLM Providers: how-to/providers.md
+      - Reproducible Explanations: how-to/reproducibility.md
+  - Concepts:
+      - Overview: concepts/index.md
+      - How SMILE Works: concepts/smile.md
+      - Local Explanations: concepts/local-explanations.md
+      - Limitations and Responsible Use: concepts/limitations.md
+  - Evaluation: evaluation/index.md
   - API Reference: reference/
-  - Development Guide:
+  - Research:
+      - Overview: research/index.md
+      - Publications: research/publications.md
+      - Citation: research/citation.md
+  - Project:
+      - Contributing: contribute/contributing.md
       - Releasing: RELEASING.md

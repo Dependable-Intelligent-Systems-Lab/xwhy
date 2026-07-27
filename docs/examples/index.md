@@ -1,11 +1,22 @@
+---
+title: XWhy Examples
+description: Worked and planned XWhy examples for LLM, image, tabular, text, and point-cloud explainability.
+---
+
 # Examples
 
-Worked examples of XWhy in action — real code, real output, and a plain-language
-read of what each result means. Pick the explainer you're working with:
+Worked examples should contain executable code, representative output, and a plain-language interpretation of the result.
 
-* **[LLM Explainer](llm-explainer.md)** — comparing word-embedding backends,
-  reading fidelity scores, and interpreting heatmap/bar/waterfall/decision
-  plots for a single sentence.
+## Available
 
-More explainer walkthroughs (image classifiers, tabular models, and others)
-will be added here as their own pages as XWhy's coverage grows.
+- [LLM explainer example](llm-explainer.md): compares embedding backends and interprets explanation plots.
+
+## Coming soon
+
+- [Image examples](image.md)
+- [Tabular examples](tabular.md)
+- [Text examples](text.md)
+- [Point-cloud examples](point-cloud.md)
+
+!!! note
+    Example pages labelled coming soon are intentionally visible to establish stable URLs and show the intended coverage. They must not imply that an unfinished explainer is executable.
