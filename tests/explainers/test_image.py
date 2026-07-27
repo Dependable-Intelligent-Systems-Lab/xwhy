@@ -33,14 +33,14 @@ class DummyModule(nn.Module):
 # ---------------------------------------------------------------------------
 
 
-def test_init_invalid_distance_metric() -> None:
+def test_init_invalid_distance_type() -> None:
     """Raise ValueError for non-numeric distance metric."""
     with patch("xwhy.explainers.image.DistanceType") as mock_dist_type:
         mock_metric = MagicMock()
         mock_metric.is_numeric_metric = False
         mock_dist_type.from_str.return_value = mock_metric
         with pytest.raises(ValueError, match=re.escape("Invalid distance metric")):
-            ImageClassificationExplainer(distance_metric="invalid")
+            ImageClassificationExplainer(distance_type="invalid")
 
 
 @patch("xwhy.explainers.image.ClassificationFactory")
@@ -416,7 +416,7 @@ def test_run_perturbation_loop_without_embedding(
     explainer = MagicMock(spec=ImageClassificationExplainer)
     explainer.config = MagicMock()
     explainer.config.use_embedding_model = False
-    explainer.config.distance_metric = DistanceType.WASSERSTEIN
+    explainer.config.distance_type = DistanceType.WASSERSTEIN
     explainer.state = MagicMock()
     explainer.state.device = torch.device("cpu")
     explainer.state.transform_fn = MagicMock()
@@ -457,7 +457,7 @@ def test_run_perturbation_loop_with_embedding(
     explainer = MagicMock(spec=ImageClassificationExplainer)
     explainer.config = MagicMock()
     explainer.config.use_embedding_model = True
-    explainer.config.distance_metric = DistanceType.WASSERSTEIN
+    explainer.config.distance_type = DistanceType.WASSERSTEIN
     explainer.state = MagicMock()
     explainer.state.device = torch.device("cpu")
     explainer.state.transform_fn = MagicMock()
@@ -537,7 +537,7 @@ def _build_explainer_mocks(
     explainer.config.num_perturb = num_perturb
     explainer.config.use_model_preprocess = True
     explainer.config.use_embedding_model = use_embed
-    explainer.config.distance_metric = DistanceType.WASSERSTEIN
+    explainer.config.distance_type = DistanceType.WASSERSTEIN
     explainer.config.seed = 222
 
     explainer._run_perturbation_loop.return_value = (

@@ -69,7 +69,7 @@ class ImageClassificationExplainer(
         max_dist: int = 200,
         ratio: float = 0.2,
         num_perturb: int = 150,
-        distance_metric: str | DistanceType = DistanceType.WASSERSTEIN,
+        distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         num_top_features: int = 4,
@@ -98,18 +98,18 @@ class ImageClassificationExplainer(
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
             num_perturb: Number of perturbed samples.
-            distance_metric: Distance metric name.
+            distance_type: Distance metric name.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
             num_top_features: Number of important regions to highlight.
             num_top_predictions: Number of predictions to explain.
 
         """
-        distance_metric = DistanceType.from_str(distance_metric)
+        distance_type = DistanceType.from_str(distance_type)
 
-        if not distance_metric.is_numeric_metric:
+        if not distance_type.is_numeric_metric:
             raise ValueError(
-                f"Invalid distance metric '{distance_metric}' "
+                f"Invalid distance metric '{distance_type}' "
                 "for ImageClassificationExplainer. Must be a numeric distance."
             )
 
@@ -135,7 +135,7 @@ class ImageClassificationExplainer(
                 max_dist=max_dist,
                 ratio=ratio,
                 num_perturb=num_perturb,
-                distance_metric=distance_metric,
+                distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
                 num_top_features=num_top_features,
@@ -257,7 +257,7 @@ class ImageClassificationExplainer(
 
         device = self.state.device
         use_embedding = self.config.use_embedding_model  # type: ignore[union-attr]
-        dist_metric = self.config.distance_metric  # type: ignore[union-attr]
+        dist_type = self.config.distance_type  # type: ignore[union-attr]
 
         # 1. Pre-calculate original representation (Optimization: do this once)
         base_representation = original_image
@@ -298,7 +298,7 @@ class ImageClassificationExplainer(
                 current_representation = np.asarray(perturbed_embedding)
 
             dist = calculate_distance(
-                metric=dist_metric,
+                metric=dist_type,
                 source=base_representation,
                 target=current_representation,
             )

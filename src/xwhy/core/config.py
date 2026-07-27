@@ -75,7 +75,7 @@ class ImageClassificationConfig(ExplainerConfig):
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
     num_perturb: int = Field(default=150, gt=0)
 
-    distance_metric: DistanceType | str = DistanceType.WASSERSTEIN
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
 
