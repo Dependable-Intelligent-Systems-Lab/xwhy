@@ -163,6 +163,10 @@
     injectAskAiButton();
   }
 
+  if (typeof document$ !== "undefined") {
+    document$.subscribe(init);
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
