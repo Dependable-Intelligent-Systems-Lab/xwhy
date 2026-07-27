@@ -1,6 +1,6 @@
 ---
 title: XWhy Explainability Documentation
-description: Use XWhy and SMILE to explain image classifiers and LLM responses, with a scalable roadmap for text, tabular, point-cloud, time-series, and multimodal explainability.
+description: Use XWhy and SMILE to explain image classifiers and LLM responses, with a scalable roadmap for image generation, text, tabular, point-cloud, time-series, and multimodal explainability.
 ---
 
 # XWhy explainability documentation
@@ -10,7 +10,7 @@ description: Use XWhy and SMILE to explain image classifiers and LLM responses, 
 XWhy is a Python library for model-agnostic local explainability. It uses **SMILE**—Statistical Model-agnostic Interpretability with Local Explanations—to perturb an input, observe changes in model behaviour, fit a local surrogate model, and report feature-level influence together with explanation-quality evidence.
 
 !!! info "Current package maturity"
-    XWhy `0.0.2` is currently classified as **pre-alpha**. Image-classification and LLM explainers are implemented. Other modalities are clearly labelled as under construction or coming soon.
+    XWhy `0.0.2` is currently classified as **pre-alpha**. Image-classification and LLM explainers are implemented. Other capabilities are clearly labelled as under construction or coming soon.
 
 ## Start here
 
@@ -22,16 +22,18 @@ XWhy is a Python library for model-agnostic local explainability. It uses **SMIL
 
 ## Capability overview
 
-| Modality | Public component | Documentation status | Implementation status |
+| Capability | Public component | Documentation status | Implementation status |
 | --- | --- | --- | --- |
 | Image classification | `ImageClassificationExplainer` | Available | Available |
+| Image generation and editing | `Pix2PixExplainer` prototype | Under construction | Interface only |
 | LLM prompt-response | `LLMExplainer` | Available | Available |
 | Tabular | `TabularExplainer` | Under construction | Interface only |
 | Text | `TextExplainer` | Under construction | Interface only |
 | Point cloud | `PointCloudExplainer` | Under construction | Interface only |
-| Pix2Pix / image-to-image | `Pix2PixExplainer` | Experimental | Interface only |
 | Time series | Planned | Coming soon | Not yet implemented |
 | Multimodal | Planned | Coming soon | Not yet implemented |
+
+Pix2Pix is documented as one image-editing model family within the broader [image-generation explainability](explainers/image-generation/index.md) section.
 
 ## What XWhy explanations mean
 
