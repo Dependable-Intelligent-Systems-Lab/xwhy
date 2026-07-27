@@ -24,6 +24,12 @@
     ["Point-Cloud Examples", "examples/point-cloud/"]
   ];
 
+  const researchLinks = [
+    ["Research overview", "research/"],
+    ["Publications", "research/publications/"],
+    ["Citation guidance", "research/citation/"]
+  ];
+
   const navLinks = [
     ["Home", ""],
     ["Get Started", "getting-started/"],
@@ -31,7 +37,7 @@
     ["Tutorials & Examples", "tutorials-and-examples/", tutorialLinks],
     ["How-to Guides", "how-to/"],
     ["Evaluation", "evaluation/"],
-    ["Research", "research/"],
+    ["Research", "research/", researchLinks],
     ["Contributors", "contributors/"]
   ];
 
