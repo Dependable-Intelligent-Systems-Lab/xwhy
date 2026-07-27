@@ -31,7 +31,6 @@
     ["Tutorials & Examples", "tutorials-and-examples/", tutorialLinks],
     ["How-to Guides", "how-to/"],
     ["Evaluation", "evaluation/"],
-    ["API Reference", "reference/"],
     ["Research", "research/"],
     ["Contributors", "contributors/"]
   ];
