@@ -24,6 +24,14 @@
     ["Point-Cloud Examples", "examples/point-cloud/"]
   ];
 
+  const howToLinks = [
+    ["How-to overview", "how-to/"],
+    ["Configure logging", "how-to/logging/"],
+    ["Connect a custom model", "how-to/custom-models/"],
+    ["Configure an LLM provider", "how-to/providers/"],
+    ["Make explanations reproducible", "how-to/reproducibility/"]
+  ];
+
   const evaluationLinks = [
     ["Evaluation overview", "evaluation/"],
     ["ATT Fidelity", "evaluation/attribution-fidelity/"],
@@ -44,7 +52,7 @@
     ["Get Started", "getting-started/"],
     ["Explainers", "explainers/", explainerLinks],
     ["Tutorials & Examples", "tutorials-and-examples/", tutorialLinks],
-    ["How-to Guides", "how-to/"],
+    ["How-to Guides", "how-to/", howToLinks],
     ["Evaluation", "evaluation/", evaluationLinks],
     ["Research", "research/", researchLinks],
     ["Contributors", "contributors/"]
