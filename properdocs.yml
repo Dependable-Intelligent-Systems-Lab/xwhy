@@ -1,5 +1,5 @@
 site_name: XWhy Documentation
-site_description: Model-agnostic explainability with XWhy and SMILE for image, LLM, text, tabular, point-cloud, and future multimodal systems.
+site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, and future multimodal systems.
 site_author: XWhy contributors
 site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
 repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
@@ -44,8 +44,8 @@ plugins:
       markdown_description: >-
         XWhy is a Python library for model-agnostic local explainability using
         SMILE. Image-classification and LLM explainers are currently available.
-        Additional modalities are being developed and are explicitly labelled
-        in the documentation.
+        Image-generation explainability and additional modalities are being
+        developed and are explicitly labelled in the documentation.
       full_output: llms-full.txt
       sections:
         Getting Started:
@@ -56,11 +56,13 @@ plugins:
         Explainers:
           - explainers/index.md: Supported and planned explainers
           - explainers/image/index.md: Image-classification explainability
+          - explainers/image-generation/index.md: Planned image-generation explainability
+          - explainers/image-generation/image-editing.md: Planned image-editing explainability
+          - explainers/image-generation/pix2pix-models.md: Pix2Pix as an image-editing model example
           - explainers/llm/index.md: LLM prompt-response explainability
           - explainers/tabular.md: Tabular explainer development status
           - explainers/text.md: Text explainer development status
           - explainers/point-cloud.md: Point-cloud explainer development status
-          - explainers/pix2pix.md: Pix2Pix explainer development status
           - explainers/time-series.md: Planned time-series explainability
           - explainers/multimodal.md: Planned multimodal explainability
         Concepts:
@@ -98,11 +100,14 @@ nav:
   - Explainers:
       - Overview: explainers/index.md
       - Image Classification: explainers/image/index.md
+      - Image Generation:
+          - Overview: explainers/image-generation/index.md
+          - Image Editing: explainers/image-generation/image-editing.md
+          - Pix2Pix Models: explainers/image-generation/pix2pix-models.md
       - LLM: explainers/llm/index.md
       - Tabular: explainers/tabular.md
       - Text: explainers/text.md
       - Point Cloud: explainers/point-cloud.md
-      - Pix2Pix: explainers/pix2pix.md
       - Time Series: explainers/time-series.md
       - Multimodal: explainers/multimodal.md
   - Tutorials:
