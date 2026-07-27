@@ -10,7 +10,6 @@ copyright: Copyright &copy; XWhy contributors
 theme:
   name: material
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.indexes
     - navigation.top
@@ -65,6 +64,15 @@ plugins:
           - explainers/point-cloud.md: Point-cloud explainer development status
           - explainers/time-series.md: Planned time-series explainability
           - explainers/multimodal.md: Planned multimodal explainability
+        Tutorials and Examples:
+          - tutorials-and-examples/index.md: Directory of available and planned tutorials and examples
+          - image_classification_explainer.md: Image-classification tutorial
+          - llm_explainer.md: LLM explainer tutorial
+          - examples/llm-explainer.md: Worked LLM example
+          - examples/image.md: Planned image examples
+          - examples/tabular.md: Planned tabular examples
+          - examples/text.md: Planned text examples
+          - examples/point-cloud.md: Planned point-cloud examples
         Concepts:
           - concepts/smile.md: How the SMILE explanation workflow operates
           - concepts/local-explanations.md: Scope of local explanations
@@ -74,6 +82,9 @@ plugins:
         Research:
           - research/index.md: Research and reproducibility entry point
           - research/citation.md: How to cite XWhy
+        Contributors:
+          - contributors.md: Contributors, maintainers, and contribution routes
+          - contribute/contributing.md: Contribution guide
         API Reference:
           - reference/: Generated Python API reference
 
@@ -81,6 +92,7 @@ extra_css:
   - assets/stylesheets/extra.css
 
 extra_javascript:
+  - assets/javascripts/xwhy-nav.js
   - assets/javascripts/ai-links.js
 
 extra:
@@ -110,33 +122,35 @@ nav:
       - Point Cloud: explainers/point-cloud.md
       - Time Series: explainers/time-series.md
       - Multimodal: explainers/multimodal.md
-  - Tutorials:
-      - Image Classification Explainer: image_classification_explainer.md
-      - LLM Explainer: llm_explainer.md
-  - Examples:
-      - Overview: examples/index.md
-      - LLM Explainer: examples/llm-explainer.md
-      - Image: examples/image.md
-      - Tabular: examples/tabular.md
-      - Text: examples/text.md
-      - Point Cloud: examples/point-cloud.md
+  - Tutorials & Examples:
+      - Overview: tutorials-and-examples/index.md
+      - Image Classification Tutorial: image_classification_explainer.md
+      - LLM Tutorial: llm_explainer.md
+      - LLM Worked Example: examples/llm-explainer.md
+      - Image Examples: examples/image.md
+      - Tabular Examples: examples/tabular.md
+      - Text Examples: examples/text.md
+      - Point-Cloud Examples: examples/point-cloud.md
   - How-to Guides:
       - Overview: how-to/index.md
       - Configure Logging: how-to/logging.md
       - Connect Custom Models: how-to/custom-models.md
       - Configure LLM Providers: how-to/providers.md
       - Reproducible Explanations: how-to/reproducibility.md
-  - Concepts:
-      - Overview: concepts/index.md
-      - How SMILE Works: concepts/smile.md
-      - Local Explanations: concepts/local-explanations.md
-      - Limitations and Responsible Use: concepts/limitations.md
   - Evaluation: evaluation/index.md
   - API Reference: reference/
   - Research:
       - Overview: research/index.md
       - Publications: research/publications.md
       - Citation: research/citation.md
-  - Project:
-      - Contributing: contribute/contributing.md
-      - Releasing: RELEASING.md
+  - Contributors:
+      - Overview: contributors.md
+      - Contributing Guide: contribute/contributing.md
+
+not_in_nav: |
+  concepts/index.md
+  concepts/smile.md
+  concepts/local-explanations.md
+  concepts/limitations.md
+  examples/index.md
+  RELEASING.md
