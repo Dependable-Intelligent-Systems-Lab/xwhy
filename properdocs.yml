@@ -10,6 +10,9 @@ copyright: Copyright &copy; XWhy contributors
 theme:
   name: material
   features:
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
     - navigation.sections
     - navigation.indexes
     - navigation.top
@@ -146,6 +149,9 @@ nav:
   - Contributors:
       - Overview: contributors.md
       - Contributing Guide: contribute/contributing.md
+
+exclude_docs: |
+  gen_ref_pages.py
 
 not_in_nav: |
   concepts/index.md
