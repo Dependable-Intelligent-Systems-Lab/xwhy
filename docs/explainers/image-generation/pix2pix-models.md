@@ -1,6 +1,6 @@
 ---
 title: Pix2Pix Models in XWhy Image Generation
- description: Planned examples showing how Pix2Pix-style image-to-image models may be explained within the broader XWhy image-generation documentation.
+description: Planned examples showing how Pix2Pix-style image-to-image models may be explained within the broader XWhy image-generation documentation.
 ---
 
 # Pix2Pix model examples
