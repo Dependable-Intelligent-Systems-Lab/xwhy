@@ -141,7 +141,6 @@ nav:
       - Configure LLM Providers: how-to/providers.md
       - Reproducible Explanations: how-to/reproducibility.md
   - Evaluation: evaluation/index.md
-  - API Reference: reference/
   - Research:
       - Overview: research/index.md
       - Publications: research/publications.md
@@ -159,4 +158,5 @@ not_in_nav: |
   concepts/local-explanations.md
   concepts/limitations.md
   examples/index.md
+  reference/
   RELEASING.md
