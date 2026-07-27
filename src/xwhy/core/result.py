@@ -153,3 +153,23 @@ class ImageClassificationXWhyResult(BaseXWhyResult):
             data=data_arr,
             feature_names=self.feature_names,
         )
+
+
+@dataclass
+class TabularXWhyResult(BaseXWhyResult):
+    """Container for tabular-specific explanation results."""
+
+    feature_list: Sequence[str] = field(default_factory=list)
+    instance: np.ndarray | None = None
+
+    @property
+    def feature_names(self) -> Sequence[str] | np.ndarray:
+        """Sequence of feature names corresponding to the tabular columns."""
+        if not self.feature_list and self.instance is not None:
+            return [f"Feature_{i}" for i in range(len(self.instance))]
+        return self.feature_list
+
+    @property
+    def data(self) -> np.ndarray | Sequence[Any] | None:
+        """The underlying raw data instance (the explained sample)."""
+        return self.instance

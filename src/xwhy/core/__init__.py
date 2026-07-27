@@ -4,6 +4,7 @@ from xwhy.core.config import (
     ExplainerConfig,
     ImageClassificationConfig,
     LLMConfig,
+    TabularConfig,
 )
 from xwhy.core.exceptions import XWhyError
 from xwhy.core.explainer import BaseExplainer
@@ -17,5 +18,6 @@ __all__ = [
     "ExplanationPipeline",
     "ImageClassificationConfig",
     "LLMConfig",
+    "TabularConfig",
     "XWhyError",
 ]
