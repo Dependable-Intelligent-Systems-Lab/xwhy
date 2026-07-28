@@ -16,7 +16,7 @@
   const tutorialLinks = [
     ["All tutorials & examples", "tutorials-and-examples/"],
     ["Image Classification Tutorial", "image_classification_explainer/"],
-    ["LLM Tutorial", "llm_explainer/"],
+    ["LLM Example", "llm_explainer/"],
     ["Image Examples", "examples/image/"],
     ["Tabular Examples", "examples/tabular/"],
     ["Text Examples", "examples/text/"],
