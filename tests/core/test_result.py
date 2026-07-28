@@ -10,6 +10,7 @@ import pytest
 from xwhy.core.result import (
     BaseXWhyResult,
     ImageClassificationXWhyResult,
+    TabularXWhyResult,
     TextXWhyResult,
 )
 from xwhy.metrics.regression import RegressionMetricResult
@@ -20,18 +21,18 @@ class ConcreteResult(BaseXWhyResult):
 
     @property
     def feature_names(self) -> Sequence[str]:
-        """Mock feature names for testing."""
+        """Return mock feature names for testing."""
         return ["feat1", "feat2"]
 
     @property
     def data(self) -> np.ndarray:
-        """Mock data instance for testing."""
+        """Return mock data instance for testing."""
         return np.array([1, 2])
 
 
 @pytest.fixture
 def mock_metrics() -> RegressionMetricResult:
-    """Fixture to provide a dummy metric result."""
+    """Provide a dummy metric result fixture."""
     return RegressionMetricResult(
         weighted_mse=0.1,
         weighted_mae=0.1,
@@ -86,7 +87,7 @@ def test_raw_data_mutation(mock_metrics: RegressionMetricResult) -> None:
 def test_to_shap_conversion_success(
     mock_shap_explanation: MagicMock, mock_metrics: RegressionMetricResult
 ) -> None:
-    """Verify to_shap creates an Explanation object correctly when shap is available."""
+    """Verify to_shap creates an Explanation object correctly."""
     result = TextXWhyResult(
         coefficients=np.array([0.5, 0.2]),
         metrics=mock_metrics,
@@ -95,21 +96,14 @@ def test_to_shap_conversion_success(
 
     out_object = result.to_shap()
 
-    # 1. Verify it was called exactly once
     mock_shap_explanation.assert_called_once()
-
-    # 2. Extract the arguments it was called with
     called_kwargs = mock_shap_explanation.call_args.kwargs
 
-    # 3. Assert Numpy arrays using np.testing
     np.testing.assert_array_equal(called_kwargs["values"], result.coefficients)
     np.testing.assert_array_equal(called_kwargs["data"], result.data)
 
-    # 4. Assert standard types normally
     assert called_kwargs["base_values"] == result.base_values
     assert list(called_kwargs["feature_names"]) == list(result.feature_names)
-
-    # 5. Verify the returned object
     assert out_object == mock_shap_explanation.return_value
 
 
@@ -120,7 +114,6 @@ class TestBaseXWhyResult:
         self, mock_metrics: RegressionMetricResult
     ) -> None:
         """Ensure KeyError is raised if required arrays are missing in raw_data."""
-        # Missing 'weights' and 'y_pred'
         raw_data = {"y_target": np.array([1.0, 2.0])}
 
         result_obj = ConcreteResult(
@@ -136,7 +129,7 @@ class TestBaseXWhyResult:
     def test_plot_success(
         self, mock_plot_fidelity: MagicMock, mock_metrics: RegressionMetricResult
     ) -> None:
-        """Test that plot successfully delegates to plot_fidelity with correct data."""
+        """Test that plot successfully delegates to plot_fidelity."""
         y_target_mock = np.array([1.0, 2.0])
         y_pred_mock = np.array([1.1, 1.9])
         weights_mock = np.array([1.0, 1.0])
@@ -161,7 +154,6 @@ class TestBaseXWhyResult:
 
         assert returned_path == "/mock/path/plot.png"
 
-        # Verify the delegation was done correctly
         mock_plot_fidelity.assert_called_once_with(
             metrics=mock_metrics,
             y_target=y_target_mock,
@@ -175,7 +167,7 @@ class TestBaseXWhyResult:
 def test_image_classification_result_initialization(
     mock_metrics: RegressionMetricResult,
 ) -> None:
-    """Verify result initialization with defaults."""
+    """Verify ImageClassificationXWhyResult initialization with defaults."""
     coeffs = np.array([0.1, 0.2])
     orig_img = np.zeros((10, 10, 3))
     superpixels = np.ones((10, 10))
@@ -203,7 +195,7 @@ def test_image_classification_result_initialization(
 def test_image_classification_result_properties(
     mock_metrics: RegressionMetricResult,
 ) -> None:
-    """Verify feature_names and data properties."""
+    """Verify feature_names and data properties of image results."""
     coeffs = np.array([0.5, 0.3])
     orig_img = np.ones((5, 5, 3))
     result = ImageClassificationXWhyResult(
@@ -320,3 +312,57 @@ def test_to_shap_without_superpixels(
     np.testing.assert_array_equal(called_kwargs["values"], coeffs)
     np.testing.assert_array_equal(called_kwargs["data"], orig_img)
     assert out_obj == mock_shap_explanation.return_value
+
+
+def test_tabular_result_initialization(mock_metrics: RegressionMetricResult) -> None:
+    """Verify TabularXWhyResult initializes correctly and maps the data property."""
+    coeffs = np.array([0.1, 0.2])
+    instance = np.array([10.5, 20.1])
+    result = TabularXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        instance=instance,
+    )
+
+    assert np.array_equal(result.coefficients, coeffs)
+    assert result.metrics == mock_metrics
+    assert result.data is not None
+    assert np.array_equal(result.data, instance)
+
+
+def test_tabular_feature_names_explicit(mock_metrics: RegressionMetricResult) -> None:
+    """Verify explicit feature list is returned when provided."""
+    features = ["Age", "Income"]
+    result = TabularXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        feature_list=features,
+        instance=np.array([25, 50000]),
+    )
+
+    assert result.feature_names == features
+
+
+def test_tabular_feature_names_generated(mock_metrics: RegressionMetricResult) -> None:
+    """Verify feature names are dynamically generated when list is missing."""
+    result = TabularXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        feature_list=[],
+        instance=np.array([25, 50000]),
+    )
+
+    expected_names = ["Feature_0", "Feature_1"]
+    assert result.feature_names == expected_names
+
+
+def test_tabular_feature_names_empty(mock_metrics: RegressionMetricResult) -> None:
+    """Verify empty list is returned when both feature_list and instance are missing."""
+    result = TabularXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        feature_list=[],
+        instance=None,
+    )
+
+    assert result.feature_names == []
