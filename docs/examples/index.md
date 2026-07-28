@@ -5,11 +5,11 @@ description: Worked and planned XWhy examples for LLM, image, tabular, text, and
 
 # Examples
 
-Worked examples should contain executable code, representative output, and a plain-language interpretation of the result.
+Worked examples should contain executable code, representative output, and a plain-language interpretation of the result. To avoid duplicating setup and interpretation guidance, available worked examples may be integrated into their main tutorial.
 
 ## Available
 
-- [LLM explainer example](llm-explainer.md): compares embedding backends and interprets explanation plots.
+- [LLM explainer tutorial and worked example](../llm_explainer.md): configures the explainer, compares embedding backends, reports executed metrics, and interprets the explanation plots.
 
 ## Coming soon
 
