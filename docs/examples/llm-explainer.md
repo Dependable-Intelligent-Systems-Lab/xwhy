@@ -1,13 +1,13 @@
 ---
-title: LLM Tutorial Moved
-description: The former standalone LLM worked example has been merged into the complete XWhy LLM explainer tutorial.
+title: LLM Example Moved
+description: The former standalone LLM worked example has been merged into the complete XWhy LLM Example.
 ---
 
-# LLM tutorial moved
+# LLM Example moved
 
-The standalone worked example has been merged into the [complete LLM explainer tutorial](../llm_explainer.md).
+The standalone worked example has been merged into the [complete LLM Example](../llm_explainer.md).
 
-The unified tutorial now contains:
+The unified example now contains:
 
 - provider and credential setup;
 - a complete explanation workflow;
