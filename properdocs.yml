@@ -70,7 +70,7 @@ plugins:
         Tutorials and Examples:
           - tutorials-and-examples/index.md: Directory of available and planned tutorials and examples
           - image_classification_explainer.md: Image-classification tutorial
-          - llm_explainer.md: Unified LLM tutorial with executed examples and embedding comparison
+          - llm_explainer.md: Unified LLM example with setup, executed outputs, and embedding comparison
           - examples/image.md: Planned image examples
           - examples/tabular.md: Planned tabular examples
           - examples/text.md: Planned text examples
@@ -132,7 +132,7 @@ nav:
   - Tutorials & Examples:
       - Overview: tutorials-and-examples/index.md
       - Image Classification Tutorial: image_classification_explainer.md
-      - LLM Tutorial: llm_explainer.md
+      - LLM Example: llm_explainer.md
       - Image Examples: examples/image.md
       - Tabular Examples: examples/tabular.md
       - Text Examples: examples/text.md
