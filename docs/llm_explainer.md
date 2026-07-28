@@ -5,7 +5,7 @@ description: Configure XWhy's LLM explainer, generate and evaluate a local promp
 
 # LLM explainer tutorial
 
-Large language model outputs depend on interacting words, tokens, and context. XWhy treats the model as a black box: it perturbs the input prompt, observes how the response changes, and fits a local surrogate model that estimates which input terms influenced that specific response.
+Large language model outputs depend on interacting words, tokens, and context. XWhy treats the model as a black box: it obtains the original response, perturbs the input prompt, measures the semantic distance between that response and each perturbed prompt, and fits a local surrogate model that estimates how the prompt terms contribute to this response-alignment score.
 
 This single tutorial covers setup, execution, interpretation, and an executed comparison of four embedding backends. It does not expose private chain-of-thought or reconstruct the model's internal computation.
 
@@ -63,17 +63,17 @@ Replace `model_name` with a model available through your provider account.
 For the selected prompt, XWhy:
 
 1. obtains the original model response;
-2. generates perturbed versions of the prompt;
-3. obtains responses for those perturbations;
-4. represents response differences using the selected text embedding and Word Mover's Distance;
-5. fits a local surrogate model to the sampled behaviour; and
+2. generates perturbed versions of the input prompt;
+3. computes Word Mover's Distance between the original response and each perturbed prompt;
+4. normalises those distances into the local target scores;
+5. fits a surrogate model to the perturbation masks and target scores; and
 6. returns term contributions, evaluation metrics, and diagnostic plots.
 
-The result is local to the selected prompt, model, provider configuration, and sampling settings. It should not be interpreted as a global description of the LLM.
+The current implementation queries the LLM for the original response only; it does not generate a new LLM response for every perturbed prompt. The result is therefore an explanation of the local prompt-to-response alignment constructed by this pipeline, not a global description of the model.
 
 ## 3. Read the result
 
-The token heatmap and contribution plots show the estimated direction and magnitude of each term's local influence. The metrics describe how well the surrogate approximates the sampled model behaviour near the original prompt.
+The token heatmap and contribution plots show the estimated direction and magnitude of each term's contribution to the local response-alignment score. The metrics describe how well the surrogate approximates the sampled score surface near the original prompt.
 
 Important metrics include:
 
@@ -102,13 +102,13 @@ The automatic surrogate search selected a random forest with these fidelity metr
 
 ![Word2Vec text heatmap](graphics/examples/case1-word2vec-heatmap.png)
 
-In this run, `learning` and `is` received the largest contribution estimates. This is evidence about one local approximation, not a general linguistic claim about those words.
+In this run, `learning` and `is` received the largest contribution estimates. This is evidence about one local response-alignment approximation, not a general linguistic or causal claim about those words.
 
 ### Surrogate fidelity
 
 ![Word2Vec fidelity plot](graphics/examples/case1-word2vec-fidelity.png)
 
-Each point represents a perturbed prompt. Points closer to the reference line indicate closer agreement between the surrogate prediction and the observed LLM response-distance value.
+Each point represents a perturbed prompt. Points closer to the reference line indicate closer agreement between the surrogate prediction and the response-alignment score calculated by the XWhy pipeline.
 
 ### Alternative contribution views
 
@@ -132,7 +132,7 @@ These plots present the same local contribution estimates in different forms; th
 
 ## 5. Compare embedding backends
 
-Embedding choice affects how XWhy measures changes between responses. To compare backends fairly, keep the prompt, provider, model, seed, perturbation count, and surrogate-selection setting fixed, and change only `embedding_type`:
+Embedding choice affects how XWhy measures semantic distance between the original response and the perturbed prompt variants. To compare backends fairly, keep the prompt, provider, model, seed, perturbation count, and surrogate-selection setting fixed, and change only `embedding_type`:
 
 ```python
 from xwhy import LLMExplainer
@@ -164,7 +164,7 @@ The executed comparison produced:
 | Paragram-SL | **0.9716** | **0.9697** | **0.0219** |
 | Paragram-WS | 0.8646 | 0.8554 | 0.0436 |
 
-Paragram-SL had the closest surrogate fit in this particular run. This table is not a general ranking: performance can change with the prompt, generated responses, model, perturbations, and random seed.
+Paragram-SL had the closest surrogate fit in this particular run. This table is not a general ranking: performance can change with the prompt, generated response, embedding, perturbations, and random seed.
 
 ### GloVe
 
@@ -245,10 +245,10 @@ For pipeline diagnostics, use the [logging guide](how-to/logging.md).
 
 When reporting an LLM explanation:
 
-- describe it as a **local perturbation-based approximation**;
+- describe it as a **local perturbation-based response-alignment approximation**;
 - include surrogate fidelity metrics;
 - state the embedding backend and sampling configuration;
 - test whether the main attribution pattern changes across reasonable settings; and
-- avoid presenting token importance as hidden reasoning, causal proof, or a complete safety assessment.
+- avoid presenting term contributions as hidden reasoning, causal proof, or a complete safety assessment.
 
 The [LLM explainer overview](explainers/llm/index.md) summarises the capability, and the [API reference](reference/xwhy/explainers/llm/) provides the implementation interface.
