@@ -5,13 +5,12 @@ description: Find available and planned XWhy tutorials and worked examples for i
 
 # Tutorials and examples
 
-Use this directory to select a complete learning path or a focused worked example. Tutorials explain a workflow step by step. Examples show a concrete configuration, representative output, and interpretation.
+Use this directory to select a complete learning path. Where a worked example is available, it is integrated into the relevant tutorial so setup, execution, output, and interpretation remain in one place.
 
 | Resource | Modality | Type | Status | Coverage |
 | --- | --- | --- | --- | --- |
 | [Image Classification Explainer](../image_classification_explainer.md) | Image | Tutorial | **Available** | Built-in and custom PyTorch classifiers, segmentation, distances, and image plots. |
-| [LLM Explainer](../llm_explainer.md) | LLM | Tutorial | **Available** | Provider setup, prompt perturbation, embeddings, surrogate selection, and token plots. |
-| [LLM Worked Example](../examples/llm-explainer.md) | LLM | Worked example | **Available** | Embedding comparison, real outputs, metrics, and interpretation. |
+| [LLM Explainer Tutorial](../llm_explainer.md) | LLM | Tutorial with worked example | **Available** | Provider setup, prompt perturbation, embeddings, executed outputs, fidelity metrics, plot interpretation, and embedding comparison. |
 | [Image Examples](../examples/image.md) | Image | Example collection | **Coming soon** | Reproducible image-classification examples with stored outputs. |
 | [Image Editing and Pix2Pix Models](../explainers/image-generation/pix2pix-models.md) | Image generation | Planned example | **Under construction** | Conditional image-to-image explanation and Pix2Pix-style model analysis. |
 | [Tabular Examples](../examples/tabular.md) | Tabular | Example collection | **Under construction** | Classification, regression, mixed features, and stability comparisons. |

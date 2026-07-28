@@ -145,113 +145,15 @@ Traces the cumulative effect of each feature as a single path from left to right
 </div>
 
 ---
-
-## Comparing Embedding Backends
-
-The same sentence and model were re-explained using three other embeddings,
-each swapping only the `embedding_type` argument:
-
-```python
-explainer = LLMExplainer(provider="openai", use_best_surrogate=True, api_key=api_key)
-result = explainer.explain(
-    instance="Machine learning is fascinating.",
-    model_name="gpt-5-nano",
-    embedding_type="glove",       # or "paragram_sl" / "paragram_ws"
-    fidelity_plot=True,
-)
-```
-
-!!! tip
-    Pass `fidelity_plot=True` the first time you try a new embedding backend, so
-    you can sanity-check the surrogate fit before trusting the explanation it
-    produces.
-
-| Case | Embedding | Weighted R² | Adjusted R² | MAE |
-| --- | --- | --- | --- | --- |
-| 1 | word2vec (GoogleNews) | 0.9150 | 0.9092 | 0.0334 |
-| 2 | GloVe | 0.8802 | 0.8721 | 0.0362 |
-| 3 | Paragram-SL | **0.9716** | **0.9697** | **0.0219** |
-| 4 | Paragram-WS | 0.8646 | 0.8554 | 0.0436 |
-
-Paragram-SL produced the best-fitting surrogate for this sentence, and its
-word-importance heatmap agrees closely with word2vec's. Paragram-WS tells a
-noticeably different story — worth keeping in mind when picking an embedding
-for your own explanations.
-
-<div class="xwhy-example" markdown>
-<div class="xwhy-example__header"><span>GloVe</span><span>embedding_type="glove"</span></div>
-<div class="xwhy-example__body" markdown>
-<div class="xwhy-example__output" markdown>
-![Fidelity plot, GloVe](../graphics/examples/case2-glove-fidelity.png)
-![Heatmap, GloVe](../graphics/examples/case2-glove-heatmap.png)
-</div>
-</div>
-</div>
-
-<div class="xwhy-example" markdown>
-<div class="xwhy-example__header"><span>Paragram-SL</span><span>embedding_type="paragram_sl"</span></div>
-<div class="xwhy-example__body" markdown>
-<div class="xwhy-example__output" markdown>
-![Fidelity plot, Paragram-SL](../graphics/examples/case3-paragram-sl-fidelity.png)
-![Heatmap, Paragram-SL](../graphics/examples/case3-paragram-sl-heatmap.png)
-</div>
-</div>
-</div>
-
-<div class="xwhy-example" markdown>
-<div class="xwhy-example__header"><span>Paragram-WS</span><span>embedding_type="paragram_ws"</span></div>
-<div class="xwhy-example__body" markdown>
-<div class="xwhy-example__output" markdown>
-![Fidelity plot, Paragram-WS](../graphics/examples/case4-paragram-ws-fidelity.png)
-![Heatmap, Paragram-WS](../graphics/examples/case4-paragram-ws-heatmap.png)
-</div>
-
-Notice how Paragram-WS spreads importance much more evenly across all four
-words (0.21 / 0.13 / 0.34 / 0.33) instead of concentrating it on `learning`
-and `is` like the other three embeddings.
-
-</div>
-</div>
-
+title: LLM Tutorial Moved
+description: The former standalone LLM worked example has been merged into the complete XWhy LLM explainer tutorial.
 ---
 
-## Graceful Handling of Filtered Provider Responses
+# LLM tutorial moved
 
-Not every prompt gets a usable response back from a provider — safety filters
-or provider-side anomalies can return an empty completion. XWhy surfaces this
-as a clear, catchable error instead of crashing the pipeline:
+The standalone worked example has been merged into the [complete LLM explainer tutorial](../llm_explainer.md).
 
-<div class="xwhy-example" markdown>
-<div class="xwhy-example__header"><span>Filtered response</span><span>try / except</span></div>
-<div class="xwhy-example__body" markdown>
-
-```python
-try:
-    explainer = LLMExplainer(provider="openai", use_best_surrogate=True, api_key=api_key)
-    result = explainer.explain(instance="...", model_name="gpt-5-nano", embedding_type="paragram_ws")
-    print(result.metrics)
-except Exception as e:
-    print(f"Error during pipeline execution: {e}")
-```
-
-<div class="xwhy-example__output" markdown>
-```
-Error during pipeline execution: Received an empty response from the OpenAI API.
-This could be due to safety guardrails, network filtering (anti-filter), or
-provider-side anomalies.
-```
-</div>
-
-This came up twice in testing (once for a time-travel/physics question, once
-for a first-aid question) — both unrelated to XWhy's own logic, and both
-handled the same predictable way.
-
-</div>
-</div>
-
----
-
-## Takeaways
+The unified tutorial now contains:
 
 * **Fidelity varies by embedding.** For this sentence and sampled neighbourhood, Paragram-SL produced the highest-fidelity local surrogate, with a weighted (R² = 0.97); GloVe and Paragram-WS trailed
   noticeably behind word2vec.
@@ -261,5 +163,10 @@ handled the same predictable way.
   before trusting it.
 * **Errors are explicit.** When a provider returns nothing usable, XWhy raises
   a descriptive exception rather than failing silently or crashing.
+- provider and credential setup;
+- a complete explanation workflow;
+- executed Word2Vec results and plot interpretation;
+- a comparison of Word2Vec, GloVe, Paragram-SL, and Paragram-WS; and
+- fidelity, reproducibility, error-handling, and reporting guidance.
 
-Next step: see the [LLM Explainer Guide](../llm_explainer.md) for the full API reference.
+This page remains available so existing external links continue to work.
