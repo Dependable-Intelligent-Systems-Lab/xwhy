@@ -1,13 +1,13 @@
 ---
-title: XWhy LLM Explainer Tutorial
-description: Configure XWhy's LLM explainer, generate and evaluate a local prompt explanation, interpret its plots, and compare text-embedding backends in one worked tutorial.
+title: XWhy LLM Example
+description: Configure XWhy's LLM explainer, generate and evaluate a local prompt explanation, interpret its plots, and compare text-embedding backends in one worked example.
 ---
 
-# LLM explainer tutorial
+# LLM Example
 
 Large language model outputs depend on interacting words, tokens, and context. XWhy treats the model as a black box: it obtains the original response, perturbs the input prompt, measures the semantic distance between that response and each perturbed prompt, and fits a local surrogate model that estimates how the prompt terms contribute to this response-alignment score.
 
-This single tutorial covers setup, execution, interpretation, and an executed comparison of four embedding backends. It does not expose private chain-of-thought or reconstruct the model's internal computation.
+This example covers setup, execution, interpretation, and an executed comparison of four embedding backends. It does not expose private chain-of-thought or reconstruct the model's internal computation.
 
 ## Prerequisites
 
