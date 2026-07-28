@@ -67,7 +67,7 @@ Fidelity Metrics:
 </div>
 
 The **weighted R²** tells you how faithfully the local surrogate model reproduces
-the LLM's original behavior around this instance — closer to 1.0 means the
+the LLM's original behaviour around this instance — closer to 1.0 means the
 explanation can be trusted more.
 
 </div>
@@ -95,7 +95,7 @@ Darker red means the word contributed more to the model's output.
 
 Each point is a perturbed sample; the closer it sits to the red dashed line,
 the better the surrogate model's prediction matches the real model's output
-for that sample. Point size/color encode the sample's importance weight.
+for that sample. Point size/colour encode the sample's importance weight.
 
 <div class="xwhy-example__output" markdown>
 ![Fidelity plot for Case 1](../graphics/examples/case1-word2vec-fidelity.png)
@@ -253,11 +253,10 @@ handled the same predictable way.
 
 ## Takeaways
 
-* **Fidelity varies by embedding.** For this sentence, Paragram-SL gave the
-  most trustworthy local surrogate (R² = 0.97); GloVe and Paragram-WS trailed
+* **Fidelity varies by embedding.** For this sentence and sampled neighbourhood, Paragram-SL produced the highest-fidelity local surrogate, with a weighted (R² = 0.97); GloVe and Paragram-WS trailed
   noticeably behind word2vec.
 * **Word importance isn't embedding-invariant.** Three of the four embeddings
-  agreed that `learning` and `is` mattered most — Paragram-WS disagreed
+  agreed that `learning` and `is` mattered most, Paragram-WS disagreed
   substantially. If an explanation looks surprising, try a second embedding
   before trusting it.
 * **Errors are explicit.** When a provider returns nothing usable, XWhy raises
