@@ -1,19 +1,24 @@
 ---
 title: XWhy Contributors
-description: Meet the XWhy authors and maintainers, view the current GitHub contributor graph, and learn how to contribute code, documentation, examples, and research artefacts.
+description: Meet the XWhy authors and maintainers, view automatically generated repository contributors, and learn how to contribute code, documentation, examples, and research artefacts.
 ---
 
 # Contributors
 
 XWhy is developed by researchers and software contributors working on explainable, dependable, and responsible artificial intelligence.
 
+<!-- AUTO-CONTRIBUTORS:START -->
+## Repository contributors
+
 [![XWhy GitHub contributors](https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy)](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors)
 
-The contributor image links to the current GitHub contributor graph and updates as new contributions are merged.
+The contributor image links to the current GitHub contributor graph and provides a fallback when the build-time GitHub API is unavailable.
+<!-- AUTO-CONTRIBUTORS:END -->
 
+<!-- AUTO-AUTHORS:START -->
 ## Authors and maintainers
 
-The package metadata currently identifies the following authors and maintainers:
+This table reflects the current package metadata in `pyproject.toml`.
 
 | Contributor | Role recorded in the package metadata |
 | --- | --- |
@@ -25,6 +30,7 @@ The package metadata currently identifies the following authors and maintainers:
 | Ioannis Sorokos | Author |
 | Martin Walker | Author |
 | Yiannis Papadopoulos | Author |
+<!-- AUTO-AUTHORS:END -->
 
 ## Ways to contribute
 
@@ -41,4 +47,4 @@ Read the [contribution guide](contribute/contributing.md) before opening a pull 
 
 ## Recognition
 
-Authorship, maintainership, software contribution, and publication authorship are distinct forms of contribution. New contributors should be recognised through the repository history and contributor graph. Changes to package authorship or formal research authorship should follow the project's agreed contribution and publication policies.
+Authorship, maintainership, software contribution, and publication authorship are distinct forms of contribution. Repository contributors are generated from GitHub's contributor records. Package authors and maintainers are generated from `pyproject.toml`. Formal research authorship should follow the project's agreed contribution and publication policies.
