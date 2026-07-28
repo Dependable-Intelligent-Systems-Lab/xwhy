@@ -149,3 +149,47 @@ def test_tabular_explainer_explain_regression_and_default_surrogate(
     mock_result_cls.assert_called_once()
     mock_result_cls.return_value.plot.assert_not_called()
     assert result == mock_result_cls.return_value
+
+
+def test_tabular_explainer_run_invalid_string_instance(mock_model: MagicMock) -> None:
+    """Ensure TypeError is raised when a string is passed to run."""
+    explainer = TabularExplainer(model=mock_model)
+    with pytest.raises(TypeError, match="requires an array-like instance"):
+        # Explicitly ignoring mypy error to test runtime validation
+        explainer.run(instance="this is a string")
+
+
+def test_tabular_explainer_run_invalid_numeric_instance(mock_model: MagicMock) -> None:
+    """Ensure TypeError is raised when a numeric type is passed to run."""
+    explainer = TabularExplainer(model=mock_model)
+    with pytest.raises(TypeError, match="requires an array-like instance"):
+        explainer.run(instance=12345)  # type: ignore[arg-type]
+
+
+@patch.object(TabularExplainer, "explain")
+def test_tabular_explainer_run_valid_delegation(
+    mock_explain: MagicMock, mock_model: MagicMock
+) -> None:
+    """Verify run correctly delegates to explain with valid input and kwargs."""
+    explainer = TabularExplainer(model=mock_model)
+    valid_instance = np.array([1.5, 2.5, 3.5])
+    mock_explain.return_value = MagicMock()
+
+    # Call run with valid instance and additional kwargs
+    result = explainer.run(
+        instance=valid_instance,
+        feature_names=["f1", "f2", "f3"],
+        fidelity_plot=True,
+        custom_kwarg="test",
+    )
+
+    # Assert explain was called exactly once with identical parameters
+    mock_explain.assert_called_once_with(
+        instance=valid_instance,
+        feature_names=["f1", "f2", "f3"],
+        fidelity_plot=True,
+        custom_kwarg="test",
+    )
+
+    # Assert the return value matches what explain returned
+    assert result == mock_explain.return_value
