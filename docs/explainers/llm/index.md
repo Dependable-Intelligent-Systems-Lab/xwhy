@@ -6,7 +6,7 @@ description: Explain local prompt-to-response alignment with XWhy using text per
 # LLM explainer
 
 !!! success "Available"
-    `LLMExplainer` is implemented and has a complete tutorial with an executed worked example.
+    `LLMExplainer` is implemented and has a complete example with setup, executed outputs, and interpretation guidance.
 
 The LLM explainer treats the language model as a black-box provider. It obtains the original response, perturbs the input prompt, measures semantic distance between that response and the perturbed prompt variants, and fits a local surrogate model to estimate term contributions to the resulting response-alignment score.
 
@@ -19,7 +19,7 @@ Current documented capabilities include:
 - token-level and contribution plots; and
 - embedding comparison with fidelity metrics and executed outputs.
 
-[Read the complete LLM tutorial and worked example](../../llm_explainer.md)
+[Open the complete LLM Example](../../llm_explainer.md)
 
 [Open the LLM explainer API reference](../../reference/xwhy/explainers/llm/)
 
