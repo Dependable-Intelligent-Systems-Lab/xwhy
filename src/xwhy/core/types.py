@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from torch import device
 
 from xwhy.models.classification.base import BaseClassification
@@ -50,3 +52,15 @@ class ImageClassificationState:
         self.segmentation_model: BaseSegmentation | None = None
 
         self.embedding_model: BaseEmbedding | None = None
+
+
+class TabularState:
+    """Runtime state for the Tabular explainer."""
+
+    def __init__(self) -> None:
+        """Initialize the runtime state.
+
+        This object stores the loaded predictive model to prevent redundant
+        initializations across multiple explanation requests.
+        """
+        self.model: Any | None = None

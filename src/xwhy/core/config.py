@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -75,9 +75,33 @@ class ImageClassificationConfig(ExplainerConfig):
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
     num_perturb: int = Field(default=150, gt=0)
 
-    distance_metric: DistanceType | str = DistanceType.WASSERSTEIN
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
 
     num_top_features: int = Field(default=4, gt=0)
     num_top_predictions: int = Field(default=5, gt=0)
+
+
+class TabularConfig(ExplainerConfig):
+    """Configuration for the Tabular explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    mode: Literal["classification", "regression"] = "classification"
+    num_perturbations: int = Field(default=500, gt=0)
+    kernel_width: float = Field(default=0.2, gt=0.0)
+    num_distribution_samples: int = Field(default=100, gt=0)
+    local_noise: float = Field(default=0.05, ge=0.0)
+    perturbation_noise: float = Field(default=0.4, ge=0.0)
+    epsilon: float = Field(default=0.01, gt=0.0)
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True
+    seed: int = 1024
+    validate_normalization: bool = True

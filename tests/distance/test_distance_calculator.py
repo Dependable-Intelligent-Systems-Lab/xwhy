@@ -36,15 +36,15 @@ def test_calculate_distance_invalid_text_metric() -> None:
 def test_calculate_distance_invalid_numeric_metric() -> None:
     """Ensure numeric data throws error when paired with text metric."""
     arr = np.array([1, 2, 3])
-    distance_metric = "wmd"
+    distance_type = "wmd"
     with pytest.raises(
         ValueError,
         match=re.escape(
             f"Numerical data (e.g., images) cannot use text-based metrics. "
-            f"Received: {distance_metric}"
+            f"Received: {distance_type}"
         ),
     ):
-        calculate_distance(distance_metric, arr, arr)
+        calculate_distance(distance_type, arr, arr)
 
 
 @patch("xwhy.distance.distances.CosineDistance.compute")

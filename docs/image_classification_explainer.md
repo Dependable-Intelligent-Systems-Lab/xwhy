@@ -72,7 +72,7 @@ image_classification_config = ImageClassificationConfig(
     max_dist=200,
     ratio=0.2,
     num_perturb=150,
-    distance_metric="wasserstein",
+    distance_type="wasserstein",
     surrogate_type="lime",
     use_best_surrogate=True,
     num_top_features=4,
@@ -311,7 +311,7 @@ If you already possess a mask for the image, supply it directly to the `explain`
 
 ## Distance Metrics
 
-Seven distance metrics are available for comparing original and perturbed representations. Select one via the `distance_metric` argument (or the corresponding field in `ImageClassificationConfig`):
+Seven distance metrics are available for comparing original and perturbed representations. Select one via the `distance_type` argument (or the corresponding field in `ImageClassificationConfig`):
 
 * `cosine`
 * `wasserstein`

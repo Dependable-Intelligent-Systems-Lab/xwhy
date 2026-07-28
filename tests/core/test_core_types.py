@@ -2,7 +2,7 @@
 
 import torch
 
-from xwhy.core.types import ImageClassificationState
+from xwhy.core.types import ImageClassificationState, TabularState
 
 
 def test_image_classification_state_init() -> None:
@@ -24,3 +24,10 @@ def test_image_classification_state_init_with_cuda() -> None:
     state = ImageClassificationState(device_=expected_device)
 
     assert state.device == expected_device
+
+
+def test_tabular_state_init() -> None:
+    """Test the initialization of TabularState."""
+    state = TabularState()
+
+    assert state.model is None

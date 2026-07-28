@@ -52,7 +52,8 @@ class TreeBasedSurrogate(BaseSurrogate):
         """Extract feature importances from the tree model.
 
         Returns:
-            np.ndarray: The feature importances.
+            np.ndarray: The feature importances, or an array of zeros if
+            NaN occurs due to zero variance or lack of tree splits.
 
         Raises:
             AttributeError: If the underlying model lacks a
@@ -60,5 +61,17 @@ class TreeBasedSurrogate(BaseSurrogate):
 
         """
         if hasattr(self._model, "feature_importances_"):
-            return self._model.feature_importances_  # type: ignore
+            raw_importances = self._model.feature_importances_
+            if raw_importances is None:
+                return np.zeros((0,), dtype=float)
+
+            importances = np.asarray(raw_importances, dtype=float)
+
+            # Check for NaN values or division by zero errors in importances
+            if np.isnan(importances).any():
+                # Return an array of zeros matching the feature shape
+                return np.zeros(importances.shape, dtype=float)
+
+            return importances
+
         raise AttributeError("The model lacks a 'feature_importances_' attribute.")

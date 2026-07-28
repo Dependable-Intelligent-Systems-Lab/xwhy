@@ -1,6 +1,7 @@
 """Explanation pipeline abstractions."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from xwhy.core.result import BaseXWhyResult
 
@@ -12,6 +13,6 @@ class ExplanationPipeline(ABC):
     """
 
     @abstractmethod
-    def run(self, instance: object, **kwargs: object) -> BaseXWhyResult:
+    def run(self, instance: Any, **kwargs: Any) -> BaseXWhyResult:  # noqa: ANN401
         """Run the full explanation pipeline."""
         raise NotImplementedError("Subclasses must implement run method.")
