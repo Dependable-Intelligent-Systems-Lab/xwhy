@@ -104,4 +104,5 @@ class TabularConfig(ExplainerConfig):
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
     seed: int = 1024
+    device: str = "cpu"
     validate_normalization: bool = True
