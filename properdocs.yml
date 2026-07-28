@@ -95,9 +95,6 @@ plugins:
         API Reference:
           - reference/: Generated Python API reference
 
-hooks:
-  - docs/hooks.py
-
 extra_css:
   - assets/stylesheets/extra.css
 
