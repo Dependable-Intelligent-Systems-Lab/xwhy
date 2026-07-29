@@ -4,23 +4,19 @@ on:
   push:
     branches:
       - main
-    paths:
-      - "docs/**"
-      - "src/**"
-      - "properdocs.yml"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/docs.yml"
   pull_request:
     branches:
       - main
     paths:
       - "docs/**"
       - "src/**"
+      - "scripts/**"
       - "properdocs.yml"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/docs.yml"
+  schedule:
+    - cron: "17 3 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -51,15 +47,24 @@ jobs:
       - name: Install Dependencies
         run: uv sync --group dev
 
+      - name: Inject Package Version
+        run: uv run python scripts/inject_docs_version.py
+
+      - name: Generate Contributors Page
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: uv run python scripts/generate_contributors.py
+
       - name: Build Documentation
         run: uv run properdocs build --clean --site-dir site
 
       - name: Configure Git User
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Deploy Documentation
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: uv run properdocs gh-deploy --force

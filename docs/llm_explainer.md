@@ -1,90 +1,202 @@
-# Large Language Model (LLM) Explainer
-
-Large Language Models (LLMs) can be difficult to interpret because their outputs depend on many interacting words, tokens, and contextual relationships.
-
-The **XWhy LLM Explainer** provides a model-agnostic way to examine an LLM as a black-box system. It perturbs the input text, observes how the model response changes, and estimates which input words or tokens had the strongest local influence on the generated output.
-
-This guide starts with the simplest setup for explaining an OpenAI model. Advanced configuration for other cloud providers, routers, and local models is provided later.
-
+---
+title: XWhy LLM Example
+description: Configure XWhy's LLM explainer, generate and evaluate a local prompt explanation, interpret its plots, and compare text-embedding backends in one worked example.
 ---
 
-## Quick Start: Explain an OpenAI Model
+# LLM Example
 
-For a first test, you only need:
+Large language model outputs depend on interacting words, tokens, and context. XWhy treats the model as a black box: it obtains the original response, perturbs the input prompt, measures the semantic distance between that response and each perturbed prompt, and fits a local surrogate model that estimates how the prompt terms contribute to this response-alignment score.
 
-1. An LLM API provider key
-2. A credential setup approach (either a `.env` file or direct notebook/runtime configuration)
-3. A short Python script
+This example covers setup, execution, interpretation, and an executed comparison of four embedding backends. It does not expose private chain-of-thought or reconstruct the model's internal computation.
 
-### 1. Create a Simple `.env` File
+## Prerequisites
 
-Create a file named `.env` in the root directory of your project and add your OpenAI API key:
+Before starting:
+
+1. [Install XWhy](getting-started/installation.md).
+2. Obtain access to a supported LLM provider and model.
+3. Configure the provider credential without committing it to source control.
+
+For OpenAI, the standard `.env` configuration is:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
-
 ```
 
-> Keep API keys private. Do not commit the `.env` file to GitHub or include it in shared code.
+For other providers, local models, cloud platforms, or notebook-specific credential patterns, use the [provider configuration guide](how-to/providers.md). Provider-specific constructor arguments must use the names expected by the provider SDK; for example, OpenAI uses `api_key`, while Hugging Face uses `token`.
 
-### 2. Alternative: Notebook & Runtime Configuration (No `.env` Required)
+## 1. Generate a local explanation
 
-If you are working in an interactive environment like Google Colab or Jupyter Notebooks, managing a physical `.env` file can be cumbersome. XWhy provides two flexible alternatives to configure your credentials on the fly directly inside your code.
-
-#### Approach A: Modifying Global Settings
-
-You can dynamically assign values to the global `settings` object immediately after importing `xwhy`. This updates the internal config registry before the explainer is initialized:
+The following example explains one prompt with an OpenAI model and the default Word2Vec embedding backend:
 
 ```python
 import xwhy
-
-# Manually set keys at runtime (Overrides .env)
-xwhy.settings.openai_api_key = "sk-proj-your_key_here"
-xwhy.settings.gemini_api_key = "your_gemini_key_here"
-
-```
-
-#### Approach B: Inline Arguments via LLMExplainer (`kwargs`)
-
-You can pass credentials and client settings directly into the `LLMExplainer` constructor. These parameters bypass the global state and are forwarded straight to the provider's underlying engine:
-
-```python
 from xwhy import LLMExplainer
 
-# Pass parameters directly into the explainer constructor
+# Required for interactive JavaScript plots in notebook environments.
+xwhy.plots.initjs()
+
 explainer = LLMExplainer(
     provider="openai",
-    api_key="sk-proj-your_key_here",
     model_name="gpt-5-nano",
-    use_best_surrogate=True
+    embedding_type="word2vec",
+    use_best_surrogate=True,
 )
 
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    fidelity_plot=True,
+)
+
+print(result.metrics)
+xwhy.plots.text_heatmap(result)
+result.plot()
 ```
 
-> ⚠️ **Critical Requirement on Parameter Names:** When passing credentials directly into `LLMExplainer`, the key arguments **must match the native parameter names expected by the underlying provider's official SDK client**, not XWhy's global setting aliases.
-> For example, use **`api_key`** for OpenAI, Anthropic, or Gemini, but you must use **`token`** when instantiating a Hugging Face client, as shown below:
+Replace `model_name` with a model available through your provider account.
+
+!!! tip "Notebook credentials"
+    In a notebook, you may pass a credential directly to the constructor, such as `api_key=...`, but obtain it from a secret store or a hidden prompt rather than writing it into the notebook.
+
+## 2. Understand the explanation pipeline
+
+For the selected prompt, XWhy:
+
+1. obtains the original model response;
+2. generates perturbed versions of the input prompt;
+3. computes Word Mover's Distance between the original response and each perturbed prompt;
+4. normalises those distances into the local target scores;
+5. fits a surrogate model to the perturbation masks and target scores; and
+6. returns term contributions, evaluation metrics, and diagnostic plots.
+
+The current implementation queries the LLM for the original response only; it does not generate a new LLM response for every perturbed prompt. The result is therefore an explanation of the local prompt-to-response alignment constructed by this pipeline, not a global description of the model.
+
+## 3. Read the result
+
+The token heatmap and contribution plots show the estimated direction and magnitude of each term's contribution to the local response-alignment score. The metrics describe how well the surrogate approximates the sampled score surface near the original prompt.
+
+Important metrics include:
+
+- **Weighted R²:** proportion of locally weighted variation represented by the surrogate; values closer to 1 indicate a closer fit on the sampled neighbourhood.
+- **Adjusted weighted R²:** weighted R² with a penalty for model complexity.
+- **MAE and MSE:** average surrogate prediction errors; lower values indicate a closer numerical fit.
+
+A strong fidelity score supports the use of the surrogate for that run, but it does not prove that the attribution is causal or universally stable.
+
+## 4. Worked example: Word2Vec
+
+The following results come from an executed run using the sentence:
+
+> *Machine learning is fascinating.*
+
+The automatic surrogate search selected a random forest with these fidelity metrics:
+
+| Metric | Value |
+| --- | ---: |
+| Weighted R² | 0.9150 |
+| Adjusted weighted R² | 0.9092 |
+| Mean absolute error | 0.0334 |
+| Mean squared error | 0.0061 |
+
+### Term attribution
+
+![Word2Vec text heatmap](graphics/examples/case1-word2vec-heatmap.png)
+
+In this run, `learning` and `is` received the largest contribution estimates. This is evidence about one local response-alignment approximation, not a general linguistic or causal claim about those words.
+
+### Surrogate fidelity
+
+![Word2Vec fidelity plot](graphics/examples/case1-word2vec-fidelity.png)
+
+Each point represents a perturbed prompt. Points closer to the reference line indicate closer agreement between the surrogate prediction and the response-alignment score calculated by the XWhy pipeline.
+
+### Alternative contribution views
+
+The same explanation can be inspected using ranked, cumulative, or path-based views:
 
 ```python
-# For OpenAI/Anthropic/Gemini, the SDK client expects 'api_key'
-openai_explainer = LLMExplainer(provider="openai", api_key="sk-...")
-
-# For Hugging Face, the native InferenceClient SDK expects 'token'
-hf_explainer = LLMExplainer(provider="huggingface", token="hf_...")
-
+xwhy.plots.bar(result)
+xwhy.plots.waterfall(result)
+xwhy.plots.text(result)
+xwhy.plots.force(result)
+xwhy.plots.decision(result)
 ```
 
-#### Approach C: Using an `LLMConfig` Object
+![Word2Vec bar plot](graphics/examples/case1-bar.png)
 
-You can also centralize settings in an `LLMConfig` instance and pass it to the `LLMExplainer` constructor as a single `config` parameter. This avoids supplying individual keyword arguments for every option:
+![Word2Vec waterfall plot](graphics/examples/case1-waterfall.png)
+
+![Word2Vec decision plot](graphics/examples/case1-decision.png)
+
+These plots present the same local contribution estimates in different forms; they are not independent explanations.
+
+## 5. Compare embedding backends
+
+Embedding choice affects how XWhy measures semantic distance between the original response and the perturbed prompt variants. To compare backends fairly, keep the prompt, provider, model, seed, perturbation count, and surrogate-selection setting fixed, and change only `embedding_type`:
 
 ```python
-from xwhy.core import LLMConfig
 from xwhy import LLMExplainer
-import xwhy
 
-llm_config = LLMConfig(
+embedding_types = ["word2vec", "glove", "paragram_sl", "paragram_ws"]
+results = {}
+
+for embedding_type in embedding_types:
+    explainer = LLMExplainer(
+        provider="openai",
+        model_name="gpt-5-nano",
+        embedding_type=embedding_type,
+        seed=1024,
+        num_perturbations=64,
+        use_best_surrogate=True,
+    )
+    results[embedding_type] = explainer.explain(
+        instance="Machine learning is fascinating.",
+        fidelity_plot=True,
+    )
+```
+
+The executed comparison produced:
+
+| Embedding | Weighted R² | Adjusted weighted R² | MAE |
+| --- | ---: | ---: | ---: |
+| Word2Vec (Google News) | 0.9150 | 0.9092 | 0.0334 |
+| GloVe | 0.8802 | 0.8721 | 0.0362 |
+| Paragram-SL | **0.9716** | **0.9697** | **0.0219** |
+| Paragram-WS | 0.8646 | 0.8554 | 0.0436 |
+
+Paragram-SL had the closest surrogate fit in this particular run. This table is not a general ranking: performance can change with the prompt, generated response, embedding, perturbations, and random seed.
+
+### GloVe
+
+![GloVe fidelity plot](graphics/examples/case2-glove-fidelity.png)
+
+![GloVe heatmap](graphics/examples/case2-glove-heatmap.png)
+
+### Paragram-SL
+
+![Paragram-SL fidelity plot](graphics/examples/case3-paragram-sl-fidelity.png)
+
+![Paragram-SL heatmap](graphics/examples/case3-paragram-sl-heatmap.png)
+
+### Paragram-WS
+
+![Paragram-WS fidelity plot](graphics/examples/case4-paragram-ws-fidelity.png)
+
+![Paragram-WS heatmap](graphics/examples/case4-paragram-ws-heatmap.png)
+
+Word2Vec, GloVe, and Paragram-SL produced broadly similar emphasis for this sentence, while Paragram-WS distributed importance more evenly. When an attribution is sensitive to the embedding backend, report that sensitivity rather than selecting only the most convenient result.
+
+## 6. Use a reproducible configuration object
+
+For experiments, place the explanation settings in an `LLMConfig` object:
+
+```python
+from xwhy import LLMExplainer
+from xwhy.core import LLMConfig
+
+config = LLMConfig(
     provider_type="openai",
-    model_name="gpt-3.5-turbo-instruct",
+    model_name="gpt-5-nano",
     max_tokens=200,
     temperature=0,
     seed=1024,
@@ -94,296 +206,49 @@ llm_config = LLMConfig(
     use_best_surrogate=True,
 )
 
+explainer = LLMExplainer(config=config)
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    fidelity_plot=True,
+)
+```
+
+Record the provider, model identifier, embedding, surrogate policy, perturbation count, seed, package version, and date of execution. See [Reproducible Explanations](how-to/reproducibility.md) for a fuller checklist.
+
+## 7. Handle provider and setup errors
+
+Use explicit error handling around provider calls:
+
+```python
 try:
-    explainer = LLMExplainer(config=llm_config)
-    # or use `explainer.run`
     result = explainer.explain(
         instance="Machine learning is fascinating.",
         fidelity_plot=True,
     )
-    print(result.metrics)
-    print("Explanation successful!")
-    xwhy.plots.text_heatmap(result)
-
-except Exception as e:
-    print(f"Error during pipeline execution: {e}")
-
-```
-
-### 3. Run a Basic Explanation
-
-The following example explains the input text using an OpenAI model and displays a token-level heatmap:
-
-```python
-import xwhy
-from xwhy import LLMExplainer
-
-# Required for interactive plots in notebook environments
-xwhy.plots.initjs()
-
-try:
-    # Create an explainer for an OpenAI model
-    # (Credentials will look up your .env, xwhy.settings, or explicit kwargs)
-    explainer = LLMExplainer(
-        provider="openai",
-        model_name="gpt-5-nano",
-        use_best_surrogate=True,
-    )
-
-    # Explain the model response for the supplied input
-    result = explainer.explain(
-        instance="Machine learning is fascinating.",
-        fidelity_plot=False,
-    )
-
-    # Print the explanation-quality metrics
-    print(result.metrics)
-
-    # Display the fidelity plot
-    result.plot()
-
-    # Display the token-level explanation
-    xwhy.plots.text_heatmap(result)
-
 except Exception as error:
     print(f"The explanation could not be generated: {error}")
-
 ```
 
-### 4. Read the Result
+Common causes include:
 
-The explanation highlights words or tokens according to their estimated influence on the model response.
+- a missing or incorrectly named credential;
+- a model that is unavailable to the provider account;
+- an empty or filtered provider response;
+- a network or provider-side failure; and
+- an embedding cache directory that is unavailable or not writable.
 
-The returned `result` object also contains evaluation metrics that can be used to examine the quality and reliability of the local explanation. These metrics should be interpreted as evidence about the explanation produced by XWhy, rather than as direct access to the LLM's internal reasoning process.
+XWhy raises an explicit error when a provider returns no usable response, allowing the application to log, retry, or safely stop the explanation workflow.
 
----
+For pipeline diagnostics, use the [logging guide](how-to/logging.md).
 
-## Additional Explanation Plots
+## Interpretation and reporting guidance
 
-After generating a valid `result`, you can use the following visualisations:
+When reporting an LLM explanation:
 
-```python
-xwhy.plots.bar(result)
-xwhy.plots.waterfall(result)
-xwhy.plots.text(result)
-xwhy.plots.force(result)
-xwhy.plots.decision(result)
+- describe it as a **local perturbation-based response-alignment approximation**;
+- include surrogate fidelity metrics;
+- state the embedding backend and sampling configuration;
+- test whether the main attribution pattern changes across reasonable settings; and
+- avoid presenting term contributions as hidden reasoning, causal proof, or a complete safety assessment.
 
-```
-
-A complete example that generates all supported plots is provided later in this guide.
-
----
-
-## Advanced Configuration
-
-Use this section when you want to work with providers other than OpenAI, use proxy services, connect to cloud platforms, or run local models.
-
-### 1. Full Environment Variable Template
-
-Create a `.env` file in the root directory of your project. You only need to populate the variables required by the providers you intend to use.
-
-```env
-############################
-# XWhy Provider Configuration
-############################
-
-# OpenAI
-OPENAI_API_KEY=
-
-# Google Gemini
-GEMINI_API_KEY=
-
-# Anthropic Claude
-ANTHROPIC_API_KEY=
-
-# Z.AI
-ZAI_API_KEY=
-
-# Groq
-GROQ_API_KEY=
-
-# Cohere
-COHERE_API_KEY=
-
-# Fireworks AI
-FIREWORKS_API_KEY=
-
-# Grok (xAI)
-GROK_API_KEY=
-
-# OpenRouter
-OPENROUTER_API_KEY=
-
-# ByteDance
-BYTEDANCE_API_KEY=
-
-# LM Studio
-LMSTUDIO_API_KEY=
-LMSTUDIO_BASE_URL=
-
-# Azure OpenAI
-AZURE_API_KEY=
-AZURE_API_VERSION="2024-02-01"
-AZURE_ENDPOINT=
-
-# AWS / Bedrock
-AWS_ACCESS_KEY=
-AWS_SECRET_KEY=
-AWS_SESSION_TOKEN=
-AWS_REGION="us-east-1"
-ANTHROPIC_AWS_WORKSPACE_ID=
-
-# Google Cloud: Gemini and Anthropic Vertex
-GCP_PROJECT=
-GCP_LOCATION="us-central1"
-
-# Microsoft Foundry: Anthropic
-ANTHROPIC_FOUNDRY_API_KEY=
-ANTHROPIC_FOUNDRY_RESOURCE=
-
-# Hugging Face
-HUGGINGFACE_TOKEN=
-
-############################
-# Embedding Cache
-############################
-
-EMBEDDING_CACHE_DIR=~/.cache/xwhy/embeddings
-
-```
-
-### 2. Select a Provider in Python
-
-Change the `provider` value when creating the explainer:
-
-```python
-from xwhy import LLMExplainer
-
-explainer = LLMExplainer(
-    provider="openai",
-    model_name="gpt-5-nano",
-    use_best_surrogate=True,
-)
-
-```
-
-For another supported provider, replace `"openai"` with the provider identifier required by XWhy and ensure that the corresponding environment variables are configured.
-
-### 3. Embedding Storage Configuration
-
-The `EMBEDDING_CACHE_DIR` variable specifies where local text-embedding files are stored.
-
-* **Pre-cached models:** If the required embedding files already exist in this directory, XWhy can load them locally.
-* **Automatic fallback:** If the required files are missing, XWhy can download and cache them for future explanation runs.
-
-The configured directory must be writable by the current user.
-
----
-
-## Supported Ecosystems
-
-### Supported LLM Providers
-
-XWhy supports commercial APIs, cloud platforms, proxy routers, and local inference services, including:
-
-* OpenAI
-* Google Gemini
-* Anthropic
-* Hugging Face
-* Z.AI
-* Groq
-* Cohere
-* Fireworks AI
-* Grok (xAI)
-* OpenRouter
-* Ollama
-* LM Studio
-* ByteDance
-* Azure OpenAI
-* GCP Gemini
-* Anthropic Bedrock
-* Anthropic Bedrock Mantle
-* Anthropic AWS
-* Anthropic Vertex
-* Anthropic Foundry
-
-### Supported Embedding Engines
-
-XWhy currently supports the following local embedding engines for measuring changes between perturbed text representations:
-
-* Word2Vec
-* GloVe
-* Paragram-sl
-* Paragram-WS
-
----
-
-## Complete End-to-End Example
-
-The following example creates the explainer, generates an explanation, prints the metrics, and displays all available diagnostic plots.
-
-```python
-import xwhy
-from xwhy import LLMExplainer
-
-# Initialize interactive JavaScript-based plots
-xwhy.plots.initjs()
-
-try:
-    # Configure the target provider and surrogate-selection behaviour
-    explainer = LLMExplainer(
-        provider="openai",
-        model_name="gpt-5-nano",
-        use_best_surrogate=True,
-    )
-
-    # Generate a local explanation for the selected model and input
-    result = explainer.explain(
-        instance="Machine learning is fascinating.",
-    )
-
-    # Inspect the explanation metrics
-    print(result.metrics)
-    print("Explanation generated successfully.")
-
-    # Token-level heatmap
-    xwhy.plots.text_heatmap(result)
-
-    # Additional diagnostic plots
-    xwhy.plots.bar(result)
-    xwhy.plots.waterfall(result)
-    xwhy.plots.text(result)
-    xwhy.plots.force(result)
-    xwhy.plots.decision(result)
-
-except Exception as error:
-    print(f"Error during the explanation pipeline: {error}")
-
-```
-
----
-
-## Common Setup Problems
-
-### API Key Not Found
-
-Confirm that:
-
-* the file is named exactly `.env`;
-* it is located in the project root directory; and
-* the relevant API key variable is populated.
-
-### Model Access Error
-
-The selected model must be available through your provider account. If the model is unavailable, replace `model_name` with a model that your account can access.
-
-### Embedding Download or Cache Error
-
-Confirm that the path assigned to `EMBEDDING_CACHE_DIR` exists or can be created, and that the current user has permission to write to it.
-
----
-
-## Interpretation Note
-
-XWhy produces a local, perturbation-based approximation of input influence. It can help identify which words or tokens are associated with changes in a particular model response. It does not expose private chain-of-thought reasoning, recover the model's exact internal decision process, or prove that a highlighted token was the sole cause of the generated output.
+The [LLM explainer overview](explainers/llm/index.md) summarises the capability, and the [API reference](reference/xwhy/explainers/llm/) provides the implementation interface.
