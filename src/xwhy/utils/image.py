@@ -283,3 +283,46 @@ def get_segmentation_mask(
         prediction = cast(np.ndarray, resized).astype(np.uint8)
 
     return create_sequential_segmentation_mask(prediction, class_names=class_names)
+
+
+def get_binary_mask(
+    image_path: str | Path,
+    segmentation_model: Callable[[torch.Tensor], Any],
+    transform_fn: Callable[[Image.Image], torch.Tensor] | None = None,
+    device: str | torch.device = "cpu",
+    class_names: Sequence[str] | None = None,
+) -> Image.Image:
+    """Generate a binary 0/255 mask using the generic segmentation utility.
+
+    Args:
+        image_path: Path to the input image file.
+        segmentation_model: Callable model for inference.
+        transform_fn: Preprocessing transform for PIL image.
+        device: Target device for running model inference.
+        class_names: Optional class name list for logging.
+
+    Returns:
+        Image.Image: Grayscale binary mask (0 for background, 255 for objects).
+
+    """
+    try:
+        # Generate semantic mask using the generic segmentation utility
+        _, sem_mask_np = get_segmentation_mask(
+            image_path=image_path,
+            segmentation_model=segmentation_model,
+            transform_fn=transform_fn,
+            device=device,
+            class_names=class_names,
+        )
+
+        # Convert sequential mask to binary mask (non-zero labels become 255)
+        binary_mask_np = (sem_mask_np > 0).astype(np.uint8) * 255
+
+        # Convert to PIL Image with Grayscale mode
+        return Image.fromarray(binary_mask_np, mode="L")
+
+    except Exception as e:
+        logger.exception(f"Failed to generate binary mask via generic utility: {e}")
+        # Return a blank white mask as fallback to allow full editing
+        original_img = Image.open(image_path)
+        return Image.new("L", original_img.size, 255)
