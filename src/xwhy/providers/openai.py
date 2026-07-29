@@ -1,8 +1,15 @@
 """OpenAI provider implementation."""
 
+import base64
+import os
 import re
+import time
+from io import BytesIO
+from typing import Any
 
+import requests
 from openai import OpenAI
+from PIL import Image
 
 from xwhy.logger import logger
 from xwhy.providers.base import BaseProvider
@@ -161,4 +168,210 @@ class OpenAIProvider(BaseProvider):
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
+        )
+
+    # -------------------------------------------------------------------------
+    # Image Generation & Editing Methods
+    # -------------------------------------------------------------------------
+
+    def _execute_image_request(
+        self,
+        prompt: str,
+        output_dir: str,
+        model_name: str,
+        size: str,
+        quality: str,
+        n: int,
+        input_image_path: str | None = None,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[bool, str]:
+        """Execute core generation or editing logic for OpenAI-compatible APIs.
+
+        Args:
+            prompt: The text prompt provided by the user.
+            output_dir: Directory to save the final generated output.
+            model_name: Target OpenAI model identifier.
+            size: Desired dimensions of the output image.
+            quality: Quality level of the generated image.
+            n: Number of images requested.
+            input_image_path: Path to base image if editing, None otherwise.
+            **kwargs: Additional parameters (e.g., `extra_body`, `response_format`).
+
+        Returns:
+            A tuple containing a boolean success flag and the file path.
+
+        """
+        # Default to b64_json to avoid network overhead, unless overridden by user
+        kwargs.setdefault("response_format", "b64_json")
+
+        # Extract flag for providers (like ByteDance) that use /generations for edits
+        use_generate_for_edit = kwargs.pop("use_generate_for_edit", False)
+
+        generated_img: Image.Image | None = None
+        gen_img_flag = True
+
+        try:
+            # Standard OpenAI Edit Request
+            if input_image_path is not None and not use_generate_for_edit:
+                with open(input_image_path, "rb") as img_file:
+                    response = self._client.images.edit(
+                        model=model_name,
+                        image=img_file,
+                        prompt=prompt,
+                        size=size,
+                        quality=quality,
+                        n=n,
+                        **kwargs,
+                    )
+            else:
+                # Handle ByteDance-style image-to-image via generate endpoint
+                if input_image_path is not None and use_generate_for_edit:
+                    with open(input_image_path, "rb") as img_file:
+                        b64_str = base64.b64encode(img_file.read()).decode("utf-8")
+
+                    extra_body = kwargs.get("extra_body", {})
+                    if "image" not in extra_body:
+                        extra_body["image"] = b64_str
+                    kwargs["extra_body"] = extra_body
+
+                # Standard or Alternative Generation Request
+                response = self._client.images.generate(
+                    model=model_name,
+                    prompt=prompt,
+                    size=size,
+                    quality=quality,
+                    n=n,
+                    **kwargs,
+                )
+
+            # Support both b64_json and url formats seamlessly
+            if response.data:
+                img_data_obj = response.data[0]
+                if hasattr(img_data_obj, "b64_json") and img_data_obj.b64_json:
+                    img_bytes = BytesIO(base64.b64decode(img_data_obj.b64_json))
+                    generated_img = Image.open(img_bytes)
+                elif hasattr(img_data_obj, "url") and img_data_obj.url:
+                    req_response = requests.get(img_data_obj.url, timeout=30)
+                    req_response.raise_for_status()
+                    generated_img = Image.open(BytesIO(req_response.content))
+                else:
+                    raise RuntimeError(
+                        "No valid image data (b64_json or url) found in response."
+                    )
+            else:
+                raise RuntimeError("Empty image data returned from provider.")
+
+        except Exception as e:
+            logger.exception(f"Error during OpenAI-compatible API call: {e}")
+
+        # Fallback to placeholder if everything failed
+        if generated_img is None:
+            gen_img_flag = False
+            logger.debug(
+                f"Failed to generate image for prompt: '{prompt}'. "
+                "Creating placeholder."
+            )
+            fallback_img = self._create_placeholder_image(
+                prompt=prompt, output_dir=output_dir, save=False
+            )
+            if isinstance(fallback_img, Image.Image):
+                generated_img = fallback_img
+
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = int(time.time() * 1000)
+        prefix = "openai_edited" if input_image_path else "openai_generated"
+        filename = f"{prefix}_{timestamp}.png"
+        gen_path = os.path.join(output_dir, filename)
+
+        if isinstance(generated_img, Image.Image):
+            generated_img.save(gen_path)
+
+        logger.debug(
+            f'------------------- "{gen_path}" generated! '
+            f"(Success: {gen_img_flag}) -------------------"
+        )
+
+        return gen_img_flag, gen_path
+
+    def generate_image(
+        self,
+        prompt: str,
+        output_dir: str,
+        *,
+        model_name: str = "gpt-image-1",
+        size: str = "1024x1024",
+        quality: str = "auto",
+        n: int = 1,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[bool, str]:
+        """Generate an image using the OpenAI API based on a text prompt.
+
+        Args:
+            prompt: Text description of the desired image.
+            output_dir: Directory where the image will be stored.
+            model_name: OpenAI model name for image generation.
+            size: Sampling size specification for the output.
+            quality: Quality configuration ("low", "medium", "high", "auto").
+            n: Number of output images to generate.
+            **kwargs: Extra parameters (e.g., `output_format`, `extra_body`).
+
+        Returns:
+            A tuple of a boolean success flag and the generated file path.
+
+        """
+        return self._execute_image_request(
+            prompt=prompt,
+            output_dir=output_dir,
+            model_name=model_name,
+            size=size,
+            quality=quality,
+            n=n,
+            **kwargs,
+        )
+
+    def edit_image(
+        self,
+        prompt: str,
+        image_path: str,
+        output_dir: str,
+        *,
+        model_name: str = "gpt-image-1",
+        size: str = "1024x1024",
+        quality: str = "auto",
+        n: int = 1,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[bool, str]:
+        """Generate an edited image using OpenAI API and an input image.
+
+        Args:
+            prompt: Text instructions for the image editing process.
+            image_path: Path to the source image file.
+            output_dir: Directory where the edited image will be saved.
+            model_name: OpenAI model name for image editing.
+            size: Sampling size specification for the output.
+            quality: Quality configuration ("low", "medium", "high", "auto").
+            n: Number of output images to generate.
+            **kwargs: Extra parameters. Pass `use_generate_for_edit=True` for
+                providers like ByteDance that use the /generations endpoint
+                for image-to-image editing.
+
+        Returns:
+            A tuple of a boolean success flag and the generated file path.
+
+        Raises:
+            FileNotFoundError: If the provided input image is not found.
+
+        """
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Input image not found: {image_path}")
+
+        return self._execute_image_request(
+            prompt=prompt,
+            output_dir=output_dir,
+            model_name=model_name,
+            size=size,
+            quality=quality,
+            n=n,
+            input_image_path=image_path,
+            **kwargs,
         )
