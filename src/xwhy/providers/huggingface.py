@@ -41,7 +41,7 @@ class HuggingFaceProvider(BaseProvider):
 
         """
         try:
-            response = self._client.chat.completions.create(  # type: ignore[attr-defined]
+            response = self._client.chat.completions.create(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=max_tokens,
