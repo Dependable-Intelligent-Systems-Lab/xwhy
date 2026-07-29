@@ -106,3 +106,44 @@ class TabularConfig(ExplainerConfig):
     seed: int = 1024
     device: str = "cpu"
     validate_normalization: bool = True
+
+
+class ImageGenerationConfig(ExplainerConfig):
+    """Configuration for the Image Generation and Editing explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    # Backend & Model
+    provider_type: ProviderType | str = ProviderType.OPENAI
+    model_name: str = "dall-e-3"
+
+    # Custom / Local Model
+    custom_model: Any = None
+    custom_preprocess: Callable[..., Any] | None = None
+
+    # Generation & Editing Parameters (Flattened for kwargs injection)
+    temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    image_size: str = "1024x1024"
+    num_inference_steps: int = Field(default=50, gt=0)
+    guidance_scale: float = Field(default=7.5, gt=0.0)
+
+    # Explainer Components
+    use_embedding_model: bool = False
+    embedding_type: EmbeddingType | str = EmbeddingType.DINOV2
+
+    use_segmentation_model: bool = True
+    segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
+
+    # Core Explainability Settings
+    device: str = "cpu"  # or "cuda"
+    seed: int = 1024
+    num_perturbations: int = Field(default=64, gt=0)
+
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True

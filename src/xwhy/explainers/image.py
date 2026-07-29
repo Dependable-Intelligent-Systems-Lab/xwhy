@@ -11,10 +11,10 @@ import torch.nn as nn
 from PIL import Image
 from tqdm import tqdm
 
-from xwhy.core.config import ImageClassificationConfig
+from xwhy.core.config import ExplainerConfig, ImageClassificationConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.pipeline import ExplanationPipeline
-from xwhy.core.result import ImageClassificationXWhyResult
+from xwhy.core.result import BaseXWhyResult, ImageClassificationXWhyResult
 from xwhy.core.types import ImageClassificationState
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
@@ -173,7 +173,7 @@ class ImageClassificationExplainer(
             )
             self.state.classification_model.load()
 
-            self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+            self.state.transform_fn = self.state.classification_model.preprocess_fn
 
         else:
             logger.info(
@@ -193,7 +193,7 @@ class ImageClassificationExplainer(
 
             # Extract the transform function directly from the adapter
             if self.config.use_model_preprocess:  # type: ignore[union-attr]
-                self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+                self.state.transform_fn = self.state.classification_model.preprocess_fn
 
         # 2. Load Embedding Model (if enabled)
         if self.config.use_embedding_model:  # type: ignore
@@ -559,3 +559,36 @@ class ImageClassificationExplainer(
             result.plot(show=True)
 
         return result
+
+
+class ImageGenerationAndEditingExplainer(BaseExplainer):
+    """Explainer for image generation and editing tasks."""
+
+    def __init__(
+        self,
+        config: ExplainerConfig | None = None,
+    ) -> None:
+        """Initialize the explainer."""
+        super().__init__(config)
+
+    def explain(
+        self,
+        instance: object,
+        **kwargs: object,
+    ) -> BaseXWhyResult:
+        """Generate an explanation for the given input instance.
+
+        Args:
+            instance: The input object to explain.
+            **kwargs: Additional explainer-specific options.
+
+        Returns:
+            An ``XWhyResult`` containing the explanation output.
+
+        Raises:
+            NotImplementedError: Always raised in Phase 1.
+
+        """
+        raise NotImplementedError(
+            "ImageGenerationAndEditingExplainer.explain to be implemented later."
+        )

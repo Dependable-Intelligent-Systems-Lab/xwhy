@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from torch import device
@@ -47,7 +48,7 @@ class ImageClassificationState:
         self.perturbator: ImagePerturbation | None = None
 
         self.classification_model: BaseClassification | None = None
-        self.transform_fn: BaseClassification | None = None
+        self.transform_fn: Callable[..., Any] | None = None
 
         self.segmentation_model: BaseSegmentation | None = None
 
@@ -64,3 +65,32 @@ class TabularState:
         initializations across multiple explanation requests.
         """
         self.model: Any | None = None
+
+
+class ImageGenerationState:
+    """Runtime state for the Image Generation and Editing explainer."""
+
+    def __init__(self, device_: device) -> None:
+        """Initialize the runtime state.
+
+        This object stores runtime resources that are created during the
+        explainer lifecycle. Unlike the configuration, these values are
+        mutable and are populated as models and providers are initialized.
+
+        Args:
+            device_: Torch device used to load and run all models.
+
+        """
+        self.device = device_
+
+        # Generation/Editing Resources
+        self.provider: BaseProvider | None = None
+        self.generation_model: Any | None = None
+        self.transform_fn: Callable[..., Any] | None = None
+
+        # Explainability Resources
+        self.perturbator: Any | None = (
+            None  # Can hold TextPerturbation or ImagePerturbation
+        )
+        self.segmentation_model: BaseSegmentation | None = None
+        self.embedding_model: BaseEmbedding | None = None
