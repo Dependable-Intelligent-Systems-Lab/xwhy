@@ -1,4 +1,4 @@
-site_name: XWhy Documentation
+site_name: "XWhy: eXplain Why"
 site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, and future multimodal systems.
 site_author: XWhy contributors
 site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
@@ -9,12 +9,12 @@ copyright: Copyright &copy; XWhy contributors
 
 theme:
   name: material
+  font: false
   features:
     - navigation.instant
-    - navigation.instant.prefetch
-    - navigation.instant.progress
     - navigation.sections
     - navigation.indexes
+    - navigation.prune
     - navigation.top
     - toc.follow
     - search.suggest
@@ -44,10 +44,11 @@ plugins:
       nav_file: SUMMARY.md
   - llmstxt:
       markdown_description: >-
-        XWhy is a Python library for model-agnostic local explainability using
-        SMILE. Image-classification and LLM explainers are currently available.
-        Image-generation explainability and additional modalities are being
-        developed and are explicitly labelled in the documentation.
+        XWhy: eXplain Why is a Python library for model-agnostic local
+        explainability using SMILE. Image-classification and LLM explainers are
+        currently available. Image-generation explainability and additional
+        modalities are being developed and are explicitly labelled in the
+        documentation.
       full_output: llms-full.txt
       sections:
         Getting Started:
@@ -101,11 +102,8 @@ extra_css:
 extra_javascript:
   - assets/javascripts/xwhy-nav.js
   - assets/javascripts/ai-links.js
-
-extra:
-  analytics:
-    provider: google
-    property: G-DV6YD3JCZ8
+  - assets/javascripts/accessibility.js
+  - assets/javascripts/analytics-delayed.js
 
 nav:
   - Home: index.md
