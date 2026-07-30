@@ -1,5 +1,6 @@
 name: PageSpeed Audit
 
+# Manual recheck requested 2026-07-30 23:01 Europe/London.
 on:
   push:
     branches:
