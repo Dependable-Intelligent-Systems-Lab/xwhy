@@ -22,6 +22,12 @@
   text-decoration-thickness: 0.14em;
 }
 
+.md-footer-meta .md-copyright,
+.md-footer-meta .md-copyright a {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
