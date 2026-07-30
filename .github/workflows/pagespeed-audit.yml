@@ -1,0 +1,79 @@
+name: PageSpeed Audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pagespeed-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for GitHub Pages propagation
+        run: sleep 45
+
+      - name: Run PageSpeed Insights mobile audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          API_URL='https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https%3A%2F%2Fdependable-intelligent-systems-lab.github.io%2Fxwhy%2F&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo'
+
+          for attempt in 1 2 3; do
+            if curl --fail --silent --show-error "$API_URL" --output pagespeed.json; then
+              break
+            fi
+
+            if [ "$attempt" -eq 3 ]; then
+              echo "PageSpeed Insights API failed after three attempts."
+              exit 1
+            fi
+
+            sleep 30
+          done
+
+          python - <<'PY'
+          import json
+
+          with open("pagespeed.json", encoding="utf-8") as report_file:
+              report = json.load(report_file)
+
+          result = report["lighthouseResult"]
+          categories = result["categories"]
+          audits = result["audits"]
+
+          print("PAGESPEED_MOBILE_RESULTS")
+          for category_id in (
+              "performance",
+              "accessibility",
+              "best-practices",
+              "seo",
+          ):
+              score = round(categories[category_id]["score"] * 100)
+              print(f"{category_id}={score}")
+
+          for audit_id in (
+              "first-contentful-paint",
+              "largest-contentful-paint",
+              "total-blocking-time",
+              "cumulative-layout-shift",
+              "speed-index",
+          ):
+              audit = audits[audit_id]
+              print(f"{audit_id}={audit.get('displayValue', 'n/a')}")
+
+          print(f"lighthouse-version={result['lighthouseVersion']}")
+          print(f"fetch-time={result['fetchTime']}")
+          PY
+
+      - name: Upload PageSpeed report
+        uses: actions/upload-artifact@v4
+        with:
+          name: pagespeed-mobile-report
+          path: pagespeed.json
+          retention-days: 14
