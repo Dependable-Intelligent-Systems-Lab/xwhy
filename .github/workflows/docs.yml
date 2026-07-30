@@ -59,6 +59,17 @@ jobs:
       - name: Build Documentation
         run: uv run properdocs build --clean --site-dir site
 
+      - name: Install Curated llms.txt
+        run: cp docs/llms.txt site/llms.txt
+
+      - name: Validate Critical Documentation Files
+        run: |
+          test -s site/index.html
+          test -s site/llms.txt
+          grep -q "XWhy: eXplain Why" site/llms.txt
+          grep -q "getting-started/installation/" site/llms.txt
+          ! grep -q "index.md" site/llms.txt
+
       - name: Configure Git User
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: |
