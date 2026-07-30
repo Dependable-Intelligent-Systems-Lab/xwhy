@@ -70,12 +70,11 @@ jobs:
           grep -q "getting-started/installation/" site/llms.txt
           ! grep -q "index.md" site/llms.txt
 
-      - name: Configure Git User
+      - name: Deploy Validated Documentation
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Deploy Documentation
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        run: uv run properdocs gh-deploy --force
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./site
+          force_orphan: true
