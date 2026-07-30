@@ -21,38 +21,35 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Wait for GitHub Pages propagation
-        run: sleep 45
+        run: sleep 15
 
-      - name: Run PageSpeed Insights mobile audit
-        shell: bash
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Lighthouse 13.4.1 mobile audit
         run: |
-          set -euo pipefail
-          API_URL='https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https%3A%2F%2Fdependable-intelligent-systems-lab.github.io%2Fxwhy%2F&strategy=mobile&category=performance&category=accessibility&category=best-practices&category=seo'
+          npx --yes lighthouse@13.4.1 \
+            https://dependable-intelligent-systems-lab.github.io/xwhy/ \
+            --output=json \
+            --output-path=lighthouse-mobile.json \
+            --only-categories=performance,accessibility,best-practices,seo \
+            --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+            --quiet
 
-          for attempt in 1 2 3; do
-            if curl --fail --silent --show-error "$API_URL" --output pagespeed.json; then
-              break
-            fi
-
-            if [ "$attempt" -eq 3 ]; then
-              echo "PageSpeed Insights API failed after three attempts."
-              exit 1
-            fi
-
-            sleep 30
-          done
-
+      - name: Print mobile audit results
+        run: |
           python - <<'PY'
           import json
 
-          with open("pagespeed.json", encoding="utf-8") as report_file:
+          with open("lighthouse-mobile.json", encoding="utf-8") as report_file:
               report = json.load(report_file)
 
-          result = report["lighthouseResult"]
-          categories = result["categories"]
-          audits = result["audits"]
+          categories = report["categories"]
+          audits = report["audits"]
 
-          print("PAGESPEED_MOBILE_RESULTS")
+          print("LIGHTHOUSE_MOBILE_RESULTS")
           for category_id in (
               "performance",
               "accessibility",
@@ -72,13 +69,13 @@ jobs:
               audit = audits[audit_id]
               print(f"{audit_id}={audit.get('displayValue', 'n/a')}")
 
-          print(f"lighthouse-version={result['lighthouseVersion']}")
-          print(f"fetch-time={result['fetchTime']}")
+          print(f"lighthouse-version={report['lighthouseVersion']}")
+          print(f"fetch-time={report['fetchTime']}")
           PY
 
-      - name: Upload PageSpeed report
+      - name: Upload Lighthouse report
         uses: actions/upload-artifact@v4
         with:
-          name: pagespeed-mobile-report
-          path: pagespeed.json
+          name: lighthouse-mobile-report
+          path: lighthouse-mobile.json
           retention-days: 14
