@@ -6,6 +6,11 @@ on:
       - main
     paths:
       - ".github/workflows/pagespeed-audit.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pagespeed-audit.yml"
   workflow_dispatch:
 
 permissions:
