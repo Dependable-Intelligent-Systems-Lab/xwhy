@@ -98,6 +98,7 @@ plugins:
 
 extra_css:
   - assets/stylesheets/extra.css
+  - assets/stylesheets/accessibility-performance.css
 
 extra_javascript:
   - assets/javascripts/xwhy-nav.js
