@@ -18,7 +18,7 @@ description: Use XWhy and SMILE to explain image classifiers and LLM responses, 
 - [Generate your first explanation](getting-started/quick-start.md)
 - [Choose the correct explainer](getting-started/choosing-an-explainer.md)
 - [Browse all explainers and their status](explainers/index.md)
-- [Read the generated API reference](reference/)
+- [Read the generated API reference](reference/index.md)
 
 ## Capability overview
 
