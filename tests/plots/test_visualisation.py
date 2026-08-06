@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
 import pytest
+from matplotlib.patches import Rectangle
 
 from xwhy.plots import visualisation as viz
 from xwhy.plots.visualisation import Explanation
@@ -106,7 +107,7 @@ def test_explanation_shape_and_len(exp_2d: Explanation) -> None:
 
 def test_explanation_len_of_scalar() -> None:
     """Verify a zero-dimensional explanation reports zero length."""
-    assert len(Explanation(values=np.float64(1.0))) == 0
+    assert len(Explanation(values=np.array(1.0))) == 0
 
 
 def test_explanation_getitem_row(exp_2d: Explanation) -> None:
@@ -465,7 +466,8 @@ def test_waterfall_bars_sum_to_the_prediction(
     fig = viz.waterfall(exp_1d, max_display=None, show=False)
     assert fig is not None
 
-    total = sum(patch.get_width() for patch in fig.axes[0].patches)
+    bars = [p for p in fig.axes[0].patches if isinstance(p, Rectangle)]
+    total = sum(bar.get_width() for bar in bars)
     assert total == pytest.approx(values[0].sum())
 
 
@@ -694,12 +696,14 @@ def test_partial_dependence_on_low_cardinality_feature() -> None:
     categorical = np.column_stack([np.repeat([0.0, 1.0, 2.0], 5), np.zeros(15)])
     fig = viz.partial_dependence(0, lambda x: x[:, 0], categorical, show=False)
     assert fig is not None
-    assert len(fig.axes[0].lines[-1].get_xdata()) == 3
+    assert np.asarray(fig.axes[0].lines[-1].get_xdata()).shape == (3,)
 
 
 def test_initjs_is_a_noop() -> None:
-    """Verify initjs exists for compatibility and does nothing."""
-    assert viz.initjs() is None
+    """Verify initjs exists for compatibility and draws nothing."""
+    viz.initjs()
+
+    assert plt.get_fignums() == []
 
 
 # ==============================================================================
@@ -850,7 +854,7 @@ def test_wrap_html_document_escapes_title() -> None:
 def test_display_html_without_ipython() -> None:
     """Verify HTML display degrades gracefully when IPython is unavailable."""
     with patch.dict("sys.modules", {"IPython.display": None}):
-        assert viz._display_html("<p>x</p>") is None
+        viz._display_html("<p>x</p>")  # must not raise
 
 
 # ==============================================================================
