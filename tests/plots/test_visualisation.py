@@ -915,3 +915,208 @@ def test_html_show_path_displays(exp_1d: Explanation) -> None:
     with patch.object(viz, "_display_html") as mock_display:
         viz.text(exp_1d, show=True)
     mock_display.assert_called_once()
+
+
+# ==============================================================================
+# TITLES, TRUNCATION AND SHAPE FALLBACKS
+# ==============================================================================
+
+
+def _left_titles(fig: matplotlib.figure.Figure) -> list[str]:
+    """Collect the non-empty left-aligned titles across every axes in a figure."""
+    return [t for t in (ax.get_title(loc="left") for ax in fig.axes) if t]
+
+
+def test_title_is_applied_to_decision(
+    values: np.ndarray, data: np.ndarray, feature_names: list[str]
+) -> None:
+    """Verify the decision plot honours an explicit title."""
+    fig = viz.decision(0.4, values, data, feature_names, title="D", show=False)
+    assert fig is not None
+    assert _left_titles(fig) == ["D"]
+
+
+@pytest.mark.parametrize("name", ["scatter", "beeswarm", "violin"])
+def test_title_is_applied_to_axes_plots(exp_2d: Explanation, name: str) -> None:
+    """Verify each axes-based summary plot honours an explicit title."""
+    fig = getattr(viz, name)(exp_2d, title="T", show=False)
+    assert fig is not None
+    assert _left_titles(fig) == ["T"]
+
+
+def test_title_is_applied_to_heatmap(exp_2d: Explanation) -> None:
+    """Verify the heatmap title lands on the output track above the matrix."""
+    fig = viz.heatmap(exp_2d, title="H", show=False)
+    assert fig is not None
+    assert _left_titles(fig) == ["H"]
+
+
+@pytest.mark.parametrize("name", ["image", "image_to_text"])
+def test_title_is_applied_to_image_plots(
+    exp_image: Explanation, exp_multimodal: Explanation, name: str
+) -> None:
+    """Verify the image plots set a figure-level suptitle."""
+    explanation = exp_image if name == "image" else exp_multimodal
+    fig = getattr(viz, name)(explanation, title="I", show=False)
+    assert fig is not None
+    assert fig.get_suptitle() == "I"
+
+
+def test_force_without_title(exp_1d: Explanation) -> None:
+    """Verify the force plot renders when no title is supplied."""
+    fig = viz.force(exp_1d, show=False)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert _left_titles(fig) == []
+
+
+def test_force_truncates_to_max_display(exp_1d: Explanation) -> None:
+    """Verify max_display limits how many force blocks are drawn."""
+    fig = viz.force(exp_1d, max_display=2, show=False)
+    assert isinstance(fig, matplotlib.figure.Figure)
+    assert len(fig.axes[0].patches) == 2
+
+
+def test_decision_truncates_to_max_display(
+    values: np.ndarray, feature_names: list[str]
+) -> None:
+    """Verify max_display limits how many decision rows are drawn."""
+    fig = viz.decision(
+        0.4, values, feature_names=feature_names, max_display=3, show=False
+    )
+    assert fig is not None
+    assert len(fig.axes[0].get_yticks()) == 3
+
+
+def test_single_instance_unwraps_without_data(
+    values: np.ndarray, feature_names: list[str]
+) -> None:
+    """Verify a (1, n) explanation with a scalar base and no data is unwrapped."""
+    exp = Explanation(
+        values=values[:1], base_values=0.3, data=None, feature_names=feature_names
+    )
+    assert viz.waterfall(exp, show=False) is not None
+
+
+@pytest.mark.parametrize("base", [np.array([0.3]), np.array([])])
+def test_single_instance_with_array_base_value(
+    values: np.ndarray, feature_names: list[str], base: np.ndarray
+) -> None:
+    """Verify an array base value is reduced to a scalar, empty or not."""
+    exp = Explanation(values=values[0], base_values=base, feature_names=feature_names)
+    assert viz.waterfall(exp, show=False) is not None
+
+
+@pytest.mark.parametrize("plot", ["waterfall", "force"])
+def test_local_plots_ignore_mismatched_data(plot: str) -> None:
+    """Verify feature values of the wrong length are dropped from the labels."""
+    exp = Explanation(
+        values=np.array([1.0, -2.0]),
+        data=np.array([1.0, 2.0, 3.0]),
+        feature_names=["a", "b"],
+    )
+    assert getattr(viz, plot)(exp, show=False) is not None
+
+
+def test_force_without_data() -> None:
+    """Verify the force plot labels by feature name when no data is present."""
+    exp = Explanation(values=np.array([1.0, -2.0]), feature_names=["a", "b"])
+    assert viz.force(exp, show=False) is not None
+
+
+def test_decision_ignores_mismatched_features(
+    values: np.ndarray, feature_names: list[str]
+) -> None:
+    """Verify a feature matrix of the wrong width is dropped from the labels."""
+    narrow = np.zeros((N_INSTANCES, 2))
+    assert viz.decision(0.4, values, narrow, feature_names, show=False) is not None
+
+
+def test_monitoring_ignores_mismatched_features(exp_2d: Explanation) -> None:
+    """Verify a feature matrix that does not align leaves the points uncoloured."""
+    assert viz.monitoring(0, exp_2d, np.zeros((5, 2)), show=False) is not None
+
+
+def test_plotly_monitoring_marks_detected_drift(feature_names: list[str]) -> None:
+    """Verify drift split points become vertical rules on the plotly backend."""
+    drifting = np.zeros((200, N_FEATURES))
+    drifting[100:, 0] = 10.0
+    exp = Explanation(values=drifting, feature_names=feature_names)
+
+    fig = viz.monitoring(0, exp, None, backend="plotly", show=False)
+    assert isinstance(fig, go.Figure)
+    assert fig.layout.shapes
+
+
+def test_explanation_getitem_with_unsliceable_base_values(values: np.ndarray) -> None:
+    """Verify a base-value array that cannot be indexed falls back untouched."""
+    exp = Explanation(values=values, base_values=np.array([1.0, 2.0]))
+    row = exp[10]
+    np.testing.assert_array_equal(np.asarray(row.base_values), np.array([1.0, 2.0]))
+
+
+def test_image_to_text_pads_an_incomplete_grid(rng: np.random.Generator) -> None:
+    """Verify unused panels in the token grid are left blank."""
+    exp = Explanation(
+        values=rng.normal(size=(1, 12, 12, 3, 5)), data=rng.random((1, 12, 12, 3))
+    )
+    fig = viz.image_to_text(exp, show=False)
+    assert fig is not None
+    assert len(fig.axes) >= 8  # 4 columns by 2 rows, only 5 of them filled
+
+
+def test_partial_dependence_with_explicit_npoints(data: np.ndarray) -> None:
+    """Verify an explicit grid size overrides the automatic one."""
+    fig = viz.partial_dependence(
+        0, lambda x: x.sum(axis=1), data, npoints=5, ice=False, show=False
+    )
+    assert fig is not None
+    assert np.asarray(fig.axes[0].lines[-1].get_xdata()).shape == (5,)
+
+
+def test_normalise_backgrounds_rejects_non_numeric_source() -> None:
+    """Verify a background that cannot be coerced to floats falls back to blank."""
+    images = viz._normalise_backgrounds(np.array(["a", "b"]), 2, (4, 4))
+    assert images.shape == (2, 4, 4, 3)
+    assert np.all(images == 1.0)
+
+
+def test_normalise_backgrounds_rescales_signed_images() -> None:
+    """Verify an image in [-1, 1] is shifted into [0, 1]."""
+    images = viz._normalise_backgrounds(np.full((1, 4, 4, 3), -0.5), 1, (4, 4))
+    assert images.min() == pytest.approx(0.25)
+
+
+def test_format_value_without_a_decimal_point() -> None:
+    """Verify a format string producing no decimal point is returned as-is."""
+    assert viz._format_value(3, "%d") == "3"
+
+
+def test_global_importance_of_a_single_instance() -> None:
+    """Verify a 1D attribution vector collapses to its absolute values."""
+    np.testing.assert_allclose(
+        viz._global_importance(np.array([1.0, -2.0])), np.array([1.0, 2.0])
+    )
+
+
+def test_density_offsets_when_every_point_is_alone() -> None:
+    """Verify perfectly spread values need no vertical displacement."""
+    offsets = viz._density_offsets(np.linspace(0.0, 1.0, 50), np.random.default_rng(0))
+    np.testing.assert_array_equal(offsets, np.zeros(50))
+
+
+def test_significant_splits_ignores_a_constant_series() -> None:
+    """Verify a series that never changes reports no drift."""
+    assert viz._significant_splits(np.zeros(200), 50) == []
+
+
+def test_display_html_uses_ipython_when_available() -> None:
+    """Verify the HTML fragment is handed to the IPython display hook."""
+    display = MagicMock()
+    html_ctor = MagicMock()
+    module = MagicMock(display=display, HTML=html_ctor)
+
+    with patch.dict("sys.modules", {"IPython.display": module}):
+        viz._display_html("<p>x</p>")
+
+    html_ctor.assert_called_once_with("<p>x</p>")
+    display.assert_called_once_with(html_ctor.return_value)

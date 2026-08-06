@@ -573,20 +573,23 @@ def test_image_to_text_success(
     mock_shap_itt.assert_called_once_with(mock_shap_explanation, label="test")
 
 
-@patch("xwhy.plots.plots.initjs")
+@patch("xwhy.plots.plots.viz.initjs")
 def test_initjs_wrapper(mock_initjs: MagicMock) -> None:
-    """Verify initjs aliases to SHAP implementation directly."""
+    """Verify initjs delegates to the visualisation engine."""
     xwhy.plots.plots.initjs()
 
-    mock_initjs.assert_called_once()
+    mock_initjs.assert_called_once_with()
 
 
-@patch("xwhy.plots.plots.partial_dependence")
+@patch("xwhy.plots.plots.viz.partial_dependence")
 def test_partial_dependence_wrapper(mock_pd: MagicMock) -> None:
-    """Verify partial dependence aliases to SHAP implementation directly."""
-    xwhy.plots.plots.partial_dependence(0, "model", np.array([[1, 2]]), ice=False)
+    """Verify partial dependence forwards its arguments to the engine."""
+    data = np.array([[1, 2]])
+
+    xwhy.plots.plots.partial_dependence(0, "model", data, ice=False)
 
     mock_pd.assert_called_once_with(0, "model", ANY, ice=False)
+    assert mock_pd.call_args.args[2] is data
 
 
 # ==============================================================================
