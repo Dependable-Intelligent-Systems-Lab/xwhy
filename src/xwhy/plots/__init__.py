@@ -30,9 +30,11 @@ from xwhy.plots.tabular import (
 )
 from xwhy.plots.text import NativeHeatmapPlotter
 from xwhy.plots.types import TextPlotterType
+from xwhy.plots.visualisation import Explanation
 
 __all__ = [
     "BaseTextPlotter",
+    "Explanation",
     "NativeHeatmapPlotter",
     "TextPlotterFactory",
     "TextPlotterType",

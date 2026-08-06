@@ -83,7 +83,7 @@ def test_raw_data_mutation(mock_metrics: RegressionMetricResult) -> None:
     assert result.raw_data["new"] == "data"
 
 
-@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.core.result.Explanation")
 def test_to_shap_conversion_success(
     mock_shap_explanation: MagicMock, mock_metrics: RegressionMetricResult
 ) -> None:
@@ -208,7 +208,7 @@ def test_image_classification_result_properties(
     np.testing.assert_array_equal(result.data, orig_img)
 
 
-@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.core.result.Explanation")
 @patch("xwhy.plots.image.create_image_heat_mask")
 def test_to_shap_with_superpixels_ndim_3(
     mock_create_mask: MagicMock,
@@ -235,7 +235,7 @@ def test_to_shap_with_superpixels_ndim_3(
     assert out_obj == mock_shap_explanation.return_value
 
 
-@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.core.result.Explanation")
 @patch("xwhy.plots.image.create_image_heat_mask")
 def test_to_shap_with_superpixels_ndim_2(
     mock_create_mask: MagicMock,
@@ -262,7 +262,7 @@ def test_to_shap_with_superpixels_ndim_2(
     assert out_obj == mock_shap_explanation.return_value
 
 
-@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.core.result.Explanation")
 @patch("xwhy.plots.image.create_image_heat_mask")
 def test_to_shap_with_superpixels_ndim_4(
     mock_create_mask: MagicMock,
@@ -289,7 +289,7 @@ def test_to_shap_with_superpixels_ndim_4(
     assert out_obj == mock_shap_explanation.return_value
 
 
-@patch("xwhy.core.result.shap.Explanation")
+@patch("xwhy.core.result.Explanation")
 def test_to_shap_without_superpixels(
     mock_shap_explanation: MagicMock,
     mock_metrics: RegressionMetricResult,

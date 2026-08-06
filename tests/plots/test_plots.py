@@ -1,7 +1,9 @@
 """Unit tests for the plots module."""
 
+import re
 import sys
 from collections.abc import Generator
+from pathlib import Path
 from typing import Any, cast
 from unittest.mock import ANY, MagicMock, patch
 
@@ -66,12 +68,6 @@ def mock_metrics() -> RegressionMetricResult:
         weighted_l1_norm=0.1,
         weighted_l2_norm=0.05,
     )
-
-
-if "shap" not in sys.modules:
-    shap_mock = MagicMock()
-    sys.modules["shap"] = shap_mock
-    sys.modules["shap.plots"] = MagicMock()
 
 
 @pytest.fixture(autouse=True)
@@ -232,13 +228,13 @@ def test_plot_new_line_logic() -> None:
 
 
 # ==============================================================================
-# SHAP WRAPPER TESTS
+# VISUALISATION WRAPPER TESTS
 # ==============================================================================
 
 
 @pytest.fixture
 def mock_shap_explanation() -> MagicMock:
-    """Provide a mock SHAP Explanation object."""
+    """Provide a mock Explanation object."""
     explanation = MagicMock()
     explanation.values.ndim = 5
     return explanation
@@ -249,7 +245,7 @@ def mock_xwhy_result_1d(mock_shap_explanation: MagicMock) -> MagicMock:
     """Fixture providing a mock BaseXWhyResult with 1D data."""
     result = MagicMock(spec=BaseXWhyResult)
     result.coefficients = np.zeros(5)
-    result.to_shap.return_value = mock_shap_explanation
+    result.to_explanation.return_value = mock_shap_explanation
     return result
 
 
@@ -258,7 +254,7 @@ def mock_xwhy_result_2d(mock_shap_explanation: MagicMock) -> MagicMock:
     """Fixture providing a mock BaseXWhyResult with 2D data."""
     result = MagicMock(spec=BaseXWhyResult)
     result.coefficients = np.zeros((10, 5))
-    result.to_shap.return_value = mock_shap_explanation
+    result.to_explanation.return_value = mock_shap_explanation
     return result
 
 
@@ -267,7 +263,7 @@ def mock_xwhy_result_3d(mock_shap_explanation: MagicMock) -> MagicMock:
     """Fixture providing a mock BaseXWhyResult with 3D/4D multimodal data."""
     result = MagicMock(spec=BaseXWhyResult)
     result.coefficients = np.zeros((1, 28, 28, 3))
-    result.to_shap.return_value = mock_shap_explanation
+    result.to_explanation.return_value = mock_shap_explanation
     return result
 
 
@@ -276,7 +272,7 @@ def mock_xwhy_result_3d(mock_shap_explanation: MagicMock) -> MagicMock:
 # ==============================================================================
 
 
-@patch("shap.plots.bar")
+@patch("xwhy.plots.plots.viz.bar")
 def test_bar_wrapper(
     mock_shap_bar: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -287,7 +283,7 @@ def test_bar_wrapper(
     mock_shap_bar.assert_called_once_with(mock_shap_explanation, max_display=10)
 
 
-@patch("shap.plots.waterfall")
+@patch("xwhy.plots.plots.viz.waterfall")
 def test_waterfall_wrapper(
     mock_shap_waterfall: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -298,7 +294,7 @@ def test_waterfall_wrapper(
     mock_shap_waterfall.assert_called_once_with(mock_shap_explanation, alpha=0.5)
 
 
-@patch("shap.plots.text")
+@patch("xwhy.plots.plots.viz.text")
 def test_text_wrapper(
     mock_shap_text: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -309,7 +305,7 @@ def test_text_wrapper(
     mock_shap_text.assert_called_once_with(mock_shap_explanation)
 
 
-@patch("shap.plots.force")
+@patch("xwhy.plots.plots.viz.force")
 def test_force_wrapper(
     mock_shap_force: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -323,7 +319,7 @@ def test_force_wrapper(
     assert res == "force_html_mock"
 
 
-@patch("shap.plots.decision")
+@patch("xwhy.plots.plots.viz.decision")
 def test_decision_wrapper_none_and_float(
     mock_shap_decision: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -344,7 +340,7 @@ def test_decision_wrapper_none_and_float(
     )
 
 
-@patch("shap.plots.decision")
+@patch("xwhy.plots.plots.viz.decision")
 def test_decision_wrapper_list_and_array(
     mock_shap_decision: MagicMock,
     mock_xwhy_result_1d: MagicMock,
@@ -370,7 +366,7 @@ def test_decision_wrapper_list_and_array(
 # ==============================================================================
 
 
-@patch("shap.plots.scatter")
+@patch("xwhy.plots.plots.viz.scatter")
 def test_scatter_wrapper(
     mock_shap_scatter: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -381,7 +377,7 @@ def test_scatter_wrapper(
     mock_shap_scatter.assert_called_once_with(mock_shap_explanation, color="blue")
 
 
-@patch("shap.plots.heatmap")
+@patch("xwhy.plots.plots.viz.heatmap")
 def test_heatmap_wrapper(
     mock_shap_heatmap: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -392,7 +388,7 @@ def test_heatmap_wrapper(
     mock_shap_heatmap.assert_called_once_with(mock_shap_explanation, show=False)
 
 
-@patch("shap.plots.beeswarm")
+@patch("xwhy.plots.plots.viz.beeswarm")
 def test_beeswarm_wrapper(
     mock_shap_beeswarm: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -403,7 +399,7 @@ def test_beeswarm_wrapper(
     mock_shap_beeswarm.assert_called_once_with(mock_shap_explanation, max_display=5)
 
 
-@patch("shap.plots.violin")
+@patch("xwhy.plots.plots.viz.violin")
 def test_violin_wrapper(
     mock_shap_violin: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -414,7 +410,7 @@ def test_violin_wrapper(
     mock_shap_violin.assert_called_once_with(mock_shap_explanation)
 
 
-@patch("shap.plots.embedding")
+@patch("xwhy.plots.plots.viz.embedding")
 def test_embedding_wrapper(
     mock_shap_embedding: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -427,7 +423,7 @@ def test_embedding_wrapper(
     )
 
 
-@patch("shap.plots.group_difference")
+@patch("xwhy.plots.plots.viz.group_difference")
 def test_group_difference_wrapper(
     mock_shap_gd: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -439,7 +435,7 @@ def test_group_difference_wrapper(
     mock_shap_gd.assert_called_once_with(mock_shap_explanation, mask)
 
 
-@patch("shap.plots.monitoring")
+@patch("xwhy.plots.plots.viz.monitoring")
 def test_monitoring_wrapper(
     mock_shap_monitoring: MagicMock,
     mock_xwhy_result_2d: MagicMock,
@@ -456,7 +452,7 @@ def test_monitoring_wrapper(
 # ==============================================================================
 
 
-@patch("shap.plots.image")
+@patch("xwhy.plots.plots.viz.image")
 def test_image_wrapper(
     mock_shap_image: MagicMock,
     mock_xwhy_result_3d: MagicMock,
@@ -474,7 +470,7 @@ def test_image_wrapper(
     assert kwargs["label"] == "test"
 
 
-@patch("shap.plots.image_to_text")
+@patch("xwhy.plots.plots.viz.image_to_text")
 def test_image_to_text_wrapper(
     mock_shap_itt: MagicMock,
     mock_xwhy_result_3d: MagicMock,
@@ -499,12 +495,12 @@ def test_image_with_superpixels_low_dim(
     mock_xwhy_result_1d.coefficients = np.zeros(5)
     mock_xwhy_result_1d.superpixels = np.zeros((28, 28))
 
-    with patch("shap.plots.image") as mock_shap_image:
+    with patch("xwhy.plots.plots.viz.image") as mock_shap_image:
         image(mock_xwhy_result_1d, pixel_values=None)
         mock_shap_image.assert_called_once()
 
 
-@patch("shap.plots.image")
+@patch("xwhy.plots.plots.viz.image")
 def test_image_pixel_values_none(
     mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
 ) -> None:
@@ -515,7 +511,7 @@ def test_image_pixel_values_none(
     assert kwargs["pixel_values"] is None
 
 
-@patch("shap.plots.image")
+@patch("xwhy.plots.plots.viz.image")
 def test_image_pixel_values_3d(
     mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
 ) -> None:
@@ -526,7 +522,7 @@ def test_image_pixel_values_3d(
     assert kwargs["pixel_values"].shape == (1, 28, 28, 3)
 
 
-@patch("shap.plots.image")
+@patch("xwhy.plots.plots.viz.image")
 def test_image_pixel_values_2d(
     mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
 ) -> None:
@@ -537,7 +533,7 @@ def test_image_pixel_values_2d(
     assert kwargs["pixel_values"].shape == (1, 28, 28)
 
 
-@patch("shap.plots.image")
+@patch("xwhy.plots.plots.viz.image")
 def test_image_pixel_values_4d(
     mock_shap_image: MagicMock, mock_xwhy_result_3d: MagicMock
 ) -> None:
@@ -565,7 +561,7 @@ def test_image_to_text_value_error_shap_dim(
         image_to_text(mock_xwhy_result_3d)
 
 
-@patch("shap.plots.image_to_text")
+@patch("xwhy.plots.plots.viz.image_to_text")
 def test_image_to_text_success(
     mock_shap_itt: MagicMock,
     mock_xwhy_result_3d: MagicMock,
@@ -638,14 +634,19 @@ def test_plots_raise_error_for_1d_text_result(
         monitoring(0, result_1d, features=None)
 
 
+# ==============================================================================
+# COMPATIBILITY DECORATOR TESTS
+# ==============================================================================
+
+
 def test_decorator_modifies_matplotlib_xlabel() -> None:
     """Ensure matplotlib x-axis labels are intercepted and converted."""
 
     @replace_shap_label
-    def bar(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+    def bar(show: bool = True) -> None:
         _, ax = plt.subplots()
         ax.set_xlabel("Average SHAP value magnitude")
-        if kwargs.get("show", True):
+        if show:
             plt.show()
 
     with patch("matplotlib.pyplot.show") as mock_show:
@@ -668,137 +669,96 @@ def test_decorator_bypasses_non_show_functions() -> None:
     assert result == "mocked_html_output"
 
 
-@patch("shap.plots", create=True)
-@patch("matplotlib.pyplot.show")
-def test_replace_shap_label_full_flow_all_true(
-    mock_show: MagicMock, mock_shap_plots: MagicMock
-) -> None:
-    """Test all positive branches: show=True, figure exists, 'SHAP value' in label."""
+def test_replace_shap_label_returns_wrapped_result() -> None:
+    """Verify the decorator forwards the wrapped function's return value."""
 
     def dummy_plot(show: bool = True) -> str:
         plt.figure()
         plt.xlabel("Average SHAP value (impact)")
         return "success"
 
-    mock_shap_plots.dummy_plot = dummy_plot
-
-    decorated = replace_shap_label(dummy_plot)
-    result = decorated(show=True)
+    with patch("matplotlib.pyplot.show") as mock_show:
+        result = replace_shap_label(dummy_plot)(show=True)
 
     assert result == "success"
     assert plt.gca().get_xlabel() == "Average XWhy value (impact)"
     mock_show.assert_called_once()
 
 
-@patch("shap.plots", create=True)
-def test_replace_shap_label_shap_func_none(mock_shap_plots: MagicMock) -> None:
-    """Test when the function is not found in shap.plots (shap_func is None)."""
-
-    def unknown_plot() -> str:
-        return "bypassed"
-
-    decorated = replace_shap_label(unknown_plot)
-    result = decorated()
-
-    assert result == "bypassed"
-
-
-@patch("shap.plots", create=True)
-@patch("inspect.signature")
-def test_replace_shap_label_inspect_raises(
-    mock_signature: MagicMock, mock_shap_plots: MagicMock
-) -> None:
-    """Test the except (ValueError, TypeError) block during signature inspection."""
+def test_replace_shap_label_inspect_raises() -> None:
+    """Verify a non-introspectable callable falls back to a passthrough."""
 
     def weird_plot() -> str:
         return "handled"
 
-    mock_shap_plots.weird_plot = weird_plot
-    mock_signature.side_effect = ValueError("Cannot inspect built-in")
+    with patch("inspect.signature", side_effect=ValueError("builtin")):
+        decorated = replace_shap_label(weird_plot)
 
-    decorated = replace_shap_label(weird_plot)
-    result = decorated()
-
-    assert result == "handled"
+    assert decorated() == "handled"
 
 
-@patch("shap.plots", create=True)
-def test_replace_shap_label_no_figures(mock_shap_plots: MagicMock) -> None:
-    """Test the branch where len(plt.get_fignums()) > 0 is False."""
+def test_replace_shap_label_no_figures() -> None:
+    """Verify the decorator copes with a plot that opens no figure."""
 
     def empty_plot(show: bool = True) -> None:
         pass
 
-    mock_shap_plots.empty_plot = empty_plot
-
-    decorated = replace_shap_label(empty_plot)
-    decorated(show=False)
+    replace_shap_label(empty_plot)(show=False)
 
     assert len(plt.get_fignums()) == 0
 
 
-@patch("shap.plots", create=True)
-def test_replace_shap_label_different_xlabel(mock_shap_plots: MagicMock) -> None:
-    """Test the branch where 'SHAP value' is not in the current_xlabel."""
+def test_replace_shap_label_different_xlabel() -> None:
+    """Verify an unrelated x-axis label is left untouched."""
 
     def diff_plot(show: bool = True) -> None:
         plt.figure()
         plt.xlabel("Feature Importance")
 
-    mock_shap_plots.diff_plot = diff_plot
-
-    decorated = replace_shap_label(diff_plot)
-    decorated(show=False)
+    replace_shap_label(diff_plot)(show=False)
 
     assert plt.gca().get_xlabel() == "Feature Importance"
 
 
-@patch("shap.plots", create=True)
-@patch("matplotlib.pyplot.show")
-def test_replace_shap_label_original_show_false(
-    mock_show: MagicMock, mock_shap_plots: MagicMock
-) -> None:
-    """Test the branch where original_show is False."""
+def test_replace_shap_label_original_show_false() -> None:
+    """Verify show=False relabels the axis without rendering."""
 
     def silent_plot(show: bool = True) -> None:
         plt.figure()
         plt.xlabel("SHAP value")
 
-    mock_shap_plots.silent_plot = silent_plot
-
-    decorated = replace_shap_label(silent_plot)
-    decorated(show=False)
+    with patch("matplotlib.pyplot.show") as mock_show:
+        replace_shap_label(silent_plot)(show=False)
 
     assert plt.gca().get_xlabel() == "XWhy value"
     mock_show.assert_not_called()
 
 
-@patch("shap.plots", create=True)
-def test_replace_shap_label_already_called(mock_shap_plots: MagicMock) -> None:
-    """Test the guard block handling hasattr(current_func, 'called')."""
-
-    def already_called_plot() -> str:
-        return "direct"
-
-    already_called_plot.called = True  # type: ignore
-    mock_shap_plots.already_called_plot = already_called_plot
-
-    decorated = replace_shap_label(already_called_plot)
-    result = decorated()
-
-    assert result == "direct"
+# ==============================================================================
+# INDEPENDENCE FROM SHAP
+# ==============================================================================
 
 
-@patch("shap.plots", create=True)
-def test_replace_shap_label_shap_func_is_none(mock_shap_plots: MagicMock) -> None:
-    """Test the branch where shap_func is None (func not in shap.plots)."""
+def test_package_does_not_import_shap() -> None:
+    """Verify importing xwhy never pulls shap into the interpreter."""
+    import xwhy  # noqa: F401
 
-    def my_custom_plot() -> str:
-        return "bypassed and executed"
+    assert "shap" not in sys.modules, (
+        "xwhy imported shap; the package is meant to be shap-free."
+    )
 
-    del mock_shap_plots.my_custom_plot
 
-    decorated = replace_shap_label(my_custom_plot)
-    result = decorated()
+def test_no_source_file_imports_shap() -> None:
+    """Verify no module under src/xwhy imports shap."""
+    source_root = Path(__file__).resolve().parents[2] / "src" / "xwhy"
+    offenders = [
+        path.relative_to(source_root).as_posix()
+        for path in source_root.rglob("*.py")
+        if re.search(
+            r"^\s*(import\s+shap|from\s+shap[\s.])",
+            path.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+    ]
 
-    assert result == "bypassed and executed"
+    assert not offenders, f"These modules still import shap: {offenders}"

@@ -57,7 +57,6 @@ dependencies = [
     "google-genai>=2.10.0",
     "anthropic>=0.116.0",
     "huggingface-hub>=1.20.1",
-    "shap>=0.52.0",
     "gdown>=5.2.2",
     "pandas>=2.2.2",
     "scipy>=1.16.3",
@@ -187,7 +186,6 @@ addopts = [
 ]
 
 filterwarnings = [
-    "ignore::PendingDeprecationWarning:shap.*",
     "ignore::pyparsing.PyparsingDeprecationWarning",
 ]
 
