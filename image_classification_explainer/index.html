@@ -1,0 +1,2726 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, and future multimodal systems.">
+      
+      
+        <meta name="author" content="XWhy contributors">
+      
+      
+        <link rel="canonical" href="https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/">
+      
+      
+        <link rel="prev" href="../tutorials-and-examples/">
+      
+      
+        <link rel="next" href="../llm_explainer/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-ProperDocs 1.6.7, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Image Classification Tutorial - XWhy: eXplain Why</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="../assets/stylesheets/accessibility-performance.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#image-classification-explainer" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="XWhy: eXplain Why" class="md-header__button md-logo" aria-label="XWhy: eXplain Why" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            XWhy: eXplain Why
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Image Classification Tutorial
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Dependable-Intelligent-Systems-Lab/xwhy
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="XWhy: eXplain Why" class="md-nav__button md-logo" aria-label="XWhy: eXplain Why" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    XWhy: eXplain Why
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Dependable-Intelligent-Systems-Lab/xwhy
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../getting-started/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Get Started
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Get Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/choosing-an-explainer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Choose an Explainer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/explanation-results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explanation Results
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/visualisation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Visualisation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../explainers/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Explainers
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Explainers
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/image/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Classification
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+    
+    
+      
+        
+        
+      
+    
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+      
+        
+  
+  
+  
+    <a href="../explainers/image-generation/" class="md-nav__link">
+      
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Generation
+  
+
+    
+  </span>
+  
+  
+
+      
+        <span class="md-nav__icon md-icon"></span>
+      
+    </a>
+  
+
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/llm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/tabular/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabular
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/text/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/point-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Point Cloud
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/time-series/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Time Series
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../explainers/multimodal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multimodal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorials-and-examples/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials & Examples
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials & Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Classification Tutorial
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Classification Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-explain-with-a-built-in-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start: Explain with a Built-in Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start: Explain with a Built-in Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-run-a-basic-explanation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Run a Basic Explanation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-using-an-imageclassificationconfig-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Using an ImageClassificationConfig Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-read-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Read the Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-explanation-plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Explanation Plots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-pre-defined-classification-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Pre-defined Classification Models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-custom-pytorch-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using a Custom PyTorch Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using a Custom PyTorch Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-custom-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simple Custom Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#well-known-pre-trained-model-resnet-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Well-known Pre-trained Model (ResNet-18)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-and-segmentation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding and Segmentation Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Embedding and Segmentation Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embedding-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmentation Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distance-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distance Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-end-to-end-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete End-to-End Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-setup-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Setup Problems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Setup Problems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-not-found-or-incompatible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Not Found or Incompatible
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-or-embedding-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmentation or Embedding Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mask-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mask Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretation-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpretation Note
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../llm_explainer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LLM Example
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/image/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Image Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/tabular/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tabular Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/text/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/point-cloud/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Point-Cloud Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../how-to/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    How-to Guides
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    How-to Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure Logging
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/custom-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connect Custom Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/providers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configure LLM Providers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../how-to/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducible Explanations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../evaluation/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Evaluation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/attribution-fidelity/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATT Fidelity
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/attribution-accuracy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATT Accuracy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/attribution-stability/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATT Stability
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/attribution-consistency/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATT Consistency
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/attribution-faithfulness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ATT Faithfulness
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../research/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Research
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../research/publications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Publications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../research/citation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Citation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributors
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contribute/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-explain-with-a-built-in-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start: Explain with a Built-in Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start: Explain with a Built-in Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-run-a-basic-explanation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Run a Basic Explanation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-using-an-imageclassificationconfig-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Using an ImageClassificationConfig Object
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-read-the-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Read the Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-explanation-plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Additional Explanation Plots
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-pre-defined-classification-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using Pre-defined Classification Models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-custom-pytorch-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using a Custom PyTorch Model
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Using a Custom PyTorch Model">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#simple-custom-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Simple Custom Model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#well-known-pre-trained-model-resnet-18" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Well-known Pre-trained Model (ResNet-18)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#embedding-and-segmentation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding and Segmentation Models
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Embedding and Segmentation Models">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#embedding-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Embedding Engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmentation Models
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#distance-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distance Metrics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-end-to-end-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete End-to-End Example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#common-setup-problems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Setup Problems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Setup Problems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-not-found-or-incompatible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model Not Found or Incompatible
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#segmentation-or-embedding-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Segmentation or Embedding Error
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mask-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mask Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretation-note" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpretation Note
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="image-classification-explainer">Image Classification Explainer<a class="headerlink" href="#image-classification-explainer" title="Permanent link">&para;</a></h1>
+<p>Image classification models can be difficult to interpret because their predictions depend on complex visual patterns distributed across an image.</p>
+<p>The <strong>XWhy Image Classification Explainer</strong> provides a model-agnostic way to examine an image classifier as a black-box system. It perturbs the input image, observes how the model prediction changes, and estimates which regions or segments of the image had the strongest local influence on the generated output.</p>
+<p>This guide starts with the simplest setup using a built-in classification model. Advanced configuration for custom PyTorch models, embedding engines, segmentation models, and configuration objects is provided later.</p>
+<blockquote>
+<p><strong>Important:</strong> Only PyTorch implementations are supported. You may pass only PyTorch models for explainability.</p>
+</blockquote>
+<hr />
+<h2 id="quick-start-explain-with-a-built-in-model">Quick Start: Explain with a Built-in Model<a class="headerlink" href="#quick-start-explain-with-a-built-in-model" title="Permanent link">&para;</a></h2>
+<p>For a first test, you only need a short Python script. The explainer can load a pre-defined classification model, apply its standard preprocessing, and generate a local explanation.</p>
+<h3 id="1-run-a-basic-explanation">1. Run a Basic Explanation<a class="headerlink" href="#1-run-a-basic-explanation" title="Permanent link">&para;</a></h3>
+<p>The following example uses the default configuration and explains a local image:</p>
+<pre><code class="language-python">from xwhy import ImageClassificationExplainer
+import xwhy
+
+try:
+    explainer = ImageClassificationExplainer(
+        use_model_preprocess=True,
+        use_embedding_model=True,
+        use_segmentation_model=True,
+    )
+    # or use `explainer.run`
+    result = explainer.explain(instance=&quot;cat-and-dog.jpg&quot;)
+    print(result.metrics)
+    print(&quot;Explanation successful!&quot;)
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as e:
+    print(f&quot;Error during pipeline execution: {e}&quot;)
+
+</code></pre>
+<h3 id="2-using-an-imageclassificationconfig-object">2. Using an <code>ImageClassificationConfig</code> Object<a class="headerlink" href="#2-using-an-imageclassificationconfig-object" title="Permanent link">&para;</a></h3>
+<p>You can also centralize settings in an <code>ImageClassificationConfig</code> instance and pass it to the <code>ImageClassificationExplainer</code> constructor as a single <code>config</code> parameter. This avoids supplying individual keyword arguments for every option:</p>
+<pre><code class="language-python">from xwhy.core import ImageClassificationConfig
+from xwhy import ImageClassificationExplainer
+import xwhy
+
+image_classification_config = ImageClassificationConfig(
+    use_model_preprocess=True,
+    use_embedding_model=False,
+    embedding_type=&quot;dinov2&quot;,
+    classification_type=&quot;inception_v3&quot;,
+
+    # Custom Model
+    custom_model=None,
+    custom_preprocess=None,
+    categories=None,
+
+    use_segmentation_model=True,
+    segmentation_type=&quot;deeplabv3_resnet101&quot;,
+    device=&quot;cpu&quot;,
+    seed=222,
+    kernel_size=4,
+    max_dist=200,
+    ratio=0.2,
+    num_perturb=150,
+    distance_type=&quot;wasserstein&quot;,
+    surrogate_type=&quot;lime&quot;,
+    use_best_surrogate=True,
+    num_top_features=4,
+    num_top_predictions=5,
+)
+
+try:
+    explainer = ImageClassificationExplainer(config=image_classification_config)
+    # or use `explainer.run`
+    result = explainer.explain(instance=&quot;cat-and-dog.jpg&quot;)
+    print(result.metrics)
+    print(&quot;Explanation successful!&quot;)
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as e:
+    print(f&quot;Error during pipeline execution: {e}&quot;)
+
+</code></pre>
+<h3 id="3-read-the-result">3. Read the Result<a class="headerlink" href="#3-read-the-result" title="Permanent link">&para;</a></h3>
+<p>The explanation highlights image regions according to their estimated influence on the model prediction.</p>
+<p>The returned <code>result</code> object also contains evaluation metrics that can be used to examine the quality and reliability of the local explanation. These metrics should be interpreted as evidence about the explanation produced by XWhy, rather than as direct access to the classifier’s internal decision process.</p>
+<hr />
+<h2 id="additional-explanation-plots">Additional Explanation Plots<a class="headerlink" href="#additional-explanation-plots" title="Permanent link">&para;</a></h2>
+<p>After generating a valid <code>result</code>, you can use the following visualisations:</p>
+<pre><code class="language-python"># Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+
+</code></pre>
+<hr />
+<h2 id="using-pre-defined-classification-models">Using Pre-defined Classification Models<a class="headerlink" href="#using-pre-defined-classification-models" title="Permanent link">&para;</a></h2>
+<p>XWhy provides several ready-to-use classification models. Pass the desired identifier via the <code>classification_type</code> argument (or the corresponding field in <code>ImageClassificationConfig</code>):</p>
+<ul>
+<li><code>inception_v3</code></li>
+<li><code>resnet18</code></li>
+<li><code>resnet50</code></li>
+<li><code>mobilenet_v3</code></li>
+<li><code>vit_base</code></li>
+</ul>
+<p>When using a built-in model you may also enable the model’s standard preprocessing pipeline with <code>use_model_preprocess=True</code>.</p>
+<hr />
+<h2 id="using-a-custom-pytorch-model">Using a Custom PyTorch Model<a class="headerlink" href="#using-a-custom-pytorch-model" title="Permanent link">&para;</a></h2>
+<p>You may supply your own PyTorch classification model together with a matching preprocessing pipeline. Two typical patterns are shown below.</p>
+<h3 id="simple-custom-model">Simple Custom Model<a class="headerlink" href="#simple-custom-model" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python">import torch
+from torchvision import transforms
+import torch.nn as nn
+import torch.nn.functional as F
+
+from xwhy.explainers.image import ImageClassificationExplainer
+import xwhy
+
+
+# 1. Define the custom model
+class CustomVisionModel(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+
+        # Pooling layer
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Fully connected layers
+        # Assuming a 32x32 input image, the size becomes 8x8 after two pooling steps
+        self.fc1 = nn.Linear(32 * 8 * 8, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        # x shape: (Batch, Channels, Height, Width)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+
+        # Flatten the tensor for the linear layers
+        x = torch.flatten(x, 1) 
+
+        x = F.relu(self.fc1(x))
+        logits = self.fc2(x)
+
+        return logits
+
+# 2. Create an instance of the custom model
+my_custom_model = CustomVisionModel(num_classes=10)
+
+# 3. Define a custom preprocessing pipeline for this model
+# This model expects 32x32 inputs, so resizing is mandatory
+my_preprocess = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ToTensor(),
+    # CIFAR-10 dataset normalization values (as an example)
+    transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]) 
+])
+
+# 4. Initialize the explainer with the new custom model
+# For faster testing, you can disable the segmentation and embedding models
+explainer = ImageClassificationExplainer(
+    custom_model=my_custom_model,
+    custom_preprocess=my_preprocess,
+    use_embedding_model=False, 
+    use_segmentation_model=False,
+    device=&quot;cpu&quot; 
+)
+
+image_path = &quot;./cat-and-dog.jpg&quot; 
+result = explainer.explain(instance=image_path)
+print(result.metrics)
+
+print(&quot;Explanation Finished!&quot;)
+print(&quot;Top Feature Indices:&quot;, result.top_features)
+
+# Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+
+</code></pre>
+<h3 id="well-known-pre-trained-model-resnet-18">Well-known Pre-trained Model (ResNet-18)<a class="headerlink" href="#well-known-pre-trained-model-resnet-18" title="Permanent link">&para;</a></h3>
+<pre><code class="language-python">import urllib.request
+import torch
+from torchvision import transforms
+from torchvision.models import resnet18, ResNet18_Weights
+
+from xwhy.explainers.image import ImageClassificationExplainer
+import xwhy
+
+# 1. Load a well-known pre-trained PyTorch model (e.g., ResNet18)
+# We use eval() mode since we are performing inference, not training.
+weights = ResNet18_Weights.IMAGENET1K_V1
+my_custom_model = resnet18(weights=weights)
+my_custom_model.eval()
+
+# 2. Define the exact preprocessing pipeline required by this model
+# ImageNet models typically require resizing to 256, center cropping to 224, 
+# and specific mean/std normalization values.
+my_preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# 3. Fetch ImageNet category names for human-readable logs
+# This validates the 'categories' argument and MockWeights we added earlier.
+url = &quot;https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt&quot;
+try:
+    response = urllib.request.urlopen(url)
+    imagenet_categories = [line.decode(&quot;utf-8&quot;).strip() for line in response.readlines()]
+except Exception:
+    # Fallback to dynamic categories (Class 0, Class 1, ...) if offline
+    imagenet_categories = None
+
+# 4. Initialize the Explainer with our custom ResNet18 model
+# By passing custom_model, we bypass the default factory and test our wrapper.
+explainer = ImageClassificationExplainer(
+    custom_model=my_custom_model,
+    custom_preprocess=my_preprocess,
+    categories=imagenet_categories,  # Pass the fetched class names here or use `weights.meta[&quot;categories&quot;]`
+    use_embedding_model=False,       # Disabled for faster CPU testing
+    use_segmentation_model=False,    # Disabled to test the evaluation skip logic
+    device=&quot;cpu&quot; 
+)
+
+# 5. Run the explanation on a test image
+image_path = &quot;./cat-and-dog.jpg&quot; 
+result = explainer.explain(
+    instance=image_path,
+    ground_truth_mask=None  # Passing None to skip the ground-truth evaluation safely
+)
+
+print(&quot;\n--- Explanation Finished ---&quot;)
+print(&quot;Metrics:&quot;, result.metrics)
+print(&quot;Top Feature Indices:&quot;, result.top_features)
+
+# Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+
+</code></pre>
+<hr />
+<h2 id="embedding-and-segmentation-models">Embedding and Segmentation Models<a class="headerlink" href="#embedding-and-segmentation-models" title="Permanent link">&para;</a></h2>
+<h3 id="embedding-engine">Embedding Engine<a class="headerlink" href="#embedding-engine" title="Permanent link">&para;</a></h3>
+<p>XWhy currently supports a single local embedding engine for measuring changes between perturbed image representations:</p>
+<ul>
+<li><code>dinov2</code></li>
+</ul>
+<p>Enable it with <code>use_embedding_model=True</code> and set <code>embedding_type="dinov2"</code> (or leave the default).</p>
+<h3 id="segmentation-models">Segmentation Models<a class="headerlink" href="#segmentation-models" title="Permanent link">&para;</a></h3>
+<p>When a ground-truth mask is not available, XWhy can generate super-pixel or semantic segments with one of the following models. Pass the identifier via <code>segmentation_type</code>:</p>
+<ul>
+<li><code>deeplabv3_resnet101</code></li>
+<li><code>deeplabv3_resnet50</code></li>
+<li><code>deeplabv3_mobilenet_v3_large</code></li>
+<li><code>fcn_resnet50</code></li>
+<li><code>lraspp_mobilenet_v3_large</code></li>
+</ul>
+<p>If you already possess a mask for the image, supply it directly to the <code>explain</code> method through the <code>ground_truth_mask</code> argument. In that case the internal segmentation model is not required.</p>
+<hr />
+<h2 id="distance-metrics">Distance Metrics<a class="headerlink" href="#distance-metrics" title="Permanent link">&para;</a></h2>
+<p>Seven distance metrics are available for comparing original and perturbed representations. Select one via the <code>distance_type</code> argument (or the corresponding field in <code>ImageClassificationConfig</code>):</p>
+<ul>
+<li><code>cosine</code></li>
+<li><code>wasserstein</code></li>
+<li><code>ks</code></li>
+<li><code>cramer_von_mises</code></li>
+<li><code>anderson_darling</code></li>
+<li><code>kuiper</code></li>
+<li><code>dts</code></li>
+</ul>
+<hr />
+<h2 id="complete-end-to-end-example">Complete End-to-End Example<a class="headerlink" href="#complete-end-to-end-example" title="Permanent link">&para;</a></h2>
+<p>The following example creates the explainer with a built-in model, generates an explanation, inspects the returned metrics, and displays the available plots:</p>
+<pre><code class="language-python">from xwhy import ImageClassificationExplainer
+import xwhy
+
+try:
+    explainer = ImageClassificationExplainer(
+        use_model_preprocess=True,
+        use_embedding_model=True,
+        use_segmentation_model=True,
+        classification_type=&quot;resnet50&quot;,
+        device=&quot;cpu&quot;,
+    )
+
+    result = explainer.explain(instance=&quot;cat-and-dog.jpg&quot;)
+
+    print(result.metrics)
+    print(&quot;Explanation generated successfully.&quot;)
+    print(&quot;Top Feature Indices:&quot;, result.top_features)
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as error:
+    print(f&quot;Error during the explanation pipeline: {error}&quot;)
+
+</code></pre>
+<hr />
+<h2 id="common-setup-problems">Common Setup Problems<a class="headerlink" href="#common-setup-problems" title="Permanent link">&para;</a></h2>
+<h3 id="model-not-found-or-incompatible">Model Not Found or Incompatible<a class="headerlink" href="#model-not-found-or-incompatible" title="Permanent link">&para;</a></h3>
+<p>Confirm that:</p>
+<ul>
+<li>the selected <code>classification_type</code> is one of the supported identifiers, or</li>
+<li>a valid PyTorch model is supplied via <code>custom_model</code> together with a matching <code>custom_preprocess</code> pipeline.</li>
+</ul>
+<p>Only PyTorch models are accepted.</p>
+<h3 id="segmentation-or-embedding-error">Segmentation or Embedding Error<a class="headerlink" href="#segmentation-or-embedding-error" title="Permanent link">&para;</a></h3>
+<p>Confirm that the chosen <code>segmentation_type</code> or <code>embedding_type</code> is supported and that the required model weights can be downloaded or loaded on the selected <code>device</code>.</p>
+<h3 id="mask-handling">Mask Handling<a class="headerlink" href="#mask-handling" title="Permanent link">&para;</a></h3>
+<p>If you intend to use a custom mask, pass it through the <code>ground_truth_mask</code> parameter of the <code>explain</code> method. Leaving the parameter as <code>None</code> causes the explainer to rely on the configured segmentation model (if enabled).</p>
+<hr />
+<h2 id="interpretation-note">Interpretation Note<a class="headerlink" href="#interpretation-note" title="Permanent link">&para;</a></h2>
+<p>XWhy produces a local, perturbation-based approximation of region influence. It can help identify which parts of an image are associated with changes in a particular classification decision. It does not expose the model’s exact internal reasoning process or prove that a highlighted region was the sole cause of the predicted class.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; XWhy contributors
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.sections", "navigation.indexes", "navigation.prune", "navigation.top", "toc.follow", "search.suggest", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="../assets/javascripts/xwhy-nav.js"></script>
+      
+        <script src="../assets/javascripts/ai-links.js"></script>
+      
+        <script src="../assets/javascripts/accessibility.js"></script>
+      
+        <script src="../assets/javascripts/analytics-delayed.js"></script>
+      
+    
+  </body>
+</html>

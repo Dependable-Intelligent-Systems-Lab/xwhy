@@ -1,0 +1,2003 @@
+# XWhy: eXplain Why
+
+> Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, and future multimodal systems.
+
+XWhy: eXplain Why is a Python library for model-agnostic local explainability using SMILE. Image-classification and LLM explainers are currently available. Image-generation explainability and additional modalities are being developed and are explicitly labelled in the documentation.
+
+# Getting Started
+
+# XWhy: eXplain Why
+
+**Explain black-box behaviour with a SMILE.**
+
+**XWhy: eXplain Why** is a Python library for model-agnostic local explainability. It uses **SMILE**—Statistical Model-agnostic Interpretability with Local Explanations—to perturb an input, observe changes in model behaviour, fit a local surrogate model, and report feature-level influence together with explanation-quality evidence.
+
+Current package maturity
+
+XWhy `v0.0.3` is currently classified as **pre-alpha**. Tabular, Image and LLM explainers are implemented. Other capabilities are clearly labelled as under construction or coming soon.
+
+## Start here
+
+- [Install XWhy](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/index.md)
+- [Generate your first explanation](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/quick-start/index.md)
+- [Choose the correct explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/index.md)
+- [Browse all explainers and their status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/index.md)
+- [Read the generated API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/index.md)
+
+## Capability overview
+
+| Capability                   | Public component               | Documentation status | Implementation status |
+| ---------------------------- | ------------------------------ | -------------------- | --------------------- |
+| Image classification         | `ImageClassificationExplainer` | Available            | Available             |
+| Image generation and editing | `Pix2PixExplainer` prototype   | Under construction   | Interface only        |
+| LLM prompt-response          | `LLMExplainer`                 | Available            | Available             |
+| Tabular                      | `TabularExplainer`             | Under construction   | Interface only        |
+| Text                         | `TextExplainer`                | Under construction   | Interface only        |
+| Point cloud                  | `PointCloudExplainer`          | Under construction   | Interface only        |
+| Time series                  | Planned                        | Coming soon          | Not yet implemented   |
+| Multimodal                   | Planned                        | Coming soon          | Not yet implemented   |
+
+Pix2Pix is documented as one image-editing model family within the broader [image-generation explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/index.md) section.
+
+## What XWhy explanations mean
+
+XWhy produces local, perturbation-based approximations of model behaviour around a selected input. An explanation can identify associations between input components and changes in model output, but it does not expose a model's private internal reasoning or prove causality.
+
+Read [limitations and responsible use](https://dependable-intelligent-systems-lab.github.io/xwhy/concepts/limitations/index.md) before using explanations in safety-critical, medical, legal, financial, or high-impact decisions.
+
+# Install XWhy
+
+XWhy requires **Python 3.12 or later**.
+
+## Core installation
+
+```
+pip install xwhy
+```
+
+Using `uv`:
+
+```
+uv add xwhy
+```
+
+## Optional cloud dependencies
+
+Install only the provider integrations required by your project:
+
+```
+pip install "xwhy[vertex]"
+pip install "xwhy[aws,bedrock]"
+pip install "xwhy[all]"
+```
+
+Using `uv`:
+
+```
+uv add "xwhy[vertex]"
+uv add "xwhy[aws,bedrock]"
+uv add "xwhy[all]"
+```
+
+Protect credentials
+
+Store API keys in environment variables or a local `.env` file. Never commit credentials to a repository, notebook, documentation page, or issue.
+
+## Verify the installation
+
+```
+import xwhy
+
+print(xwhy.__all__)
+```
+
+Next, [choose an explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/index.md).
+
+# Quick start
+
+XWhy currently provides two executable explanation workflows.
+
+## Explain an image classifier
+
+Use `ImageClassificationExplainer` for a PyTorch image-classification model. The explainer estimates how image regions influence a selected prediction.
+
+[Open the image-classification tutorial](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/index.md)
+
+## Explain an LLM response
+
+Use `LLMExplainer` to perturb a text prompt, compare the resulting model responses, and estimate local token or word influence.
+
+[Open the LLM tutorial](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md)
+
+## Do not use development interfaces as implemented explainers
+
+`TabularExplainer`, `TextExplainer`, and `PointCloudExplainer` are currently public development interfaces whose `explain()` methods are not implemented.
+
+Image-generation explainability is also under construction. The current `Pix2PixExplainer` class is an early interface within the broader image-generation and image-editing roadmap; it is not yet an executable workflow.
+
+See the [explainer status matrix](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/index.md) before designing a workflow.
+
+# Choose an explainer
+
+| Your input and task               | Recommended component                                          | Current status     | Next page                                                                                                                 |
+| --------------------------------- | -------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| PyTorch image classification      | `ImageClassificationExplainer`                                 | Available          | [Image explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/index.md)                    |
+| Image generation or image editing | Image-generation roadmap; current `Pix2PixExplainer` prototype | Under construction | [Image-generation status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/index.md) |
+| LLM prompt-response behaviour     | `LLMExplainer`                                                 | Available          | [LLM explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/index.md)                        |
+| Structured tabular prediction     | `TabularExplainer`                                             | Under construction | [Tabular status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/index.md)                   |
+| Conventional text classification  | `TextExplainer`                                                | Under construction | [Text status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/index.md)                         |
+| 3D point-cloud prediction         | `PointCloudExplainer`                                          | Under construction | [Point-cloud status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/index.md)           |
+| Time-series prediction            | Planned                                                        | Coming soon        | [Time-series roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/index.md)          |
+| Cross-modal model                 | Planned                                                        | Coming soon        | [Multimodal roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/index.md)            |
+
+Tip
+
+Choose by **task and implemented capability**, not only by class name. A class exported by the package may still be a development interface. Pix2Pix is one image-editing model family, not the name of the overall image-generation capability.
+# Explainers
+
+# XWhy explainers
+
+This page is the authoritative capability map for the current documentation release.
+
+| Explainer area                                                                                                     | Input                                                   | Intended task                  | Status                 |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------ | ---------------------- |
+| [Image Classification](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/index.md)        | Image                                                   | Classification                 | **Available**          |
+| [Image Generation](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/index.md) | Prompt, source image, mask, or other conditioning input | Generation and image editing   | **Under construction** |
+| [LLM](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/index.md)                           | Prompt and generated response                           | Local prompt influence         | **Available**          |
+| [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/index.md)                   | Structured features                                     | Classification and regression  | **Under construction** |
+| [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/index.md)                         | Tokens, words, or phrases                               | Text prediction                | **Under construction** |
+| [Point Cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/index.md)           | 3D points or point groups                               | 3D prediction                  | **Under construction** |
+| [Time Series](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/index.md)           | Ordered observations                                    | Classification and forecasting | **Coming soon**        |
+| [Multimodal](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/index.md)             | Two or more modalities                                  | Cross-modal prediction         | **Coming soon**        |
+
+The image-generation area contains planned [image-editing documentation](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/index.md) and a [Pix2Pix model example](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/index.md). The current `Pix2PixExplainer` class is an early interface and should not be treated as an implemented workflow.
+
+## Status definitions
+
+**Available** means an executable implementation and dedicated guide exist in the repository.
+
+**Under construction** means a public interface or planned capability is present, but a supported end-to-end workflow is not yet available.
+
+**Experimental interface** refers to an early code interface, such as the current `Pix2PixExplainer`, that should not yet be treated as a supported workflow.
+
+**Coming soon** means the documentation reserves a stable location for a planned capability that is not currently implemented.
+
+# Image classification explainer
+
+Available
+
+`ImageClassificationExplainer` is implemented and has a complete usage guide.
+
+The image-classification explainer perturbs image regions, observes changes in model predictions, and estimates which regions have the strongest local influence.
+
+Current documented capabilities include:
+
+- built-in PyTorch classification models;
+- custom PyTorch models and preprocessing;
+- DINOv2 image embeddings;
+- supported segmentation models or a supplied mask;
+- multiple statistical distance measures;
+- image and image-heatmap visualisations.
+
+[Read the complete image-classification tutorial](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/index.md)
+
+[Open the image explainer API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/xwhy/explainers/image/index.md)
+
+## Scope
+
+The currently implemented workflow is **image classification**. Broader image tasks should be described as planned until a corresponding implementation and test suite are added.
+
+# Image generation explainability
+
+Under construction
+
+Image-generation explainability is not yet available as a supported XWhy workflow. The repository currently exposes an early `Pix2PixExplainer` interface, but its `explain()` method is not implemented.
+
+This section is the public entry point for explainability methods applied to systems that create or transform images. **Pix2Pix is treated as one model-family example within this broader capability, not as the name of the capability itself.**
+
+## Planned coverage
+
+Image-generation documentation is expected to cover:
+
+- text-to-image generation;
+- image-to-image generation;
+- instruction-guided image editing;
+- inpainting and region replacement;
+- conditional generation;
+- attribution to prompts, source-image regions, masks, and conditioning inputs;
+- output similarity and perceptual-distance measures;
+- explanation stability, faithfulness, and safety limitations.
+
+## Subsections
+
+- [Image editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/index.md)
+- [Pix2Pix model examples](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/index.md)
+
+## Current implementation status
+
+The current code contains `Pix2PixExplainer` as an early interface. It should remain described as an implementation prototype until its behaviour, accepted inputs, perturbation strategy, result type, tests, and examples are complete.
+
+[View the current Pix2Pix API interface](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/xwhy/explainers/pix2pix/index.md)
+
+# Image editing explainability
+
+Coming soon
+
+A supported image-editing explanation workflow is not yet implemented in XWhy.
+
+Image editing differs from image classification because the target model produces a transformed image rather than a class score. An explanation therefore needs to connect changes in the source image, edit instruction, mask, or conditioning input to changes in the generated output.
+
+## Planned questions
+
+Future image-editing explanations should help users examine:
+
+- which source-image regions influenced the edited output;
+- which words or phrases in an edit instruction had the strongest effect;
+- how an edit mask constrained or redirected generation;
+- whether unrelated regions were changed unexpectedly;
+- how stable an edit is across seeds or small input changes;
+- whether the explanation remains consistent across output-distance measures.
+
+## Planned model families
+
+The section may include examples for:
+
+- Pix2Pix-style conditional image-to-image models;
+- instruction-guided image editors;
+- diffusion-based image-to-image systems;
+- inpainting and outpainting models;
+- domain-transfer and style-transfer systems.
+
+Model-specific pages will be added only after the corresponding integration, tests, and reproducible outputs are available.
+
+Next: [Pix2Pix model examples](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/index.md).
+
+# Pix2Pix model examples
+
+Experimental interface — under construction
+
+XWhy currently exports `Pix2PixExplainer`, but its `explain()` method raises `NotImplementedError`. The examples described here are a documentation roadmap, not an executable workflow.
+
+Pix2Pix-style models are one example of conditional image-to-image generation. They belong under **Image Generation → Image Editing** because the model transforms a source image into a target image rather than returning a classification score.
+
+## Planned first example
+
+A future worked example should document:
+
+1. the source image and target transformation task;
+1. the Pix2Pix model, weights, and preprocessing;
+1. the source-image regions selected for perturbation;
+1. the output-distance or perceptual-similarity measure;
+1. the local surrogate configuration;
+1. the generated attribution map;
+1. fidelity, stability, and runtime evidence;
+1. limitations of interpreting generative outputs.
+
+## Planned comparison cases
+
+- removing or masking source-image regions;
+- perturbing the conditioning input;
+- comparing pixel-space and perceptual distances;
+- checking attribution stability across generation seeds;
+- detecting unintended changes outside the target edit region.
+
+[View the current `Pix2PixExplainer` API interface](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/reference/xwhy/explainers/pix2pix/index.md)
+
+# LLM explainer
+
+Available
+
+`LLMExplainer` is implemented and has a complete example with setup, executed outputs, and interpretation guidance.
+
+The LLM explainer treats the language model as a black-box provider. It obtains the original response, perturbs the input prompt, measures semantic distance between that response and the perturbed prompt variants, and fits a local surrogate model to estimate term contributions to the resulting response-alignment score.
+
+Current documented capabilities include:
+
+- commercial, cloud, router, and local providers;
+- runtime, `.env`, and configuration-object setup;
+- text embeddings used by the semantic-distance workflow;
+- automatic or selected surrogate models;
+- token-level and contribution plots; and
+- embedding comparison with fidelity metrics and executed outputs.
+
+[Open the complete LLM Example](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md)
+
+[Open the LLM explainer API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/xwhy/explainers/llm/index.md)
+
+## Interpretation boundary
+
+The result is a local perturbation-based response-alignment approximation. The current implementation queries the provider for the original response only; it does not reveal private chain-of-thought or reconstruct the model's exact internal computation.
+
+# Tabular explainer
+
+Under construction
+
+`TabularExplainer` is exported by XWhy, but its current `explain()` method raises `NotImplementedError`. Do not present it as an available workflow yet.
+
+This page reserves the stable documentation location for structured-data explainability.
+
+Planned documentation will cover:
+
+- classification and regression model adapters;
+- numerical and categorical feature perturbation;
+- background-data selection;
+- local feature contributions;
+- stability and fidelity evaluation;
+- bar, waterfall, and comparison visualisations.
+
+[View the current API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/reference/xwhy/explainers/tabular/index.md)
+
+# Text explainer
+
+Under construction
+
+`TextExplainer` is exported by XWhy, but its current `explain()` method raises `NotImplementedError`.
+
+This explainer is intended for conventional text tasks that are distinct from prompt-response LLM explanation.
+
+Planned documentation will cover:
+
+- text classification and regression interfaces;
+- token, word, phrase, and sentence perturbation units;
+- masking and replacement strategies;
+- embedding and distance selection;
+- token-level visualisation;
+- stability and faithfulness evaluation.
+
+For implemented prompt-response analysis, use the [LLM explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/index.md).
+
+[View the current API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/reference/xwhy/explainers/text/index.md)
+
+# Point-cloud explainer
+
+Under construction
+
+`PointCloudExplainer` is exported by XWhy, but its current `explain()` method raises `NotImplementedError`.
+
+Planned documentation will cover:
+
+- accepted point-cloud formats and tensor shapes;
+- point grouping or segmentation;
+- removal, masking, and displacement perturbations;
+- PointNet-style and custom model adapters;
+- 3D attribution visualisation;
+- fidelity, stability, and runtime evaluation.
+
+Legacy point-cloud examples exist in the repository, but they should be reviewed and migrated before being treated as current package documentation.
+
+[View the current API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/reference/xwhy/explainers/pointcloud/index.md)
+
+# Time-series explainability
+
+Coming soon
+
+A time-series explainer is not currently exported or implemented in XWhy.
+
+This page reserves a stable URL for future support.
+
+Expected documentation areas include:
+
+- classification, forecasting, and anomaly detection;
+- point, interval, window, and frequency-domain perturbations;
+- multivariate sequence handling;
+- temporal heatmaps;
+- stability across neighbouring windows;
+- treatment of seasonality, trends, and missing observations.
+
+The final scope will be updated when an implementation and tests enter the repository.
+
+# Multimodal explainability
+
+Coming soon
+
+A general multimodal explainer is not currently exported or implemented in XWhy.
+
+This page reserves a stable URL for future cross-modal explainability.
+
+Expected documentation areas include:
+
+- modality-specific and cross-modal contributions;
+- aligned perturbations across inputs;
+- interaction effects between modalities;
+- missing-modality tests;
+- multimodal faithfulness and stability;
+- combined and modality-specific visualisations.
+
+The final design should reuse the documented interfaces of mature single-modality explainers rather than create incompatible result formats.
+# Tutorials and Examples
+
+# Tutorials and examples
+
+Use this directory to select a complete learning path. Where a worked example is available, it is integrated into a single page so setup, execution, output, and interpretation remain in one place.
+
+| Resource                                                                                                                                          | Modality         | Type               | Status                 | Coverage                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [Image Classification Explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/index.md)               | Image            | Tutorial           | **Available**          | Built-in and custom PyTorch classifiers, segmentation, distances, and image plots.                                                  |
+| [LLM Example](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md)                                                   | LLM              | Worked example     | **Available**          | Provider setup, prompt perturbation, embeddings, executed outputs, fidelity metrics, plot interpretation, and embedding comparison. |
+| [Image Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/image/index.md)                                               | Image            | Example collection | **Coming soon**        | Reproducible image-classification examples with stored outputs.                                                                     |
+| [Image Editing and Pix2Pix Models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/index.md) | Image generation | Planned example    | **Under construction** | Conditional image-to-image explanation and Pix2Pix-style model analysis.                                                            |
+| [Tabular Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/tabular/index.md)                                           | Tabular          | Example collection | **Under construction** | Classification, regression, mixed features, and stability comparisons.                                                              |
+| [Text Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/text/index.md)                                                 | Text             | Example collection | **Under construction** | Token- and phrase-level explanations for conventional text models.                                                                  |
+| [Point-Cloud Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/point-cloud/index.md)                                   | Point cloud      | Example collection | **Under construction** | Point grouping, perturbation comparison, and 3D attribution.                                                                        |
+
+## Recommended starting points
+
+- New users should begin with the [installation guide](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/index.md) and then choose one of the available resources.
+- Users comparing capabilities should first review the [explainer directory](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/index.md).
+- Contributors preparing a new example should include executable code, environment details, representative output, quality metrics, and a limitations section.
+
+# Image Classification Explainer
+
+Image classification models can be difficult to interpret because their predictions depend on complex visual patterns distributed across an image.
+
+The **XWhy Image Classification Explainer** provides a model-agnostic way to examine an image classifier as a black-box system. It perturbs the input image, observes how the model prediction changes, and estimates which regions or segments of the image had the strongest local influence on the generated output.
+
+This guide starts with the simplest setup using a built-in classification model. Advanced configuration for custom PyTorch models, embedding engines, segmentation models, and configuration objects is provided later.
+
+> **Important:** Only PyTorch implementations are supported. You may pass only PyTorch models for explainability.
+
+______________________________________________________________________
+
+## Quick Start: Explain with a Built-in Model
+
+For a first test, you only need a short Python script. The explainer can load a pre-defined classification model, apply its standard preprocessing, and generate a local explanation.
+
+### 1. Run a Basic Explanation
+
+The following example uses the default configuration and explains a local image:
+
+```
+from xwhy import ImageClassificationExplainer
+import xwhy
+
+try:
+    explainer = ImageClassificationExplainer(
+        use_model_preprocess=True,
+        use_embedding_model=True,
+        use_segmentation_model=True,
+    )
+    # or use `explainer.run`
+    result = explainer.explain(instance="cat-and-dog.jpg")
+    print(result.metrics)
+    print("Explanation successful!")
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as e:
+    print(f"Error during pipeline execution: {e}")
+```
+
+### 2. Using an `ImageClassificationConfig` Object
+
+You can also centralize settings in an `ImageClassificationConfig` instance and pass it to the `ImageClassificationExplainer` constructor as a single `config` parameter. This avoids supplying individual keyword arguments for every option:
+
+```
+from xwhy.core import ImageClassificationConfig
+from xwhy import ImageClassificationExplainer
+import xwhy
+
+image_classification_config = ImageClassificationConfig(
+    use_model_preprocess=True,
+    use_embedding_model=False,
+    embedding_type="dinov2",
+    classification_type="inception_v3",
+
+    # Custom Model
+    custom_model=None,
+    custom_preprocess=None,
+    categories=None,
+
+    use_segmentation_model=True,
+    segmentation_type="deeplabv3_resnet101",
+    device="cpu",
+    seed=222,
+    kernel_size=4,
+    max_dist=200,
+    ratio=0.2,
+    num_perturb=150,
+    distance_type="wasserstein",
+    surrogate_type="lime",
+    use_best_surrogate=True,
+    num_top_features=4,
+    num_top_predictions=5,
+)
+
+try:
+    explainer = ImageClassificationExplainer(config=image_classification_config)
+    # or use `explainer.run`
+    result = explainer.explain(instance="cat-and-dog.jpg")
+    print(result.metrics)
+    print("Explanation successful!")
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as e:
+    print(f"Error during pipeline execution: {e}")
+```
+
+### 3. Read the Result
+
+The explanation highlights image regions according to their estimated influence on the model prediction.
+
+The returned `result` object also contains evaluation metrics that can be used to examine the quality and reliability of the local explanation. These metrics should be interpreted as evidence about the explanation produced by XWhy, rather than as direct access to the classifier’s internal decision process.
+
+______________________________________________________________________
+
+## Additional Explanation Plots
+
+After generating a valid `result`, you can use the following visualisations:
+
+```
+# Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+```
+
+______________________________________________________________________
+
+## Using Pre-defined Classification Models
+
+XWhy provides several ready-to-use classification models. Pass the desired identifier via the `classification_type` argument (or the corresponding field in `ImageClassificationConfig`):
+
+- `inception_v3`
+- `resnet18`
+- `resnet50`
+- `mobilenet_v3`
+- `vit_base`
+
+When using a built-in model you may also enable the model’s standard preprocessing pipeline with `use_model_preprocess=True`.
+
+______________________________________________________________________
+
+## Using a Custom PyTorch Model
+
+You may supply your own PyTorch classification model together with a matching preprocessing pipeline. Two typical patterns are shown below.
+
+### Simple Custom Model
+
+```
+import torch
+from torchvision import transforms
+import torch.nn as nn
+import torch.nn.functional as F
+
+from xwhy.explainers.image import ImageClassificationExplainer
+import xwhy
+
+
+# 1. Define the custom model
+class CustomVisionModel(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        # Convolutional layers
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+
+        # Pooling layer
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Fully connected layers
+        # Assuming a 32x32 input image, the size becomes 8x8 after two pooling steps
+        self.fc1 = nn.Linear(32 * 8 * 8, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+
+    def forward(self, x):
+        # x shape: (Batch, Channels, Height, Width)
+        x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+
+        # Flatten the tensor for the linear layers
+        x = torch.flatten(x, 1) 
+
+        x = F.relu(self.fc1(x))
+        logits = self.fc2(x)
+
+        return logits
+
+# 2. Create an instance of the custom model
+my_custom_model = CustomVisionModel(num_classes=10)
+
+# 3. Define a custom preprocessing pipeline for this model
+# This model expects 32x32 inputs, so resizing is mandatory
+my_preprocess = transforms.Compose([
+    transforms.Resize((32, 32)),
+    transforms.ToTensor(),
+    # CIFAR-10 dataset normalization values (as an example)
+    transforms.Normalize(mean=[0.4914, 0.4822, 0.4465], std=[0.2470, 0.2435, 0.2616]) 
+])
+
+# 4. Initialize the explainer with the new custom model
+# For faster testing, you can disable the segmentation and embedding models
+explainer = ImageClassificationExplainer(
+    custom_model=my_custom_model,
+    custom_preprocess=my_preprocess,
+    use_embedding_model=False, 
+    use_segmentation_model=False,
+    device="cpu" 
+)
+
+image_path = "./cat-and-dog.jpg" 
+result = explainer.explain(instance=image_path)
+print(result.metrics)
+
+print("Explanation Finished!")
+print("Top Feature Indices:", result.top_features)
+
+# Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+```
+
+### Well-known Pre-trained Model (ResNet-18)
+
+```
+import urllib.request
+import torch
+from torchvision import transforms
+from torchvision.models import resnet18, ResNet18_Weights
+
+from xwhy.explainers.image import ImageClassificationExplainer
+import xwhy
+
+# 1. Load a well-known pre-trained PyTorch model (e.g., ResNet18)
+# We use eval() mode since we are performing inference, not training.
+weights = ResNet18_Weights.IMAGENET1K_V1
+my_custom_model = resnet18(weights=weights)
+my_custom_model.eval()
+
+# 2. Define the exact preprocessing pipeline required by this model
+# ImageNet models typically require resizing to 256, center cropping to 224, 
+# and specific mean/std normalization values.
+my_preprocess = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# 3. Fetch ImageNet category names for human-readable logs
+# This validates the 'categories' argument and MockWeights we added earlier.
+url = "https://raw.githubusercontent.com/pytorch/hub/master/imagenet_classes.txt"
+try:
+    response = urllib.request.urlopen(url)
+    imagenet_categories = [line.decode("utf-8").strip() for line in response.readlines()]
+except Exception:
+    # Fallback to dynamic categories (Class 0, Class 1, ...) if offline
+    imagenet_categories = None
+
+# 4. Initialize the Explainer with our custom ResNet18 model
+# By passing custom_model, we bypass the default factory and test our wrapper.
+explainer = ImageClassificationExplainer(
+    custom_model=my_custom_model,
+    custom_preprocess=my_preprocess,
+    categories=imagenet_categories,  # Pass the fetched class names here or use `weights.meta["categories"]`
+    use_embedding_model=False,       # Disabled for faster CPU testing
+    use_segmentation_model=False,    # Disabled to test the evaluation skip logic
+    device="cpu" 
+)
+
+# 5. Run the explanation on a test image
+image_path = "./cat-and-dog.jpg" 
+result = explainer.explain(
+    instance=image_path,
+    ground_truth_mask=None  # Passing None to skip the ground-truth evaluation safely
+)
+
+print("\n--- Explanation Finished ---")
+print("Metrics:", result.metrics)
+print("Top Feature Indices:", result.top_features)
+
+# Superpixel-level heatmap
+xwhy.plots.image_heatmap(result)
+
+# Additional image visualisation
+xwhy.plots.image(result)
+```
+
+______________________________________________________________________
+
+## Embedding and Segmentation Models
+
+### Embedding Engine
+
+XWhy currently supports a single local embedding engine for measuring changes between perturbed image representations:
+
+- `dinov2`
+
+Enable it with `use_embedding_model=True` and set `embedding_type="dinov2"` (or leave the default).
+
+### Segmentation Models
+
+When a ground-truth mask is not available, XWhy can generate super-pixel or semantic segments with one of the following models. Pass the identifier via `segmentation_type`:
+
+- `deeplabv3_resnet101`
+- `deeplabv3_resnet50`
+- `deeplabv3_mobilenet_v3_large`
+- `fcn_resnet50`
+- `lraspp_mobilenet_v3_large`
+
+If you already possess a mask for the image, supply it directly to the `explain` method through the `ground_truth_mask` argument. In that case the internal segmentation model is not required.
+
+______________________________________________________________________
+
+## Distance Metrics
+
+Seven distance metrics are available for comparing original and perturbed representations. Select one via the `distance_type` argument (or the corresponding field in `ImageClassificationConfig`):
+
+- `cosine`
+- `wasserstein`
+- `ks`
+- `cramer_von_mises`
+- `anderson_darling`
+- `kuiper`
+- `dts`
+
+______________________________________________________________________
+
+## Complete End-to-End Example
+
+The following example creates the explainer with a built-in model, generates an explanation, inspects the returned metrics, and displays the available plots:
+
+```
+from xwhy import ImageClassificationExplainer
+import xwhy
+
+try:
+    explainer = ImageClassificationExplainer(
+        use_model_preprocess=True,
+        use_embedding_model=True,
+        use_segmentation_model=True,
+        classification_type="resnet50",
+        device="cpu",
+    )
+
+    result = explainer.explain(instance="cat-and-dog.jpg")
+
+    print(result.metrics)
+    print("Explanation generated successfully.")
+    print("Top Feature Indices:", result.top_features)
+
+    # Superpixel-level heatmap
+    xwhy.plots.image_heatmap(result)
+
+    # Additional image visualisation
+    xwhy.plots.image(result)
+
+except Exception as error:
+    print(f"Error during the explanation pipeline: {error}")
+```
+
+______________________________________________________________________
+
+## Common Setup Problems
+
+### Model Not Found or Incompatible
+
+Confirm that:
+
+- the selected `classification_type` is one of the supported identifiers, or
+- a valid PyTorch model is supplied via `custom_model` together with a matching `custom_preprocess` pipeline.
+
+Only PyTorch models are accepted.
+
+### Segmentation or Embedding Error
+
+Confirm that the chosen `segmentation_type` or `embedding_type` is supported and that the required model weights can be downloaded or loaded on the selected `device`.
+
+### Mask Handling
+
+If you intend to use a custom mask, pass it through the `ground_truth_mask` parameter of the `explain` method. Leaving the parameter as `None` causes the explainer to rely on the configured segmentation model (if enabled).
+
+______________________________________________________________________
+
+## Interpretation Note
+
+XWhy produces a local, perturbation-based approximation of region influence. It can help identify which parts of an image are associated with changes in a particular classification decision. It does not expose the model’s exact internal reasoning process or prove that a highlighted region was the sole cause of the predicted class.
+
+# LLM Example
+
+Large language model outputs depend on interacting words, tokens, and context. XWhy treats the model as a black box: it obtains the original response, perturbs the input prompt, measures the semantic distance between that response and each perturbed prompt, and fits a local surrogate model that estimates how the prompt terms contribute to this response-alignment score.
+
+This example covers setup, execution, interpretation, and an executed comparison of four embedding backends. It does not expose private chain-of-thought or reconstruct the model's internal computation.
+
+## Prerequisites
+
+Before starting:
+
+1. [Install XWhy](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/index.md).
+1. Obtain access to a supported LLM provider and model.
+1. Configure the provider credential without committing it to source control.
+
+For OpenAI, the standard `.env` configuration is:
+
+```
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+For other providers, local models, cloud platforms, or notebook-specific credential patterns, use the [provider configuration guide](https://dependable-intelligent-systems-lab.github.io/xwhy/how-to/providers/index.md). Provider-specific constructor arguments must use the names expected by the provider SDK; for example, OpenAI uses `api_key`, while Hugging Face uses `token`.
+
+## 1. Generate a local explanation
+
+The following example explains one prompt with an OpenAI model and the default Word2Vec embedding backend:
+
+```
+import xwhy
+from xwhy import LLMExplainer
+
+# Required for interactive JavaScript plots in notebook environments.
+xwhy.plots.initjs()
+
+explainer = LLMExplainer(
+    provider="openai",
+    model_name="gpt-5-nano",
+    embedding_type="word2vec",
+    use_best_surrogate=True,
+)
+
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    fidelity_plot=True,
+)
+
+print(result.metrics)
+xwhy.plots.text_heatmap(result)
+result.plot()
+```
+
+Replace `model_name` with a model available through your provider account.
+
+Notebook credentials
+
+In a notebook, you may pass a credential directly to the constructor, such as `api_key=...`, but obtain it from a secret store or a hidden prompt rather than writing it into the notebook.
+
+## 2. Understand the explanation pipeline
+
+For the selected prompt, XWhy:
+
+1. obtains the original model response;
+1. generates perturbed versions of the input prompt;
+1. computes Word Mover's Distance between the original response and each perturbed prompt;
+1. normalises those distances into the local target scores;
+1. fits a surrogate model to the perturbation masks and target scores; and
+1. returns term contributions, evaluation metrics, and diagnostic plots.
+
+The current implementation queries the LLM for the original response only; it does not generate a new LLM response for every perturbed prompt. The result is therefore an explanation of the local prompt-to-response alignment constructed by this pipeline, not a global description of the model.
+
+## 3. Read the result
+
+The token heatmap and contribution plots show the estimated direction and magnitude of each term's contribution to the local response-alignment score. The metrics describe how well the surrogate approximates the sampled score surface near the original prompt.
+
+Important metrics include:
+
+- **Weighted R²:** proportion of locally weighted variation represented by the surrogate; values closer to 1 indicate a closer fit on the sampled neighbourhood.
+- **Adjusted weighted R²:** weighted R² with a penalty for model complexity.
+- **MAE and MSE:** average surrogate prediction errors; lower values indicate a closer numerical fit.
+
+A strong fidelity score supports the use of the surrogate for that run, but it does not prove that the attribution is causal or universally stable.
+
+## 4. Worked example: Word2Vec
+
+The following results come from an executed run using the sentence:
+
+> *Machine learning is fascinating.*
+
+The automatic surrogate search selected a random forest with these fidelity metrics:
+
+| Metric               | Value  |
+| -------------------- | ------ |
+| Weighted R²          | 0.9150 |
+| Adjusted weighted R² | 0.9092 |
+| Mean absolute error  | 0.0334 |
+| Mean squared error   | 0.0061 |
+
+### Term attribution
+
+In this run, `learning` and `is` received the largest contribution estimates. This is evidence about one local response-alignment approximation, not a general linguistic or causal claim about those words.
+
+### Surrogate fidelity
+
+Each point represents a perturbed prompt. Points closer to the reference line indicate closer agreement between the surrogate prediction and the response-alignment score calculated by the XWhy pipeline.
+
+### Alternative contribution views
+
+The same explanation can be inspected using ranked, cumulative, or path-based views:
+
+```
+xwhy.plots.bar(result)
+xwhy.plots.waterfall(result)
+xwhy.plots.text(result)
+xwhy.plots.force(result)
+xwhy.plots.decision(result)
+```
+
+These plots present the same local contribution estimates in different forms; they are not independent explanations.
+
+## 5. Compare embedding backends
+
+Embedding choice affects how XWhy measures semantic distance between the original response and the perturbed prompt variants. To compare backends fairly, keep the prompt, provider, model, seed, perturbation count, and surrogate-selection setting fixed, and change only `embedding_type`:
+
+```
+from xwhy import LLMExplainer
+
+embedding_types = ["word2vec", "glove", "paragram_sl", "paragram_ws"]
+results = {}
+
+for embedding_type in embedding_types:
+    explainer = LLMExplainer(
+        provider="openai",
+        model_name="gpt-5-nano",
+        embedding_type=embedding_type,
+        seed=1024,
+        num_perturbations=64,
+        use_best_surrogate=True,
+    )
+    results[embedding_type] = explainer.explain(
+        instance="Machine learning is fascinating.",
+        fidelity_plot=True,
+    )
+```
+
+The executed comparison produced:
+
+| Embedding              | Weighted R² | Adjusted weighted R² | MAE        |
+| ---------------------- | ----------- | -------------------- | ---------- |
+| Word2Vec (Google News) | 0.9150      | 0.9092               | 0.0334     |
+| GloVe                  | 0.8802      | 0.8721               | 0.0362     |
+| Paragram-SL            | **0.9716**  | **0.9697**           | **0.0219** |
+| Paragram-WS            | 0.8646      | 0.8554               | 0.0436     |
+
+Paragram-SL had the closest surrogate fit in this particular run. This table is not a general ranking: performance can change with the prompt, generated response, embedding, perturbations, and random seed.
+
+### GloVe
+
+### Paragram-SL
+
+### Paragram-WS
+
+Word2Vec, GloVe, and Paragram-SL produced broadly similar emphasis for this sentence, while Paragram-WS distributed importance more evenly. When an attribution is sensitive to the embedding backend, report that sensitivity rather than selecting only the most convenient result.
+
+## 6. Use a reproducible configuration object
+
+For experiments, place the explanation settings in an `LLMConfig` object:
+
+```
+from xwhy import LLMExplainer
+from xwhy.core import LLMConfig
+
+config = LLMConfig(
+    provider_type="openai",
+    model_name="gpt-5-nano",
+    max_tokens=200,
+    temperature=0,
+    seed=1024,
+    num_perturbations=64,
+    embedding_type="word2vec",
+    surrogate_type="lime",
+    use_best_surrogate=True,
+)
+
+explainer = LLMExplainer(config=config)
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    fidelity_plot=True,
+)
+```
+
+Record the provider, model identifier, embedding, surrogate policy, perturbation count, seed, package version, and date of execution. See [Reproducible Explanations](https://dependable-intelligent-systems-lab.github.io/xwhy/how-to/reproducibility/index.md) for a fuller checklist.
+
+## 7. Handle provider and setup errors
+
+Use explicit error handling around provider calls:
+
+```
+try:
+    result = explainer.explain(
+        instance="Machine learning is fascinating.",
+        fidelity_plot=True,
+    )
+except Exception as error:
+    print(f"The explanation could not be generated: {error}")
+```
+
+Common causes include:
+
+- a missing or incorrectly named credential;
+- a model that is unavailable to the provider account;
+- an empty or filtered provider response;
+- a network or provider-side failure; and
+- an embedding cache directory that is unavailable or not writable.
+
+XWhy raises an explicit error when a provider returns no usable response, allowing the application to log, retry, or safely stop the explanation workflow.
+
+For pipeline diagnostics, use the [logging guide](https://dependable-intelligent-systems-lab.github.io/xwhy/how-to/logging/index.md).
+
+## Interpretation and reporting guidance
+
+When reporting an LLM explanation:
+
+- describe it as a **local perturbation-based response-alignment approximation**;
+- include surrogate fidelity metrics;
+- state the embedding backend and sampling configuration;
+- test whether the main attribution pattern changes across reasonable settings; and
+- avoid presenting term contributions as hidden reasoning, causal proof, or a complete safety assessment.
+
+The [LLM explainer overview](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/index.md) summarises the capability, and the [API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/reference/xwhy/explainers/llm/index.md) provides the implementation interface.
+
+# Image examples
+
+Coming soon
+
+The image-classification explainer is implemented, but curated, reproducible example pages with stored outputs are still being prepared.
+
+The first examples should cover a built-in classifier, a custom PyTorch classifier, supplied masks, segmentation-generated regions, and comparison of supported distance measures.
+
+Use the [image-classification tutorial](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/index.md) now.
+
+# Tabular examples
+
+Under construction
+
+Examples will be published after `TabularExplainer.explain()` is implemented and verified.
+
+Planned examples include binary classification, multiclass classification, regression, mixed numerical and categorical data, and stability comparison.
+
+# Text examples
+
+Under construction
+
+Examples will be published after `TextExplainer.explain()` is implemented and verified.
+
+Planned examples include sentiment classification, topic classification, phrase-level perturbation, and explanation-stability analysis.
+
+# Point-cloud examples
+
+Under construction
+
+Current legacy scripts require review and migration. Examples will be published after the package-level `PointCloudExplainer` is implemented and tested.
+
+Planned examples include object classification, point-group attribution, perturbation comparison, and interactive 3D visualisation.
+# Concepts
+
+# How SMILE works
+
+SMILE means **Statistical Model-agnostic Interpretability with Local Explanations**.
+
+At a high level, an implemented XWhy pipeline:
+
+1. selects the input instance to explain;
+1. creates local perturbations of meaningful input components;
+1. queries the target black-box model or provider;
+1. measures how outputs change using a suitable distance or similarity method;
+1. weights observations according to local relevance;
+1. fits or selects a surrogate model around the selected instance;
+1. reports estimated local contributions and evaluation metrics.
+
+## Why statistical distances matter
+
+Different modalities require different definitions of change. A useful distance measure must reflect meaningful changes in model behaviour rather than only low-level input differences.
+
+The exact distance, perturbation, and surrogate choices are modality-specific. Consult the current explainer tutorial and API reference rather than assuming that settings transfer unchanged across image and language tasks.
+
+# Local explanations
+
+A local explanation approximates model behaviour around one selected input and a defined perturbation neighbourhood.
+
+It can answer questions such as:
+
+- Which input components were associated with the largest local output changes?
+- Did those components increase or decrease the surrogate output?
+- How well did the surrogate approximate sampled model behaviour?
+
+It does not automatically answer:
+
+- Which features are globally important across the dataset?
+- What causal mechanism produced the prediction?
+- What internal reasoning process the model used?
+- Whether the prediction or explanation is fair, safe, or correct?
+
+Local explanations should be compared across nearby inputs, seeds, perturbation settings, and relevant subgroups before strong conclusions are drawn.
+
+# Limitations and responsible use
+
+XWhy explanations are evidence about sampled black-box behaviour, not direct access to a model's internal reasoning.
+
+## Main limitations
+
+- **Approximation:** the surrogate can disagree with the target model.
+- **Local scope:** conclusions may not generalise beyond the sampled neighbourhood.
+- **Perturbation dependence:** unrealistic perturbations can create misleading attributions.
+- **Metric dependence:** one quality metric cannot establish explanation validity.
+- **Non-causality:** feature importance does not prove causal influence.
+- **Instability:** explanations may change with seeds, inputs, model versions, or provider behaviour.
+- **Data and privacy:** prompts, images, and outputs may contain sensitive information.
+
+## High-impact use
+
+Do not use an XWhy plot as the sole basis for medical, legal, financial, employment, safety, or regulatory decisions. Combine explanation evidence with domain review, model validation, uncertainty analysis, robustness testing, and documented human oversight.
+# Evaluation
+
+# Evaluate explanations across modalities
+
+Explanation quality is **multi-dimensional**. The SMILE research family evaluates explanations through five complementary questions:
+
+1. **[ATT fidelity](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-fidelity/index.md):** does the local surrogate reproduce the black-box model's behaviour in the sampled neighbourhood?
+1. **[ATT accuracy](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-accuracy/index.md):** do high attribution scores align with an appropriate reference attribution?
+1. **[ATT stability](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-stability/index.md):** does the explanation remain similar after a small, semantically irrelevant change to the input?
+1. **[ATT consistency](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-consistency/index.md):** is the explanation reproducible when the same analysis is repeated under equivalent conditions?
+1. **[ATT faithfulness](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-faithfulness/index.md):** does attributed importance correspond to genuine changes in the model response when the attributed evidence is changed?
+
+`ATT` means **attribution**, following the terminology used in [gSMILE](https://arxiv.org/abs/2505.21657).
+
+The metric question may be shared; the metric definition is modality-specific
+
+A metric name is not a complete specification. For every evaluation, report the feature unit, perturbation, model response, reference evidence, aggregation rule, and direction of improvement. A token-level ATT accuracy score is not operationally equivalent to a superpixel-coverage score, even though both test attribution alignment.
+
+## Why definitions change by modality
+
+Each modality exposes a different interpretable unit and a different observable model response.
+
+| Modality                        | Interpretable unit                                  | Typical perturbation                             | Response being explained                                    | Possible reference evidence                                  |
+| ------------------------------- | --------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------ |
+| Image classification            | Pixel, superpixel, region, or concept               | Mask, replace, blur, or preserve a region        | Class score or probability shift                            | Semantic mask, object region, expert annotation              |
+| Large language model            | Token, word, phrase, or prompt component            | Remove, mask, replace, or paraphrase text        | Semantic or distributional output shift                     | Human-labelled influential tokens, benchmark evidence        |
+| Instruction-based image editing | Instruction token or phrase; sometimes image region | Modify the instruction or condition              | Perceptual, embedding, structural, or semantic image change | Required edit concepts, edited regions, human judgement      |
+| Point cloud                     | Point, cluster, segment, or object part             | Remove, mask, jitter, rotate, or resample points | Class or detection response shift                           | Ground-truth object part, spatial cluster, expert annotation |
+| Knowledge graph / GraphRAG      | Entity, relation, path, subgraph, or retrieved item | Remove or replace graph evidence                 | Answer, retrieval, or semantic-response shift               | Gold evidence, supported path, answer annotation             |
+| Concept-based explanation       | Human-understandable concept and its evidence       | Perturb concept-relevant regions or inputs       | Concept confidence or semantic concept response             | Domain annotation, concept mask, expert judgement            |
+
+The same broad reliability question therefore requires a modality-specific operationalisation. For example, gSMILE evaluates token attributions around an LLM prompt, whereas ConceptSMILE evaluates visual or semantic concept responses under image-region perturbation. The latter paper also shows why the five dimensions should not be collapsed into one score: an explanation pathway may be spatially accurate but less faithful, stable but inconsistent, or locally well approximated while weak on another reliability dimension.
+
+## LLM example from gSMILE
+
+The following gSMILE figure illustrates how ATT accuracy, faithfulness, stability, and consistency are formulated around **token-level** explanations. Ground-truth token importance, repeated runs, and minimally changed prompts provide different comparison conditions.
+
+Token-level attribution evaluation in gSMILE. Source: Dehghani et al., [Explaining Large Language Models with gSMILE](https://arxiv.org/html/2505.21657#S4.SS4), Figure 6.
+
+ATT fidelity requires a separate comparison between the black-box response signal and the local surrogate response over the same perturbations.
+
+ATT fidelity workflow in gSMILE. Source: Dehghani et al., [Explaining Large Language Models with gSMILE](https://arxiv.org/html/2505.21657#S4.SS4.SSS5), Figure 7.
+
+## Required evaluation specification
+
+Before reporting any metric, define the following tuple:
+
+```
+(feature unit, perturbation operator, response variable,
+ reference evidence, neighbourhood, aggregation, randomness controls)
+```
+
+For example, an LLM stability experiment might use words as features, semantically neutral phrase insertion as the perturbation, top-k token attribution as the explanation, Jaccard overlap as the aggregation, and a fixed model configuration. An image stability experiment might instead compare attribution maps after a benign acquisition artefact or non-destructive transformation.
+
+## Current XWhy implementation coverage
+
+The documentation distinguishes **implemented package functions** from evaluation procedures described in the papers.
+
+| Dimension        | Current XWhy support                 | Notes                                                                                                                                                      |
+| ---------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ATT fidelity     | **Implemented**                      | `RegressionMetrics.calculate()` is used by the image-classification and LLM explainers. Result objects expose weighted error and R-squared metrics.        |
+| ATT accuracy     | **Partially implemented for images** | `ImageCoverageMetrics` measures spatial agreement with a semantic mask. This is an image-specific coverage measure, not a universal ATT accuracy function. |
+| ATT stability    | **Methodology documented**           | No dedicated public package evaluator is currently implemented. Explanations can be compared using returned coefficients and feature names.                |
+| ATT consistency  | **Methodology documented**           | No dedicated public package evaluator is currently implemented. Repeated-run analysis must currently be performed by the user.                             |
+| ATT faithfulness | **Methodology documented**           | No standalone public package evaluator is currently implemented. The required intervention and response comparison depends on the modality.                |
+
+Do not invent universal thresholds
+
+Metric values depend on the response scale, perturbation protocol, feature granularity, neighbourhood, model stochasticity, reference annotations, and aggregation method. Report configurations and comparative baselines rather than applying one acceptance threshold across modalities.
+
+## Source papers
+
+The evaluation framework is grounded primarily in:
+
+- [Explaining Large Language Models with gSMILE](https://arxiv.org/abs/2505.21657), which defines the five ATT dimensions for token-level LLM explanations.
+- [ConceptSMILE: Auditing the Trustworthiness of Concept-Based Explainable AI](https://arxiv.org/abs/2607.09649), which reformulates the dimensions for concept-level visual and semantic explanations.
+- [XWhy and SMILE publications](https://dependable-intelligent-systems-lab.github.io/xwhy/research/publications/index.md), which lists the broader modality-specific research family.
+
+# ATT fidelity
+
+**ATT fidelity** asks whether the interpretable local surrogate reproduces the black-box model's response within the perturbation neighbourhood used to generate the explanation.
+
+It evaluates the explanation mechanism, not the original model's task accuracy. A classifier can be accurate while its local explanation has poor fidelity, and a highly faithful surrogate can accurately approximate undesirable black-box behaviour.
+
+## General formulation
+
+For perturbations (z_i), let:
+
+- (y_i) be the black-box response or response shift;
+- (\\hat{y}\_i) be the local surrogate prediction;
+- (w_i) be the locality weight assigned to the perturbation.
+
+ATT fidelity compares (y_i) and (\\hat{y}\_i), with local samples receiving the weights specified by the explanation method.
+
+## What changes by modality
+
+| Modality             | Black-box target (y)                                                        | Surrogate target (\\hat{y})                                                  |
+| -------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Image classification | Predicted-class probability after masking superpixels                       | Probability shift predicted from the retained-superpixel vector              |
+| LLM / gSMILE         | Semantic or distributional output shift after prompt perturbation           | Output shift predicted from retained or altered tokens                       |
+| Image editing        | Perceptual, embedding, structural, or semantic change in the edited image   | Change predicted from instruction-token or condition perturbations           |
+| Point cloud          | Class, detection, or segmentation response after point/cluster perturbation | Response predicted from retained points, clusters, or parts                  |
+| KG-RAG               | Answer or semantic-response shift after removing graph evidence             | Shift predicted from retained entities, relations, paths, or retrieved items |
+| ConceptSMILE         | Concept-confidence or concept-response shift after evidence perturbation    | Concept-response shift predicted from the perturbation vector                |
+
+The metrics may have the same names across modalities, but their raw values are only comparable when the response variables and scaling are comparable.
+
+## Metrics currently implemented in XWhy
+
+XWhy provides `RegressionMetrics.calculate()` and the immutable `RegressionMetricResult` container.
+
+```
+from xwhy.metrics import RegressionMetrics
+
+fidelity = RegressionMetrics.calculate(
+    y_true=y_target,
+    y_pred=y_pred,
+    weights=locality_weights,
+    num_features=num_interpretable_features,
+)
+
+print(fidelity.weighted_r2)
+print(fidelity.weighted_adj_r2)
+print(fidelity.weighted_mse)
+print(fidelity.weighted_mae)
+```
+
+The function currently returns:
+
+| Field              | Interpretation                                     | Preferred direction |
+| ------------------ | -------------------------------------------------- | ------------------- |
+| `weighted_r2`      | Weighted coefficient of determination              | Higher              |
+| `weighted_adj_r2`  | Weighted R-squared adjusted for feature count      | Higher              |
+| `weighted_mse`     | Locality-weighted squared prediction error         | Lower               |
+| `weighted_mae`     | Locality-weighted absolute prediction error        | Lower               |
+| `mean_loss`        | Difference between mean target and mean prediction | Lower               |
+| `mean_l1_loss`     | Mean absolute residual                             | Lower               |
+| `mean_l2_loss`     | Mean squared residual                              | Lower               |
+| `weighted_l1_norm` | Weighted absolute residual norm                    | Lower               |
+| `weighted_l2_norm` | Weighted squared residual norm                     | Lower               |
+
+## Reading fidelity from an explanation result
+
+Both currently implemented explainers attach the fidelity result to `result.metrics`.
+
+```
+result = explainer.explain(instance)
+
+print(result.metrics)
+print(result.metrics.weighted_r2)
+print(result.metrics.weighted_mae)
+```
+
+The result also stores the arrays used for fidelity evaluation:
+
+```
+y_target = result.raw_data["y_target"]
+y_pred = result.raw_data["y_pred"]
+weights = result.raw_data["weights"]
+```
+
+A fidelity plot can be generated from an XWhy result:
+
+```
+result.plot(show=True)
+```
+
+## LLM example
+
+In gSMILE, prompt perturbations are represented by token-retention vectors. The black-box target is the semantic output shift caused by each perturbed prompt, and the local surrogate predicts that shift from the interpretable token vector. The paper evaluates alignment using R-squared variants and error-based metrics.
+
+ATT fidelity in gSMILE compares the black-box response signal with the local surrogate signal over the same prompt perturbations. Source: Dehghani et al., [Figure 7](https://arxiv.org/html/2505.21657#S4.SS4.SSS5).
+
+## Interpretation requirements
+
+Report fidelity together with:
+
+- the response variable and its scale;
+- the perturbation count and generation procedure;
+- the locality distance and weighting kernel;
+- the surrogate family and feature count;
+- whether model outputs were deterministic;
+- the distribution of locality weights;
+- both an accuracy-based and an error-based fidelity metric.
+
+High fidelity is local and conditional
+
+A high score only demonstrates that the selected surrogate approximates the sampled black-box responses under the stated neighbourhood and weighting scheme. It does not establish global equivalence, causal validity, attribution accuracy, stability, consistency, or human usefulness.
+
+## Research basis
+
+- [gSMILE](https://arxiv.org/abs/2505.21657) defines ATT fidelity for LLM token attribution using local surrogate agreement.
+- [ConceptSMILE](https://arxiv.org/abs/2607.09649) applies surrogate fidelity to concept-response behaviour and shows that fidelity can differ by concept pathway and locality weighting.
+
+# ATT accuracy
+
+**ATT accuracy** asks whether the features assigned high importance by an explanation align with suitable reference evidence.
+
+This is **not** the predictive accuracy of the black-box model. It is the accuracy of the attribution relative to a reference that identifies which tokens, regions, points, graph elements, or concepts should be relevant.
+
+## Required inputs
+
+An ATT accuracy evaluation needs:
+
+1. attribution scores for interpretable features;
+1. a reference attribution or relevance annotation;
+1. a rule for matching explanation features to reference features;
+1. an aggregation metric and thresholding policy, where applicable.
+
+The reference may come from human annotation, a semantic mask, domain-expert evidence, a controlled synthetic task, or another defensible source. The quality and uncertainty of that reference must be reported.
+
+## Modality-specific definitions
+
+| Modality             | Attribution unit                      | Reference example                               | Suitable evaluation examples                                            |
+| -------------------- | ------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------------------- |
+| Image classification | Pixels, superpixels, regions          | Object or lesion mask                           | Coverage, weighted coverage, overlap, ranking against annotated regions |
+| LLM / gSMILE         | Tokens, words, phrases                | Human-labelled influential text elements        | ROC-AUC, precision, recall, F1, top-k agreement                         |
+| Image editing        | Instruction tokens or visual regions  | Required edit terms or target edit region       | Token-ranking agreement, edited-region overlap, expert judgement        |
+| Point cloud          | Points, clusters, object parts        | Part segmentation or annotated relevant cluster | Point/cluster overlap, coverage, top-k part agreement                   |
+| KG-RAG               | Entities, relations, paths            | Gold evidence graph or supported reasoning path | Evidence precision/recall, ranking, path overlap                        |
+| ConceptSMILE         | Concepts and concept-relevant regions | Domain concept annotation                       | Concept-region alignment, concept detection agreement                   |
+
+## LLM example from gSMILE
+
+The gSMILE paper compares token attribution scores with ground-truth labels identifying relevant input words. It operationalises ATT accuracy with the ROC-AUC of attribution scores: a score of 1 indicates perfect ranking of relevant tokens above irrelevant tokens, while 0.5 corresponds to random ranking.
+
+The gSMILE example compares token-level ground truth with generated token attributions. Source: Dehghani et al., [Figure 6 and Section 4.4.1](https://arxiv.org/html/2505.21657#S4.SS4.SSS1).
+
+## Image functions currently implemented in XWhy
+
+XWhy currently provides image-specific spatial coverage functions through `ImageCoverageMetrics`:
+
+```
+from xwhy.metrics import ImageCoverageMetrics
+
+coverage = ImageCoverageMetrics.calculate_coverage(
+    explanation_image=explanation_map,
+    semantic_mask=ground_truth_mask,
+    class_of_interest=1,
+)
+
+weighted_coverage = ImageCoverageMetrics.calculate_weighted_coverage(
+    explanation_image=explanation_map,
+    semantic_mask=ground_truth_mask,
+    class_of_interest=1,
+)
+
+coverage, weighted_coverage = ImageCoverageMetrics.evaluate_all(
+    explanation_image=explanation_map,
+    semantic_mask=ground_truth_mask,
+    class_of_interest=1,
+)
+```
+
+`calculate_coverage()` rewards selected explanation pixels within the target class and penalises selected pixels belonging to other labelled objects. `calculate_weighted_coverage()` additionally uses the magnitude of the explanation map.
+
+The image-classification explainer can calculate these values when a ground-truth mask is supplied or when its configured segmentation pathway produces a semantic mask:
+
+```
+result = explainer.explain(
+    instance="image.jpg",
+    ground_truth_mask=mask,
+)
+
+print(result.coverage)
+print(result.weighted_coverage)
+```
+
+Coverage is an image-specific ATT accuracy proxy
+
+These functions do not implement a universal ATT accuracy metric. They assume spatial arrays with matching image dimensions and a semantic mask. They cannot be directly applied to LLM tokens, point-cloud clusters, knowledge-graph evidence, or concept lists.
+
+## Current support for other modalities
+
+XWhy does not currently expose a public token-level AttAUC/F1 evaluator or a generic attribution-reference alignment class. For an LLM evaluation, the expected inputs would be an attribution score per token and a binary or graded reference relevance label aligned to the same tokenisation. That evaluator remains to be implemented in the package.
+
+Similarly, point-cloud, image-editing, GraphRAG, and concept-level ATT accuracy require modality-specific feature alignment before a metric can be computed.
+
+## Reporting checklist
+
+Report:
+
+- who or what produced the reference attribution;
+- annotation granularity and uncertainty;
+- feature-alignment and tokenisation rules;
+- whether negative attributions are included or transformed;
+- threshold or top-k selection rules;
+- class imbalance;
+- both ranking and set/coverage results where possible.
+
+Plausibility is not accuracy
+
+An explanation may look reasonable without aligning with a defensible reference. Conversely, disagreement with one annotation does not automatically prove an explanation is wrong when the task admits multiple valid evidence sets.
+
+## Research basis
+
+- [gSMILE](https://arxiv.org/abs/2505.21657) defines token-level ATT accuracy using annotated relevant text elements and AttAUC.
+- [ConceptSMILE](https://arxiv.org/abs/2607.09649) evaluates whether concept attributions align with clinically meaningful retinal evidence.
+
+# ATT stability
+
+**ATT stability** asks whether an explanation remains similar when the input is changed slightly without materially changing the evidence or task meaning.
+
+The input is deliberately changed. This distinguishes stability from [ATT consistency](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-consistency/index.md), where the input and intended configuration remain the same and only repeated execution varies.
+
+## Stability experiment
+
+A stability test requires paired inputs:
+
+```
+original input x
+nearby input x' that should preserve the relevant meaning or evidence
+```
+
+Generate explanations (a(x)) and (a(x')), align their feature spaces, and quantify the difference. The perturbation used to test stability must be separate from the perturbations used internally to construct each local explanation.
+
+## What counts as a small change
+
+| Modality             | Stability perturbation examples                                                                   | Features compared                                        |
+| -------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Image classification | Mild brightness/noise change, non-destructive crop, irrelevant border or acquisition artefact     | Attribution maps, superpixels, ranked regions            |
+| LLM / gSMILE         | Semantically neutral insertion, minor paraphrase, punctuation or wording variation                | Token/phrase rankings after semantic alignment           |
+| Image editing        | Equivalent rephrasing of an instruction; irrelevant instruction detail                            | Instruction-token attribution or affected visual regions |
+| Point cloud          | Small coordinate jitter, order permutation, class-preserving rotation, limited irrelevant dropout | Points, clusters, object parts                           |
+| KG-RAG               | Add/remove irrelevant graph evidence or equivalent retrieval context                              | Entities, relations, paths, retrieved items              |
+| ConceptSMILE         | Non-clinical artefacts or changes outside concept-relevant evidence                               | Concept scores, concept regions, rankings                |
+
+A transformation must be justified as meaning-preserving for the task. For example, an arbitrary rotation may preserve an object class in one point-cloud task but invalidate orientation-sensitive tasks.
+
+## LLM definition in gSMILE
+
+The gSMILE paper examines whether token attributions remain similar after small prompt changes. It uses the Jaccard index to compare sets of important elements, with values closer to 1 indicating greater overlap.
+
+```
+# User-side stability recipe; not a dedicated XWhy API function.
+def jaccard(set_a: set[int], set_b: set[int]) -> float:
+    union = set_a | set_b
+    return 1.0 if not union else len(set_a & set_b) / len(union)
+```
+
+A top-k comparison using XWhy result coefficients can be constructed as follows:
+
+```
+import numpy as np
+
+result_a = explainer.explain(prompt_a)
+result_b = explainer.explain(prompt_b)
+
+k = 5
+top_a = set(np.argsort(np.abs(result_a.coefficients))[-k:])
+top_b = set(np.argsort(np.abs(result_b.coefficients))[-k:])
+score = jaccard(top_a, top_b)
+```
+
+Feature alignment is required
+
+Direct token indices are only comparable when the two prompts have compatible token or word positions. Paraphrases require semantic phrase alignment, not naive index matching. Image superpixels and point-cloud clusters may also change between inputs and require spatial matching.
+
+## Current XWhy support
+
+XWhy result objects expose:
+
+- `result.coefficients` for feature attributions;
+- `result.feature_names` for tokens or generated feature labels;
+- `result.raw_data` for perturbation and response arrays.
+
+There is currently **no dedicated public `ATTStability` evaluator**. The comparison procedure must therefore be defined by the user and should be reported as an external evaluation built from XWhy results.
+
+## Recommended measures
+
+Use one or more of the following, depending on modality:
+
+- Jaccard overlap of top-k important features;
+- rank correlation after feature alignment;
+- cosine similarity between aligned attribution vectors;
+- spatial overlap or distance between attribution maps;
+- change in concept attribution scores;
+- explanation-distribution divergence across a set of benign transformations.
+
+Do not use only a set-overlap score when attribution magnitude and direction are important.
+
+## Reporting checklist
+
+Report:
+
+- why the input change should preserve task meaning;
+- the transformation magnitude and random seed;
+- how features were aligned across inputs;
+- whether predictions or generated outputs also remained equivalent;
+- the attribution comparison measure and top-k rule;
+- results across multiple samples and transformations, not one pair only.
+
+Stable does not mean correct
+
+A consistently wrong or unfaithful explanation can be highly stable. Stability must be interpreted alongside ATT accuracy, fidelity, and faithfulness.
+
+## Research basis
+
+- [gSMILE](https://arxiv.org/abs/2505.21657) evaluates token-attribution stability under minor prompt changes and uses Jaccard similarity.
+- [ConceptSMILE](https://arxiv.org/abs/2607.09649) tests whether concept explanations remain robust under controlled non-clinical artefacts and irrelevant visual changes.
+
+# ATT consistency
+
+**ATT consistency** asks whether the same input, model, explanation configuration, and intended operating conditions produce reproducible attributions across repeated executions.
+
+Unlike [ATT stability](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-stability/index.md), the evaluated input is not deliberately changed. Consistency isolates execution variability arising from random perturbation sampling, surrogate fitting, stochastic model generation, provider behaviour, hardware, or other uncontrolled factors.
+
+## General protocol
+
+For a fixed input (x), run the explanation procedure (R) times:
+
+```
+a¹(x), a²(x), ..., aᴿ(x)
+```
+
+Compare the attribution vectors, rankings, selected feature sets, and any relevant output signals across runs.
+
+## Sources of inconsistency
+
+- random perturbation sampling;
+- random initialisation or optimisation in the surrogate;
+- non-deterministic black-box inference;
+- LLM sampling temperature and provider-side variability;
+- stochastic segmentation or clustering;
+- changes in retrieved evidence for RAG systems;
+- unstable feature construction or alignment;
+- different distance, kernel, or hyperparameter choices when these are intended to be fixed.
+
+## Modality-specific interpretation
+
+| Modality             | Repeated object                                                | Consistency evidence                                          |
+| -------------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| Image classification | Same image and explanation configuration                       | Similar superpixel rankings and attribution magnitudes        |
+| LLM / gSMILE         | Same prompt, model, parameters, and provider setup             | Similar token weights and generated response behaviour        |
+| Image editing        | Same source image, instruction, seed policy, and editor        | Similar instruction attributions and edited-image effects     |
+| Point cloud          | Same point cloud and preprocessing                             | Similar point/cluster importance despite execution randomness |
+| KG-RAG               | Same query, graph snapshot, retrieval configuration, and model | Similar evidence ranking and attribution paths                |
+| ConceptSMILE         | Same image, concept pathway, prompt, and perturbation design   | Low variation in concept scores and feature importance        |
+
+## Measures
+
+ConceptSMILE treats lower variance and standard deviation across repeated executions as stronger reproducibility. Depending on the modality, report:
+
+- per-feature mean, variance, and standard deviation;
+- confidence intervals for attribution values;
+- Jaccard overlap of top-k feature sets;
+- rank correlation between repeated attribution orderings;
+- frequency with which each feature enters the top-k set;
+- variance of summary metrics such as fidelity or coverage.
+
+A simple user-side analysis can use XWhy result coefficients:
+
+```
+import numpy as np
+
+runs = [explainer.explain(instance) for _ in range(10)]
+coefficient_matrix = np.vstack([result.coefficients for result in runs])
+
+mean_attribution = coefficient_matrix.mean(axis=0)
+std_attribution = coefficient_matrix.std(axis=0)
+variance = coefficient_matrix.var(axis=0)
+```
+
+This assumes that the feature space is identical across runs. For image explanations, regenerated superpixels may differ; for point-cloud explanations, clusters may change; and for LLMs, word or token segmentation must remain aligned.
+
+## Current XWhy support
+
+XWhy exposes the attribution vector and raw evaluation data needed for repeated-run analysis, but there is currently **no dedicated public `ATTConsistency` function**.
+
+Relevant controls include:
+
+- explainer random seeds;
+- LLM temperature and provider options;
+- perturbation count;
+- surrogate type and automatic surrogate selection;
+- distance metric and locality weighting;
+- segmentation or feature-construction configuration.
+
+For LLMs, setting `temperature=0.0` and a fixed seed reduces known sampling variation, but an external provider may still be non-deterministic. Report the provider, model version, request parameters, date, and repeated outputs.
+
+## Consistency across hyperparameters
+
+The gSMILE discussion also considers consistency across model runs or hyperparameter settings. This should be reported separately from strict repeated-run consistency:
+
+- **repeatability:** same input and same configuration;
+- **configuration robustness:** same input under deliberately varied but plausible settings.
+
+Mixing these experiments into one score obscures whether variability came from randomness or an intentional design change.
+
+## Reporting checklist
+
+Report:
+
+- number of repeated runs;
+- all fixed and varying parameters;
+- random seeds and deterministic settings;
+- provider/model version and retrieval snapshot where relevant;
+- feature-alignment procedure;
+- per-feature variability and aggregate overlap;
+- uncertainty intervals rather than only one average score.
+
+Consistency is not stability or validity
+
+Repeatable explanations may still be inaccurate or unfaithful. Conversely, a stochastic model may produce some attribution variability even when the explanation method is behaving appropriately. Interpret consistency together with the task and model's expected randomness.
+
+## Research basis
+
+- [gSMILE](https://arxiv.org/abs/2505.21657) defines ATT consistency through repeatable token weights and outputs for repeated use of the same prompt.
+- [ConceptSMILE](https://arxiv.org/abs/2607.09649) evaluates reproducibility through repeated execution and reports variance and standard deviation as consistency indicators.
+
+# ATT faithfulness
+
+**ATT faithfulness** asks whether attributed importance reflects the model's actual response behaviour rather than only producing a plausible-looking explanation.
+
+A faithful explanation should assign greater importance to evidence whose controlled removal, replacement, or preservation causes a correspondingly meaningful change in the black-box response.
+
+## General intervention principle
+
+For an interpretable feature (j):
+
+1. obtain its attribution score (a_j);
+1. intervene on feature (j) or on a feature set ranked by attribution;
+1. measure the resulting black-box response change (\\Delta_j);
+1. test whether attribution magnitude and response effect agree.
+
+The intervention and response variable must be meaningful for the modality. Masking a superpixel, removing a token, deleting a graph relation, and suppressing a concept region are different experimental operations.
+
+## Modality-specific operationalisations
+
+| Modality             | Intervention                                                        | Response effect                                               |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Image classification | Mask or preserve attributed regions                                 | Change in class probability or prediction                     |
+| LLM / gSMILE         | Remove, replace, or retain attributed tokens/phrases                | Semantic or distributional change in the generated output     |
+| Image editing        | Modify attributed instruction terms or conditioning evidence        | Change in edited-image semantics, structure, or target region |
+| Point cloud          | Remove or alter attributed points/clusters                          | Change in class, detection, or segmentation response          |
+| KG-RAG               | Remove attributed entities, relations, paths, or retrieved passages | Change in evidence use, answer support, or semantic output    |
+| ConceptSMILE         | Perturb evidence relevant or irrelevant to a concept                | Change in concept confidence or semantic concept response     |
+
+## Two paper-specific definitions
+
+The SMILE-family papers use related but not identical operationalisations.
+
+### gSMILE
+
+The gSMILE paper defines the general goal as ensuring that important tokens genuinely drive the LLM response. Its reported quantitative evaluation treats faithfulness as an **externally validated property**, using Pearson correlation between attribution metrics and published benchmark accuracies for the evaluated models. A stronger positive correlation indicates that the attribution measurements track external model competence.
+
+### ConceptSMILE
+
+ConceptSMILE uses a direct perturbation-response interpretation. Concept-relevant perturbations should produce larger concept-confidence shifts than irrelevant perturbations. This evaluates whether the concept explanation is connected to the pathway's observed behaviour rather than only appearing clinically or semantically plausible.
+
+Do not treat these definitions as interchangeable
+
+External benchmark correlation and direct intervention-response agreement answer different questions. A study must state which operationalisation is used and why it is appropriate for the modality and claim being tested.
+
+## Current XWhy support
+
+XWhy currently has **no standalone public `ATTFaithfulness` evaluator**. The explainers do, however, return raw perturbation and response data that can support modality-specific analysis.
+
+For an LLM result, relevant fields include:
+
+```
+result.raw_data["perturbed_texts"]
+result.raw_data["wmd_scores"]
+result.raw_data["similarities"]
+result.raw_data["weights"]
+result.raw_data["y_target"]
+result.coefficients
+```
+
+For an image-classification result, relevant fields include:
+
+```
+result.raw_data["x_matrix"]
+result.raw_data["predictions"]
+result.raw_data["distances"]
+result.raw_data["weights"]
+result.raw_data["y_target"]
+result.coefficients
+```
+
+These arrays expose the sampled perturbations and observed response signals, but they do not by themselves constitute a complete faithfulness test. The user must define the intervention ranking, response measure, feature alignment, baseline, and aggregation procedure.
+
+## Example study design
+
+A direct perturbation faithfulness experiment can compare cumulative response change as increasingly important features are removed:
+
+```
+1. Rank features by |attribution|.
+2. Remove the top 1, top 2, ..., top k features.
+3. Re-query the black-box model after each intervention.
+4. Measure output change relative to the unmodified input.
+5. Compare against random-feature and low-attribution baselines.
+```
+
+For generative systems, output change should be measured semantically or distributionally rather than through exact string or pixel equality.
+
+## Reporting checklist
+
+Report:
+
+- the exact faithfulness definition;
+- whether the test is direct intervention-based or externally validated;
+- the intervention operator and realism constraints;
+- the output-distance or response-change function;
+- positive, negative, and absolute attribution handling;
+- random and low-importance baselines;
+- intervention order and cumulative-removal policy;
+- model stochasticity and repeated-query uncertainty.
+
+Perturbation artefacts can imitate faithfulness
+
+An intervention may create an unrealistic input that changes the model response for reasons unrelated to the attributed evidence. Use modality-appropriate perturbations, compare against controls, and report whether the modified input remains valid.
+
+## Research basis
+
+- [gSMILE](https://arxiv.org/abs/2505.21657) defines token-level faithfulness and reports an external correlation-based evaluation.
+- [ConceptSMILE](https://arxiv.org/abs/2607.09649) evaluates whether concept-relevant evidence perturbations produce the expected concept-response shifts.
+# Research
+
+# Research
+
+SMILE—**Statistical Model-Agnostic Interpretability with Local Explanations**—is a family of local explainability methods for analysing black-box artificial-intelligence systems. The foundational method explains machine-learning classifiers by fitting a local surrogate model whose perturbed samples are weighted using statistical distance measures. Later work adapts this principle to spatial, generative, language, retrieval-augmented, and concept-based systems.
+
+## Research map
+
+| Research area                  | Method or study                                     | Explained system                               | Publication status               |
+| ------------------------------ | --------------------------------------------------- | ---------------------------------------------- | -------------------------------- |
+| Core method                    | SMILE                                               | Machine-learning and deep-learning classifiers | Peer-reviewed journal article    |
+| Vision and spatial AI          | Point-cloud SMILE                                   | Point-cloud neural networks                    | arXiv preprint                   |
+| Vision and generative AI       | Image-editing SMILE                                 | Instruction-based image-editing models         | arXiv preprint                   |
+| Language and generative AI     | gSMILE                                              | Large language models                          | arXiv preprint                   |
+| Retrieval-augmented generation | KG-SMILE                                            | Knowledge-graph and GraphRAG systems           | arXiv preprint                   |
+| Concept-based explainability   | ConceptSMILE                                        | Concept-based explainable-AI methods           | arXiv preprint                   |
+| Financial language analysis    | Local perturbation explanations derived from gSMILE | LLM financial-sentiment reasoning              | Peer-reviewed conference chapter |
+| Consolidated academic study    | Generative-AI SMILE thesis                          | LLMs and instruction-based image editing       | MSc thesis                       |
+
+## How the research family is organised
+
+### Core method
+
+The foundational SMILE paper defines the statistical-distance-based local explanation framework for black-box classifiers. This is the principal methodological citation for general references to SMILE.
+
+### Vision and spatial AI
+
+The point-cloud extension explains influential groups of 3D points and evaluates explanation fidelity, stability, and robustness. The image-editing extension instead perturbs natural-language editing instructions and measures how words or phrases affect generated visual changes.
+
+### Language and generative AI
+
+gSMILE explains large-language-model behaviour by perturbing prompt components, measuring changes in model outputs with statistical distances such as Wasserstein distance, and fitting a locally weighted surrogate model. A related financial-sentiment study applies local perturbation explanations to behavioural and robustness analysis.
+
+### Retrieval-augmented generation
+
+KG-SMILE explains the contribution of retrieved entities, relations, graph paths, and contextual evidence within knowledge-graph retrieval-augmented generation workflows.
+
+### Concept-based explainability
+
+ConceptSMILE audits whether human-understandable concepts provide explanations that are faithful, locally representative, stable, and consistent.
+
+## Research resources
+
+- [Browse the complete publication catalogue](https://dependable-intelligent-systems-lab.github.io/xwhy/research/publications/index.md)
+- [Choose the correct citation for your use case](https://dependable-intelligent-systems-lab.github.io/xwhy/research/citation/index.md)
+- [Follow the reproducibility guidance](https://dependable-intelligent-systems-lab.github.io/xwhy/how-to/reproducibility/index.md)
+
+Publication metadata
+
+The publication types, identifiers, links, and BibTeX records in this section are maintained from the project bibliography. Preprints and online-first records may later receive updated journal, conference, volume, issue, or pagination metadata.
+
+# Cite XWhy and SMILE
+
+Cite the **software artefact** you used and the **research method** that supports your analysis. These are related but distinct citations.
+
+## Citation decision table
+
+| What you used or discussed                                                    | Recommended research citation                              |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| General SMILE method, local statistical weighting, or classifier explanations | Foundational SMILE paper                                   |
+| Point-cloud explanations                                                      | Foundational SMILE paper + point-cloud SMILE preprint      |
+| Instruction-based image-editing explanations                                  | Foundational SMILE paper + image-editing SMILE preprint    |
+| Large-language-model prompt explanations                                      | Foundational SMILE paper + gSMILE preprint                 |
+| Knowledge-graph or GraphRAG explanations                                      | Foundational SMILE paper + KG-SMILE preprint               |
+| Concept-based explanation auditing                                            | Foundational SMILE paper + ConceptSMILE preprint           |
+| Financial-sentiment reasoning with local perturbation explanations            | gSMILE preprint + financial-sentiment study                |
+| The consolidated MSc study of generative-AI explainability                    | MSc thesis; add the relevant method paper where applicable |
+
+## Foundational SMILE citation
+
+Use this as the primary methodological citation when referring to SMILE generally:
+
+> Koorosh Aslansefat, Mojgan Hashemian, Martin Walker, Mohammed Naveed Akram, Ioannis Sorokos, and Yiannis Papadopoulos. “Explaining Black Boxes with a SMILE: Statistical Model-Agnostic Interpretability with Local Explanations.” *IEEE Software*, 41(1), 87–97, 2024. <https://doi.org/10.1109/MS.2023.3321282>
+
+```
+@article{aslansefat2024smile,
+  author    = {Koorosh Aslansefat and Mojgan Hashemian and Martin Walker
+               and Mohammed Naveed Akram and Ioannis Sorokos
+               and Yiannis Papadopoulos},
+  title     = {Explaining Black Boxes with a {SMILE}: Statistical
+               Model-Agnostic Interpretability with Local Explanations},
+  journal   = {IEEE Software},
+  year      = {2024},
+  volume    = {41},
+  number    = {1},
+  pages     = {87--97},
+  month     = {Jan.--Feb.},
+  publisher = {IEEE},
+  doi       = {10.1109/MS.2023.3321282},
+  url       = {https://doi.org/10.1109/MS.2023.3321282}
+}
+```
+
+## Modality-specific citations
+
+### Point clouds
+
+Cite the foundational SMILE paper and:
+
+> Seyed Mohammad Ahmadi, Koorosh Aslansefat, Rubén Valcarce-Diñeiro, and Joshua Barnfather. “Explainability of Point Cloud Neural Networks Using SMILE: Statistical Model-Agnostic Interpretability with Local Explanations.” arXiv:2410.15374, 2024. <https://arxiv.org/abs/2410.15374>
+
+### Instruction-based image editing
+
+Cite the foundational SMILE paper and:
+
+> Zeinab Dehghani, Koorosh Aslansefat, Adil Khan, Adín Ramírez Rivera, Franky George, and Muhammad Khalid. “Mapping the Mind of an Instruction-Based Image Editing Using SMILE.” arXiv:2412.16277, 2024. <https://arxiv.org/abs/2412.16277>
+
+### Large language models
+
+Cite the foundational SMILE paper and:
+
+> Zeinab Dehghani, Mohammed Naveed Akram, Koorosh Aslansefat, Adil Khan, and Yiannis Papadopoulos. “Explaining Large Language Models with gSMILE.” arXiv:2505.21657, 2025. <https://arxiv.org/abs/2505.21657>
+
+### Knowledge-graph retrieval-augmented generation
+
+Cite the foundational SMILE paper and:
+
+> Zahra Zehtabi Sabeti Moghaddam, Zeinab Dehghani, Maneeha Rani, Koorosh Aslansefat, Bhupesh Kumar Mishra, Rameez Raja Kureshi, and Dhavalkumar Thakker. “Explainable Knowledge Graph Retrieval-Augmented Generation (KG-RAG) with KG-SMILE.” arXiv:2509.03626, 2025. <https://arxiv.org/abs/2509.03626>
+
+### Concept-based explainability
+
+Cite the foundational SMILE paper and:
+
+> Mohadeseh Mollapour, Koorosh Aslansefat, Zeinab Dehghani, Bhupesh Kumar Mishra, Tejal Shah, and Zhibao Mian. “ConceptSMILE: Auditing the Trustworthiness of Concept-Based Explainable AI.” arXiv:2607.09649, 2026. <https://arxiv.org/abs/2607.09649>
+
+### Financial-sentiment reasoning
+
+For the applied financial-sentiment study, cite gSMILE and:
+
+> Sania Verma, Koorosh Aslansefat, Joyjit Chatterjee, Akash Marar, Anu Mehra, and Aisha Ekundayo. “When Words Move Markets: Interpretable Behavioural and Robustness Analysis of LLMs for Financial Sentiment Reasoning via Local Perturbation Explanations.” In *Natural Language Processing and Information Systems: NLDB 2026*, LNCS 16696, 271–286. Springer, 2027; first published online 4 July 2026. <https://doi.org/10.1007/978-3-032-29532-3_19>
+
+The [publication catalogue](https://dependable-intelligent-systems-lab.github.io/xwhy/research/publications/index.md) provides complete BibTeX records for every method and study.
+
+## Citing the XWhy software
+
+A research-method citation does not identify the exact software revision used in an experiment. Until the repository provides a versioned archived software release and formal software DOI, record:
+
+- the package version;
+- the Git commit SHA when reproducibility is important;
+- the repository URL;
+- the date on which the software was accessed;
+- the configuration, model, data, and random seed used.
+
+A temporary plain-text software reference can use this form:
+
+> XWhy contributors. *XWhy: Model-Agnostic Explainability with SMILE*. Version or commit used. GitHub repository: <https://github.com/Dependable-Intelligent-Systems-Lab/xwhy>. Accessed YYYY-MM-DD.
+
+## Citation principles
+
+1. **Cite the foundational method** when the work depends on SMILE’s statistical local-surrogate formulation.
+1. **Add the relevant extension** when the explained system is a point cloud, image editor, LLM, KG-RAG pipeline, or concept-based model.
+1. **Distinguish preprints from peer-reviewed publications** in prose and bibliographies.
+1. **List the thesis separately** from journal and conference papers.
+1. **Record the software revision** independently from the paper citation so an experiment can be reproduced.
+# Contributors
+
+# Contributors
+
+XWhy is developed by researchers and software contributors working on explainable, dependable, and responsible artificial intelligence.
+
+## Repository contributors
+
+This section is generated from GitHub during each documentation build. Bot accounts are excluded, and the commit counts reflect GitHub's contributor API.
+
+[View the full contributor graph on GitHub](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors).
+
+## Authors and maintainers
+
+This table is generated from the current `[project]` metadata in `pyproject.toml`.
+
+| Contributor           | Role recorded in the package metadata |
+| --------------------- | ------------------------------------- |
+| Mojgan Hashemian      | Author                                |
+| Koorosh Aslansefat    | Author and maintainer                 |
+| Hamed Daneshvar       | Author and maintainer                 |
+| Sara Dehghani         | Author                                |
+| Mohammad Naveed Akram | Author                                |
+| Ioannis Sorokos       | Author                                |
+| Martin Walker         | Author                                |
+| Yiannis Papadopoulos  | Author                                |
+
+## Ways to contribute
+
+Contributions can include:
+
+- explainer implementations and tests;
+- documentation corrections and new tutorials;
+- reproducible worked examples;
+- evaluation metrics and benchmark artefacts;
+- provider and model integrations;
+- accessibility, security, and responsible-use improvements.
+
+Read the [contribution guide](https://dependable-intelligent-systems-lab.github.io/xwhy/contribute/contributing/index.md) before opening a pull request.
+
+## Recognition
+
+Authorship, maintainership, software contribution, and publication authorship are distinct forms of contribution. Repository contributors are generated from GitHub's contributor records. Package authors and maintainers are generated from `pyproject.toml`. Formal research authorship should follow the project's agreed contribution and publication policies.
+
+# Contributing Guidelines
+
+When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
+
+Please note we have a code of conduct, please follow it in all your interactions with the project.
+
+## Pull Request Process
+
+1. Ensure any install or build dependencies are removed before the end of the layer when doing a build.
+1. Update the README.md with details of changes to the interface, this includes new environment variables, exposed ports, useful file locations and container parameters.
+1. Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. The versioning scheme we use is [SemVer](http://semver.org/).
+1. You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
+
+## Code of Conduct
+
+### Our Pledge
+
+In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
+
+### Our Standards
+
+Examples of behavior that contributes to creating a positive environment include:
+
+- Using welcoming and inclusive language
+- Being respectful of differing viewpoints and experiences
+- Gracefully accepting constructive criticism
+- Focusing on what is best for the community
+- Showing empathy towards other community members
+
+Examples of unacceptable behavior by participants include:
+
+- The use of sexualized language or imagery and unwelcome sexual attention or advances
+- Trolling, insulting/derogatory comments, and personal or political attacks
+- Public or private harassment
+- Publishing others' private information, such as a physical or electronic address, without explicit permission
+- Other conduct which could reasonably be considered inappropriate in a professional setting
+
+### Our Responsibilities
+
+Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+
+Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+
+### Scope
+
+This Code of Conduct applies both within project spaces and in public spaces when an individual is representing the project or its community. Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+
+### Enforcement
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at [koo.ec2008@gmail.com]. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
+
+Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+
+### Attribution
+
+This Code of Conduct is adapted from the [Contributor Covenant](http://contributor-covenant.org), version 1.4, available at [http://contributor-covenant.org/version/1/4](http://contributor-covenant.org/version/1/4/)
+
+For more information please contact Koorosh Aslansefat: koo.ec2008@gmail.com
+# API Reference
+
