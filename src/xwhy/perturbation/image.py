@@ -24,7 +24,12 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
         self.max_dist = max_dist
         self.ratio = ratio
         self.seed = seed
-        self.rng = np.random.default_rng(seed)
+        self._rng = np.random.default_rng(seed)
+
+    def set_seed(self, seed: int) -> None:
+        """Update the random number generator with a new seed."""
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
 
     def generate_superpixels(
         self, image: torch.Tensor | np.ndarray
@@ -89,7 +94,7 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
             np.ndarray: Binary matrix of shape (num_perturbations, num_superpixels).
 
         """
-        masks = self.rng.binomial(
+        masks = self._rng.binomial(
             n=1,
             p=keep_probability,
             size=(num_perturbations, num_superpixels),

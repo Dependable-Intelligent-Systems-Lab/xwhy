@@ -36,6 +36,10 @@ class TextPerturbation(BasePerturbation[Sequence[str], Sequence[int], list[str]]
         """
         self._rng: Generator = np.random.default_rng(seed)
 
+    def set_seed(self, seed: int) -> None:
+        """Update the random number generator with a new seed."""
+        self._rng = np.random.default_rng(seed)
+
     def apply_mask(
         self,
         item: Sequence[str],
