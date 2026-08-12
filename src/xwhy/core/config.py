@@ -108,7 +108,7 @@ class TabularConfig(ExplainerConfig):
     validate_normalization: bool = True
 
 
-class ImageGenerationConfig(ExplainerConfig):
+class ImageGenerationAndEditingConfig(ExplainerConfig):
     """Configuration for the Image Generation and Editing explainer."""
 
     model_config = ConfigDict(
@@ -118,32 +118,37 @@ class ImageGenerationConfig(ExplainerConfig):
         str_strip_whitespace=True,
     )
 
-    # Backend & Model
-    provider_type: ProviderType | str = ProviderType.OPENAI
+    # Base Provider & Model Settings
+    # provider_type is strictly used ONLY when engine_type == "provider"
+    provider_type: ProviderType | str | None = Field(default=ProviderType.OPENAI)
+    engine_type: Literal["provider", "custom", "pipeline"] = "provider"
     model_name: str = "dall-e-3"
 
-    # Custom / Local Model
+    # Custom Model Injection
     custom_model: Any = None
-    custom_preprocess: Callable[..., Any] | None = None
+    custom_generate_fn: Callable[..., Any] | None = None
 
-    # Generation & Editing Parameters (Flattened for kwargs injection)
+    # Core Shared Generation Parameters
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    image_size: str = "1024x1024"
-    num_inference_steps: int = Field(default=50, gt=0)
-    guidance_scale: float = Field(default=7.5, gt=0.0)
+    seed: int = 42
 
     # Explainer Components
-    use_embedding_model: bool = False
-    embedding_type: EmbeddingType | str = EmbeddingType.DINOV2
+    use_image_embedding_model: bool = False
+    image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2
+    text_embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
 
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
 
     # Core Explainability Settings
+    output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
-    seed: int = 1024
     num_perturbations: int = Field(default=64, gt=0)
-
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
+
+    # Surrogate & Perturbation Fine-tuning Parameters
+    normalization_mode: Literal["linear", "inverse"] = "linear"
+    kernel_width: float = Field(default=0.25, gt=0.0)
+    ridge_alpha: float = Field(default=1.0, ge=0.0)

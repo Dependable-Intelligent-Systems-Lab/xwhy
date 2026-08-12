@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 from typing import Any
 
-from torch import device
+import torch
 
 from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
@@ -13,6 +14,65 @@ from xwhy.models.segmentation.base import BaseSegmentation
 from xwhy.perturbation.image import ImagePerturbation
 from xwhy.perturbation.text import TextPerturbation
 from xwhy.providers.base import BaseProvider
+
+
+class BaseImageGenerationAndEditing(ABC):
+    """Abstract base class for all image generation and editing engines.
+
+    Any cloud provider (e.g., OpenAI, Gemini) or custom local model
+    used for image generation/editing must inherit from this class
+    and implement its methods.
+    """
+
+    @abstractmethod
+    def generate_image(
+        self,
+        prompt: str,
+        output_dir: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[bool, str]:
+        """Generate an image from a text prompt.
+
+        Args:
+            prompt: The text prompt describing the desired image.
+            output_dir: Directory to save the generated image.
+            **kwargs: Additional parameters specific to the underlying model/API.
+
+        Returns:
+            A tuple containing a boolean success flag and the path to the
+            generated image (or error message if failed).
+
+        Raises:
+            NotImplementedError: Implemented by subclasses.
+
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def edit_image(
+        self,
+        prompt: str,
+        image_path: str,
+        output_dir: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> tuple[bool, str]:
+        """Edit an existing image based on a text prompt.
+
+        Args:
+            prompt: The text prompt describing the desired edits.
+            image_path: Path to the original input image.
+            output_dir: Directory to save the edited image.
+            **kwargs: Additional parameters specific to the underlying model/API.
+
+        Returns:
+            A tuple containing a boolean success flag and the path to the
+            edited image (or error message if failed).
+
+        Raises:
+            NotImplementedError: Implemented by subclasses.
+
+        """
+        raise NotImplementedError
 
 
 class LLMState:
@@ -33,7 +93,7 @@ class LLMState:
 class ImageClassificationState:
     """Runtime state for the Image Classification explainer."""
 
-    def __init__(self, device_: device) -> None:
+    def __init__(self, device_: torch.device) -> None:
         """Initialize the runtime state.
 
         This object stores runtime resources that are created during the
@@ -67,10 +127,10 @@ class TabularState:
         self.model: Any | None = None
 
 
-class ImageGenerationState:
+class ImageGenerationAndEditingState:
     """Runtime state for the Image Generation and Editing explainer."""
 
-    def __init__(self, device_: device) -> None:
+    def __init__(self, device_: torch.device) -> None:
         """Initialize the runtime state.
 
         This object stores runtime resources that are created during the
@@ -83,14 +143,11 @@ class ImageGenerationState:
         """
         self.device = device_
 
-        # Generation/Editing Resources
-        self.provider: BaseProvider | None = None
-        self.generation_model: Any | None = None
-        self.transform_fn: Callable[..., Any] | None = None
+        # Unified Generation/Editing Resource
+        self.engine: BaseImageGenerationAndEditing | None = None
 
         # Explainability Resources
-        self.perturbator: Any | None = (
-            None  # Can hold TextPerturbation or ImagePerturbation
-        )
+        self.text_perturbator: TextPerturbation | None = None
         self.segmentation_model: BaseSegmentation | None = None
-        self.embedding_model: BaseEmbedding | None = None
+        self.image_embedding_model: BaseEmbedding | None = None
+        self.text_embedding_model: BaseEmbedding | None = None
