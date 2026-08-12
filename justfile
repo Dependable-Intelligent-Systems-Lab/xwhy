@@ -179,6 +179,8 @@ clean:
     rm -rf site
     rm -f coverage.xml
     rm -f .coverage
+    rm -rf output
+    rm -rf outputs
 
     find . -type d -name "__pycache__" -exec rm -rf {} +
     find . -type f -name "*.pyc" -delete
