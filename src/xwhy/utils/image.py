@@ -1,5 +1,6 @@
 """Image utility functions for loading, preprocessing, and format conversion."""
 
+import base64
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, cast
@@ -24,6 +25,30 @@ VIS_PALETTE: list[tuple[int, int, int]] = [
     (0, 170, 0),
     (0, 0, 170),
 ]
+
+# Mapping of file extensions to their corresponding MIME types
+IMAGE_MIME_TYPES: dict[str, str] = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".dib": "image/bmp",
+    ".tiff": "image/tiff",
+    ".tif": "image/tiff",
+    ".ico": "image/ico",
+    ".icns": "image/icns",
+    ".sgi": "image/sgi",
+    ".j2c": "image/jp2",
+    ".j2k": "image/jp2",
+    ".jp2": "image/jp2",
+    ".jpc": "image/jp2",
+    ".jpf": "image/jp2",
+    ".jpx": "image/jp2",
+    ".heic": "image/heic",
+    ".heif": "image/heif",
+}
 
 
 def get_default_transform() -> Callable[[Image.Image], torch.Tensor]:
@@ -326,3 +351,43 @@ def get_binary_mask(
         # Return a blank white mask as fallback to allow full editing
         original_img = Image.open(image_path)
         return Image.new("L", original_img.size, 255)
+
+
+def image_to_base64(image_path: str | Path, include_data_uri: bool = False) -> str:
+    """Convert an image file to a Base64 encoded string.
+
+    Args:
+        image_path (Union[str, Path]): The path to the input image file.
+        include_data_uri (bool): If True, prepends the Data URI scheme
+            (e.g., 'data:image/jpeg;base64,'). Defaults to False.
+
+    Returns:
+        str: The Base64 encoded string representing the image.
+
+    Raises:
+        FileNotFoundError: If the provided image path does not exist.
+        ValueError: If `include_data_uri` is True but the file extension
+            is not supported.
+
+    """
+    path = Path(image_path)
+
+    if not path.is_file():
+        raise FileNotFoundError(f"Image file not found: {path}")
+
+    with open(path, "rb") as img_file:
+        b64_str = base64.b64encode(img_file.read()).decode("utf-8")
+
+    if not include_data_uri:
+        return b64_str
+
+    # Extract the file extension (e.g., '.jpg') in lowercase
+    ext = path.suffix.lower()
+    mime_type = IMAGE_MIME_TYPES.get(ext)
+
+    if not mime_type:
+        raise ValueError(
+            f"Unsupported image extension '{ext}' for Data URI generation."
+        )
+
+    return f"data:{mime_type};base64,{b64_str}"
