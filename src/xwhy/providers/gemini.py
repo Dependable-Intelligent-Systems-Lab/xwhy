@@ -5,15 +5,17 @@ import json
 import os
 import time
 from io import BytesIO
+from typing import Any
 
 from google.genai import types
 from PIL import Image
 
+from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.logger import logger
 from xwhy.providers.base import BaseProvider
 
 
-class GeminiProvider(BaseProvider):
+class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
     """Gemini implementation of the provider interface."""
 
     def __init__(self, client: object) -> None:
@@ -134,6 +136,8 @@ class GeminiProvider(BaseProvider):
         stream: bool,
         seed: int | None,
         default_mime_type: str = "image/png",
+        input_image_path: str | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
         """Execute the core generation logic for image requests.
 
@@ -149,6 +153,8 @@ class GeminiProvider(BaseProvider):
             stream: Boolean flag to enable or disable streaming.
             seed: Seed for deterministic generation.
             default_mime_type: Fallback MIME type.
+            input_image_path: Path to base image if editing, None otherwise.
+            **kwargs: Extra parameters.
 
         Returns:
             A tuple containing a boolean success flag and the file path.
@@ -195,13 +201,13 @@ class GeminiProvider(BaseProvider):
                         final_mime = part.inline_data.mime_type
                         break
         except Exception as e:
-            logger.exception(f"Error during API call: {e}")
+            logger.exception("Error during API call: %s", e)
 
         if generated_img is None:
             gen_img_flag = False
             logger.debug(
-                f"Failed to generate image for prompt: '{prompt}'. "
-                "Creating placeholder."
+                "Failed to generate image for prompt: '%s'. Creating placeholder.",
+                prompt,
             )
             fallback_img = self._create_placeholder_image(
                 prompt=prompt, output_dir=output_dir, save=False
@@ -210,20 +216,32 @@ class GeminiProvider(BaseProvider):
                 generated_img = fallback_img
             final_mime = "image/png"
 
-        # Determine file extension based on MIME type
-        ext = ".jpg" if final_mime == "image/jpeg" else ".png"
+        # Map supported Google Gemini MIME types to extensions
+        mime_to_ext = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+            "image/heic": ".heic",
+            "image/heif": ".heif",
+            "image/gif": ".gif",
+        }
+        ext = mime_to_ext.get(final_mime, ".png")
 
         os.makedirs(output_dir, exist_ok=True)
         timestamp = int(time.time() * 1000)
-        filename = f"gemini_generated_{timestamp}{ext}"
+
+        prefix = "gemini_edited" if input_image_path else "gemini_generated"
+
+        filename = f"{prefix}_{timestamp}{ext}"
         gen_path = os.path.join(output_dir, filename)
 
         if isinstance(generated_img, Image.Image):
             generated_img.save(gen_path)
 
         logger.debug(
-            f'------------------- "{gen_path}" generated! '
-            f"(Success: {gen_img_flag}) -------------------"
+            '------------------- "%s" generated! (Success: %s) -------------------',
+            gen_path,
+            gen_img_flag,
         )
 
         return gen_img_flag, gen_path
@@ -240,6 +258,7 @@ class GeminiProvider(BaseProvider):
         max_output_tokens: int = 8192,
         stream: bool = True,
         seed: int | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
         """Generate an image using the Gemini API based on a text prompt.
 
@@ -253,6 +272,7 @@ class GeminiProvider(BaseProvider):
             max_output_tokens: Token limit for the response.
             stream: Boolean to indicate if stream mode should be used.
             seed: Random seed to ensure deterministic output.
+            **kwargs: Extra parameters.
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
@@ -272,6 +292,7 @@ class GeminiProvider(BaseProvider):
             max_output_tokens=max_output_tokens,
             stream=stream,
             seed=seed,
+            input_image_path=None,
         )
 
     def edit_image(
@@ -287,6 +308,7 @@ class GeminiProvider(BaseProvider):
         max_output_tokens: int = 8192,
         stream: bool = True,
         seed: int | None = None,
+        **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
         """Generate an edited image using the Gemini API and an input image.
 
@@ -301,6 +323,7 @@ class GeminiProvider(BaseProvider):
             max_output_tokens: Maximum output tokens allowed.
             stream: Boolean to indicate if stream mode should be used.
             seed: Optional integer seed for deterministic output.
+            **kwargs: Extra parameters.
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
@@ -336,11 +359,12 @@ class GeminiProvider(BaseProvider):
             stream=stream,
             seed=seed,
             default_mime_type=mime_type,
+            input_image_path=image_path,
         )
 
     def submit_image_batch(
         self,
-        image_path: str,
+        image_path: str | None,
         text_list: list[str],
         *,
         model_name: str = "gemini-2.5-flash-image",
@@ -350,11 +374,12 @@ class GeminiProvider(BaseProvider):
         max_output_tokens: int = 8192,
         seed: int | None = None,
         response_mime_type: str = "text/plain",
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
-        """Submit a batch image editing job to the Gemini API.
+        """Submit a batch image editing or generation job to the Gemini API.
 
         Args:
-            image_path: Path to the local base image file.
+            image_path: Path to the local base image file. Pass None for generation.
             text_list: A list of string prompts to apply to the image.
             model_name: Name of the Gemini multimodal batch model.
             temperature: Sampling temperature for generation.
@@ -363,22 +388,27 @@ class GeminiProvider(BaseProvider):
             max_output_tokens: Maximum tokens for the generated outputs.
             seed: Random seed for deterministic batch outputs.
             response_mime_type: The expected MIME type from the API.
+            **kwargs: Extra parameters.
 
         Returns:
             The unique string name of the created batch job.
 
         """
-        logger.debug(f"Uploading image file: {image_path}")
-        image_file = self._client.files.upload(file=image_path)
-        logger.debug(
-            f"Uploaded image file: {image_file.name} (MIME: {image_file.mime_type})"
-        )
+        image_file = None
+        if image_path is not None:
+            logger.debug("Uploading image file: %s", image_path)
+            image_file = self._client.files.upload(file=image_path)
+            logger.debug(
+                "Uploaded image file: %s (MIME: %s)",
+                image_file.name,
+                image_file.mime_type,
+            )
 
         requests_data = []
         for ix, text in enumerate(text_list):
-            custom_id = f"request_{ix}_image"
+            custom_id = f"gemini_request_{ix}_image"
 
-            gen_config_dict = {
+            gen_config_dict: dict[str, float | int | str] = {
                 "temperature": temperature,
                 "top_p": top_p,
                 "top_k": top_k,
@@ -388,23 +418,23 @@ class GeminiProvider(BaseProvider):
             if seed is not None:
                 gen_config_dict["seed"] = seed
 
+            parts: list[dict[str, object]] = [{"text": text}]
+
+            if image_file is not None:
+                parts.append(
+                    {
+                        "file_data": {
+                            "file_uri": image_file.uri,
+                            "mime_type": image_file.mime_type,
+                        }
+                    }
+                )
+
             requests_data.append(
                 {
                     "custom_id": custom_id,
                     "request": {
-                        "contents": [
-                            {
-                                "parts": [
-                                    {"text": text},
-                                    {
-                                        "file_data": {
-                                            "file_uri": image_file.uri,
-                                            "mime_type": image_file.mime_type,
-                                        }
-                                    },
-                                ]
-                            }
-                        ],
+                        "contents": [{"parts": parts}],
                         "generation_config": gen_config_dict,
                     },
                 }
@@ -412,14 +442,25 @@ class GeminiProvider(BaseProvider):
 
         json_file_path = "batch_image_gen_requests.json"
 
-        logger.debug(f"Creating JSONL file: {json_file_path}")
+        logger.debug("Creating JSONL file: %s", json_file_path)
         with open(json_file_path, "w") as f:
             for req in requests_data:
                 f.write(json.dumps(req) + "\n")
 
-        logger.debug(f"Uploading JSONL file: {json_file_path}")
+        logger.debug("Uploading JSONL file: %s", json_file_path)
         batch_input_file = self._client.files.upload(file=json_file_path)
-        logger.debug(f"Uploaded JSONL file: {batch_input_file.name}")
+        logger.debug("Uploaded JSONL file: %s", batch_input_file.name)
+
+        # Cleanup the temporary JSONL file
+        try:
+            os.remove(json_file_path)
+            logger.debug("Temporary file '%s' successfully deleted.", json_file_path)
+        except OSError as e:
+            logger.warning(
+                "Failed to delete temporary file '%s': %s",
+                json_file_path,
+                e,
+            )
 
         logger.debug("Creating batch job...")
         batch_multimodal_job = self._client.batches.create(
@@ -427,7 +468,7 @@ class GeminiProvider(BaseProvider):
             src=batch_input_file.name,
             config={"display_name": "xwhy-batch-image-job"},
         )
-        logger.debug(f"Created batch job: {batch_multimodal_job.name}")
+        logger.debug("Created batch job: %s", batch_multimodal_job.name)
 
         return str(batch_multimodal_job.name)
 
@@ -438,6 +479,7 @@ class GeminiProvider(BaseProvider):
         output_dir: str = "outputs",
         *,
         model_name: str = "gemini-2.5-flash-image",
+        **kwargs: Any,  # noqa: ANN401
     ) -> list[tuple[bool, str]]:
         """Poll for completion of a Gemini batch job and save the results.
 
@@ -446,12 +488,13 @@ class GeminiProvider(BaseProvider):
             text_list: The original list of prompts submitted to the job.
             output_dir: Directory where the output images will be saved.
             model_name: The Gemini model associated with the batch job.
+            **kwargs: Extra parameters.
 
         Returns:
             A list of tuples, each containing a success flag and file path.
 
         """
-        logger.debug(f"Polling status for job: {job_name}")
+        logger.debug("Polling status for job: %s", job_name)
 
         while True:
             batch_multimodal_job = self._client.batches.get(name=job_name)
@@ -462,7 +505,7 @@ class GeminiProvider(BaseProvider):
                 "JOB_STATE_FAILED",
                 "JOB_STATE_CANCELLED",
             ]:
-                logger.debug(f"Job finished with state: {state}")
+                logger.debug("Job finished with state: %s", state)
                 break
 
             time.sleep(30)
@@ -472,7 +515,7 @@ class GeminiProvider(BaseProvider):
 
         if batch_multimodal_job.state.name == "JOB_STATE_SUCCEEDED":
             result_file_name = batch_multimodal_job.dest.file_name
-            logger.debug(f"Results available in file: {result_file_name}")
+            logger.debug("Results available in file: %s", result_file_name)
 
             file_content_bytes = self._client.files.download(file=result_file_name)
             file_content = file_content_bytes.decode("utf-8")
@@ -516,10 +559,10 @@ class GeminiProvider(BaseProvider):
                     if not found_image:
                         # API returned a candidate but no inlineData (likely
                         # text refusal or filter)
-                        logger.warning(f"No image found in response for {custom_id}")
+                        logger.warning("No image found in response for %s", custom_id)
                         processed_results[custom_id] = (False, None)
                 except Exception as e:
-                    logger.error(f"Error parsing line: {e}")
+                    logger.error("Error parsing line: %s", e)
                     custom_id_from_error = (
                         line.split('"custom_id": "')[1].split('"')[0]
                         if '"custom_id":' in line
@@ -534,7 +577,7 @@ class GeminiProvider(BaseProvider):
 
         final_output_list: list[tuple[bool, str]] = []
         for ix, text in enumerate(text_list):
-            custom_id = f"request_{ix}_image"
+            custom_id = f"gemini_request_{ix}_image"
 
             if custom_id in processed_results:
                 flag, path = processed_results[custom_id]
@@ -551,7 +594,7 @@ class GeminiProvider(BaseProvider):
                     final_output_list.append((flag, path))
             else:
                 logger.warning(
-                    f"Generating placeholder for missing result: {custom_id}"
+                    "Generating placeholder for missing result: %s", custom_id
                 )
                 placeholder = self._create_placeholder_image(
                     prompt=text,

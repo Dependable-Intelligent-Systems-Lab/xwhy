@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.types import ProviderType
@@ -44,16 +44,18 @@ class ProviderFactory:
         cls,
         *,
         provider: ProviderType,
-        client: object,
+        client: Any,  # noqa: ANN401
+        **kwargs: Any,  # noqa: ANN401
     ) -> BaseProvider:
         """Create a provider instance.
 
         Args:
             provider:
                 Provider implementation.
-
             client:
                 Initialized provider client.
+            **kwargs:
+                Extra parameters.
 
         Returns:
             Provider instance.
@@ -69,7 +71,7 @@ class ProviderFactory:
         except KeyError as exc:
             raise ValueError(f"Unsupported provider: {provider}") from exc
 
-        return provider_cls(client)
+        return provider_cls(client, **kwargs)
 
     @classmethod
     def clear(cls) -> None:

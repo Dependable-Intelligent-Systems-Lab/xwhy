@@ -11,11 +11,13 @@ import requests
 from openai import OpenAI
 from PIL import Image
 
+from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.logger import logger
 from xwhy.providers.base import BaseProvider
+from xwhy.utils.image import image_to_base64
 
 
-class OpenAIProvider(BaseProvider):
+class OpenAIProvider(BaseImageGenerationAndEditing, BaseProvider):
     """OpenAI implementation of the provider interface."""
 
     def __init__(self, client: OpenAI) -> None:
@@ -179,9 +181,6 @@ class OpenAIProvider(BaseProvider):
         prompt: str,
         output_dir: str,
         model_name: str,
-        size: str,
-        quality: str,
-        n: int,
         input_image_path: str | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
@@ -191,21 +190,25 @@ class OpenAIProvider(BaseProvider):
             prompt: The text prompt provided by the user.
             output_dir: Directory to save the final generated output.
             model_name: Target OpenAI model identifier.
-            size: Desired dimensions of the output image.
-            quality: Quality level of the generated image.
-            n: Number of images requested.
             input_image_path: Path to base image if editing, None otherwise.
-            **kwargs: Additional parameters (e.g., `extra_body`, `response_format`).
+            **kwargs: Additional parameters (e.g., extra_body, response_format).
 
         Returns:
             A tuple containing a boolean success flag and the file path.
 
         """
-        # Default to b64_json to avoid network overhead, unless overridden by user
-        kwargs.setdefault("response_format", "b64_json")
-
-        # Extract flag for providers (like ByteDance) that use /generations for edits
+        # Safely extract configuration flags to prevent them from reaching the API
+        provider_name = kwargs.pop("provider_name", "openai")
+        output_format = kwargs.pop("output_format", "png")
         use_generate_for_edit = kwargs.pop("use_generate_for_edit", False)
+        use_image_data_uri = kwargs.pop("use_image_data_uri", False)
+        use_image_url = kwargs.pop("use_image_url", False)
+
+        # Handle response_format logic cleanly
+        if "response_format" in kwargs and kwargs["response_format"] is None:
+            kwargs.pop("response_format")
+        else:
+            kwargs.setdefault("response_format", "b64_json")
 
         generated_img: Image.Image | None = None
         gen_img_flag = True
@@ -218,29 +221,31 @@ class OpenAIProvider(BaseProvider):
                         model=model_name,
                         image=img_file,
                         prompt=prompt,
-                        size=size,
-                        quality=quality,
-                        n=n,
                         **kwargs,
                     )
             else:
                 # Handle ByteDance-style image-to-image via generate endpoint
                 if input_image_path is not None and use_generate_for_edit:
-                    with open(input_image_path, "rb") as img_file:
-                        b64_str = base64.b64encode(img_file.read()).decode("utf-8")
+                    input_image_data_uri = image_to_base64(
+                        image_path=input_image_path,
+                        include_data_uri=use_image_data_uri,
+                    )
 
-                    extra_body = kwargs.get("extra_body", {})
-                    if "image" not in extra_body:
-                        extra_body["image"] = b64_str
+                    extra_body = kwargs.pop("extra_body", {})
+
+                    if use_image_url:
+                        if "image_url" not in extra_body:
+                            extra_body["image_url"] = input_image_data_uri
+                    else:
+                        if "image" not in extra_body:
+                            extra_body["image"] = input_image_data_uri
+
                     kwargs["extra_body"] = extra_body
 
                 # Standard or Alternative Generation Request
                 response = self._client.images.generate(
                     model=model_name,
                     prompt=prompt,
-                    size=size,
-                    quality=quality,
-                    n=n,
                     **kwargs,
                 )
 
@@ -262,33 +267,39 @@ class OpenAIProvider(BaseProvider):
                 raise RuntimeError("Empty image data returned from provider.")
 
         except Exception as e:
-            logger.exception(f"Error during OpenAI-compatible API call: {e}")
+            logger.exception("Error during OpenAI-compatible API call: %s", e)
 
         # Fallback to placeholder if everything failed
         if generated_img is None:
             gen_img_flag = False
             logger.debug(
-                f"Failed to generate image for prompt: '{prompt}'. "
-                "Creating placeholder."
+                "Failed to generate image for prompt: '%s'. Creating placeholder.",
+                prompt,
             )
-            fallback_img = self._create_placeholder_image(
-                prompt=prompt, output_dir=output_dir, save=False
-            )
-            if isinstance(fallback_img, Image.Image):
-                generated_img = fallback_img
+            if hasattr(self, "_create_placeholder_image"):
+                fallback_img = self._create_placeholder_image(
+                    prompt=prompt, output_dir=output_dir, save=False
+                )
+                if isinstance(fallback_img, Image.Image):
+                    generated_img = fallback_img
 
         os.makedirs(output_dir, exist_ok=True)
         timestamp = int(time.time() * 1000)
-        prefix = "openai_edited" if input_image_path else "openai_generated"
-        filename = f"{prefix}_{timestamp}.png"
+        prefix = (
+            f"{provider_name}_edited"
+            if input_image_path
+            else f"{provider_name}_generated"
+        )
+        filename = f"{prefix}_{timestamp}.{output_format}"
         gen_path = os.path.join(output_dir, filename)
 
         if isinstance(generated_img, Image.Image):
             generated_img.save(gen_path)
 
         logger.debug(
-            f'------------------- "{gen_path}" generated! '
-            f"(Success: {gen_img_flag}) -------------------"
+            '------------------- "%s" generated! (Success: %s) -------------------',
+            gen_path,
+            gen_img_flag,
         )
 
         return gen_img_flag, gen_path
@@ -299,9 +310,6 @@ class OpenAIProvider(BaseProvider):
         output_dir: str,
         *,
         model_name: str = "gpt-image-1",
-        size: str = "1024x1024",
-        quality: str = "auto",
-        n: int = 1,
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
         """Generate an image using the OpenAI API based on a text prompt.
@@ -310,10 +318,7 @@ class OpenAIProvider(BaseProvider):
             prompt: Text description of the desired image.
             output_dir: Directory where the image will be stored.
             model_name: OpenAI model name for image generation.
-            size: Sampling size specification for the output.
-            quality: Quality configuration ("low", "medium", "high", "auto").
-            n: Number of output images to generate.
-            **kwargs: Extra parameters (e.g., `output_format`, `extra_body`).
+            **kwargs: Extra parameters (e.g., output_format, extra_body).
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
@@ -323,9 +328,6 @@ class OpenAIProvider(BaseProvider):
             prompt=prompt,
             output_dir=output_dir,
             model_name=model_name,
-            size=size,
-            quality=quality,
-            n=n,
             **kwargs,
         )
 
@@ -336,9 +338,6 @@ class OpenAIProvider(BaseProvider):
         output_dir: str,
         *,
         model_name: str = "gpt-image-1",
-        size: str = "1024x1024",
-        quality: str = "auto",
-        n: int = 1,
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
         """Generate an edited image using OpenAI API and an input image.
@@ -351,9 +350,8 @@ class OpenAIProvider(BaseProvider):
             size: Sampling size specification for the output.
             quality: Quality configuration ("low", "medium", "high", "auto").
             n: Number of output images to generate.
-            **kwargs: Extra parameters. Pass `use_generate_for_edit=True` for
-                providers like ByteDance that use the /generations endpoint
-                for image-to-image editing.
+            **kwargs: Extra parameters (e.g., output_format, extra_body,
+                use_generate_for_edit).
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
@@ -369,9 +367,6 @@ class OpenAIProvider(BaseProvider):
             prompt=prompt,
             output_dir=output_dir,
             model_name=model_name,
-            size=size,
-            quality=quality,
-            n=n,
             input_image_path=image_path,
             **kwargs,
         )
