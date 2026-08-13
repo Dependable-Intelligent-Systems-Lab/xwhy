@@ -1,6 +1,7 @@
 """Tests for image utilities."""
 
-from unittest.mock import MagicMock, patch
+import re
+from unittest.mock import MagicMock, mock_open, patch
 
 import numpy as np
 import pytest
@@ -10,8 +11,10 @@ from PIL import Image
 from xwhy.utils.image import (
     create_sequential_segmentation_mask,
     denormalize_tensor,
+    get_binary_mask,
     get_default_transform,
     get_segmentation_mask,
+    image_to_base64,
     load_image_as_tensor,
     numpy_image_to_tensor,
     tensor_to_numpy_image,
@@ -259,3 +262,86 @@ def test_get_segmentation_mask_unsupported_output_type(
             "dummy_path.png",
             segmentation_model=mock_model,
         )
+
+
+@patch("xwhy.utils.image.get_segmentation_mask")
+def test_get_binary_mask_success(mock_get_seg_mask: MagicMock) -> None:
+    """Test successful generation of a binary mask from segmentation output."""
+    # sem_mask_np with background (0) and object classes (1, 2)
+    mock_get_seg_mask.return_value = (
+        Image.new("RGB", (5, 5)),
+        np.array([[0, 1], [2, 0]], dtype=np.uint8),
+    )
+
+    mock_model = MagicMock()
+    binary_mask = get_binary_mask("dummy.png", segmentation_model=mock_model)
+
+    assert isinstance(binary_mask, Image.Image)
+    assert binary_mask.mode == "L"
+
+    mask_np = np.array(binary_mask)
+    # Check that non-zero values became 255 and background stayed 0
+    expected_np = np.array([[0, 255], [255, 0]], dtype=np.uint8)
+    np.testing.assert_array_equal(mask_np, expected_np)
+
+
+@patch("xwhy.utils.image.Image.open")
+@patch("xwhy.utils.image.get_segmentation_mask", side_effect=Exception("Model failed"))
+def test_get_binary_mask_exception_fallback(
+    mock_get_seg_mask: MagicMock, mock_open: MagicMock
+) -> None:
+    """Fallback to blank white mask on exception."""
+    mock_img = Image.new("L", (10, 10))
+    mock_open.return_value = mock_img
+
+    mock_model = MagicMock()
+    binary_mask = get_binary_mask("dummy.png", segmentation_model=mock_model)
+
+    assert isinstance(binary_mask, Image.Image)
+    assert binary_mask.size == (10, 10)
+    # Fallback creates a white mask filled with 255
+    assert np.all(np.array(binary_mask) == 255)
+    mock_open.assert_called_once_with("dummy.png")
+
+
+def test_image_to_base64_file_not_found() -> None:
+    """Test image_to_base64 raises FileNotFoundError for nonexistent paths."""
+    with pytest.raises(FileNotFoundError, match="Image file not found"):
+        image_to_base64("nonexistent_image_file.jpg")
+
+
+@patch("pathlib.Path.is_file", return_value=True)
+@patch("builtins.open", new_callable=mock_open, read_data=b"fake_image_bytes")
+def test_image_to_base64_without_data_uri(
+    mock_file_open: MagicMock, mock_is_file: MagicMock
+) -> None:
+    """Test image_to_base64 string conversion without Data URI."""
+    result = image_to_base64("test.jpg", include_data_uri=False)
+
+    assert isinstance(result, str)
+    # base64 encoding of b"fake_image_bytes" is "ZmFrZV9pbWFnZV9ieXRlcw=="
+    assert result == "ZmFrZV9pbWFnZV9ieXRlcw=="
+
+
+@patch("pathlib.Path.is_file", return_value=True)
+@patch("builtins.open", new_callable=mock_open, read_data=b"fake_image_bytes")
+def test_image_to_base64_with_valid_data_uri(
+    mock_file_open: MagicMock, mock_is_file: MagicMock
+) -> None:
+    """Test image_to_base64 includes correct MIME type Data URI prefix."""
+    result = image_to_base64("test.png", include_data_uri=True)
+
+    assert result.startswith("data:image/png;base64,")
+    assert "ZmFrZV9pbWFnZV9ieXRlcw==" in result
+
+
+@patch("pathlib.Path.is_file", return_value=True)
+@patch("builtins.open", new_callable=mock_open, read_data=b"fake_image_bytes")
+def test_image_to_base64_unsupported_extension_raises_error(
+    mock_file_open: MagicMock, mock_is_file: MagicMock
+) -> None:
+    """Raise ValueError on unsupported extension with Data URI."""
+    with pytest.raises(
+        ValueError, match=re.escape("Unsupported image extension '.unsupported'")
+    ):
+        image_to_base64("test.unsupported", include_data_uri=True)
