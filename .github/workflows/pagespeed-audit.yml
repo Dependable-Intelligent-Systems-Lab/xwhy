@@ -1,0 +1,81 @@
+name: PageSpeed Audit
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pagespeed-audit.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pagespeed-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for GitHub Pages propagation
+        run: sleep 15
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Lighthouse 13.4.1 mobile audit
+        run: |
+          npx --yes lighthouse@13.4.1 \
+            https://dependable-intelligent-systems-lab.github.io/xwhy/ \
+            --output=json \
+            --output-path=lighthouse-mobile.json \
+            --only-categories=performance,accessibility,best-practices,seo \
+            --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+            --quiet
+
+      - name: Print mobile audit results
+        run: |
+          python - <<'PY'
+          import json
+
+          with open("lighthouse-mobile.json", encoding="utf-8") as report_file:
+              report = json.load(report_file)
+
+          categories = report["categories"]
+          audits = report["audits"]
+
+          print("LIGHTHOUSE_MOBILE_RESULTS")
+          for category_id in (
+              "performance",
+              "accessibility",
+              "best-practices",
+              "seo",
+          ):
+              score = round(categories[category_id]["score"] * 100)
+              print(f"{category_id}={score}")
+
+          for audit_id in (
+              "first-contentful-paint",
+              "largest-contentful-paint",
+              "total-blocking-time",
+              "cumulative-layout-shift",
+              "speed-index",
+          ):
+              audit = audits[audit_id]
+              print(f"{audit_id}={audit.get('displayValue', 'n/a')}")
+
+          print(f"lighthouse-version={report['lighthouseVersion']}")
+          print(f"fetch-time={report['fetchTime']}")
+          PY
+
+      - name: Upload Lighthouse report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-mobile-report
+          path: lighthouse-mobile.json
+          retention-days: 14

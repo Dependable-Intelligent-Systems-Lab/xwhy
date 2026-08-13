@@ -1,0 +1,48 @@
+:root {
+  --md-text-font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --md-code-font: ui-monospace, "SFMono-Regular", Consolas,
+    "Liberation Mono", monospace;
+}
+
+.xwhy-ai-panel__title,
+.xwhy-ai-panel__link,
+.xwhy-example__header {
+  color: var(--md-default-fg-color) !important;
+}
+
+.md-typeset a:not(.md-button):not(.headerlink):not(.tabbed-label) {
+  text-decoration: underline;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.16em;
+}
+
+.md-typeset a:not(.md-button):not(.headerlink):not(.tabbed-label):hover,
+.md-typeset a:not(.md-button):not(.headerlink):not(.tabbed-label):focus-visible {
+  text-decoration-thickness: 0.14em;
+}
+
+.md-footer-meta .md-copyright,
+.md-footer-meta .md-copyright a {
+  color: #ffffff !important;
+  opacity: 1;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+label[for]:focus-visible {
+  outline: 3px solid #0057b8;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

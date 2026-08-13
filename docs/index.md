@@ -1,13 +1,13 @@
 ---
-title: XWhy Explainability Documentation
+title: "XWhy: eXplain Why"
 description: Use XWhy and SMILE to explain image classifiers and LLM responses, with a scalable roadmap for image generation, text, tabular, point-cloud, time-series, and multimodal explainability.
 ---
 
-# XWhy explainability documentation
+# XWhy: eXplain Why
 
 **Explain black-box behaviour with a SMILE.**
 
-XWhy is a Python library for model-agnostic local explainability. It uses **SMILE**—Statistical Model-agnostic Interpretability with Local Explanations—to perturb an input, observe changes in model behaviour, fit a local surrogate model, and report feature-level influence together with explanation-quality evidence.
+**XWhy: eXplain Why** is a Python library for model-agnostic local explainability. It uses **SMILE**—Statistical Model-agnostic Interpretability with Local Explanations—to perturb an input, observe changes in model behaviour, fit a local surrogate model, and report feature-level influence together with explanation-quality evidence.
 
 !!! info "Current package maturity"
     XWhy `v{{ XWHY_VERSION }}` is currently classified as **pre-alpha**. Tabular, Image and LLM explainers are implemented. Other capabilities are clearly labelled as under construction or coming soon.

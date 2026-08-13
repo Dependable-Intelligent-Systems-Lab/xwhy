@@ -1,0 +1,66 @@
+# XWhy: eXplain Why
+
+> XWhy is an open-source Python package for model-agnostic local explainability using SMILE.
+
+XWhy explains the local behaviour of machine-learning and generative AI models. Image-classification and LLM explainers are currently available. Image-generation, tabular, text, point-cloud, time-series, and multimodal capabilities are documented with their current development status.
+
+Package name: `xwhy`
+
+Install with `pip install xwhy`.
+
+## Official resources
+
+- [XWhy documentation](https://dependable-intelligent-systems-lab.github.io/xwhy/): Official documentation and capability overview.
+- [Install XWhy](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/): Installation and optional dependencies.
+- [Quick start](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/quick-start/): First explanation workflow.
+- [Choose an explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/): Select the correct implemented workflow.
+- [GitHub repository](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy): Source code, issues, and releases.
+- [PyPI package](https://pypi.org/project/xwhy/): Installable Python distribution.
+- [Python API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/xwhy/): Generated package reference.
+
+## Explainers
+
+- [Explainer overview](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/): Supported and planned explainers.
+- [Image classification](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/): Image-classification explainability.
+- [Image generation](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/): Image-generation explainability roadmap.
+- [Image editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/): Image-editing explainability status.
+- [Pix2Pix models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/): Pix2Pix as an image-editing model example.
+- [LLM explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/): LLM prompt-response explainability.
+- [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/): Tabular explainer development status.
+- [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/): Text explainer development status.
+- [Point cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/): Point-cloud explainer development status.
+- [Time series](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/): Time-series explainability roadmap.
+- [Multimodal](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/): Multimodal explainability roadmap.
+
+## Tutorials and examples
+
+- [Tutorials and examples](https://dependable-intelligent-systems-lab.github.io/xwhy/tutorials-and-examples/): Directory of tutorials and examples.
+- [Image-classification tutorial](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/): Executable image-classification workflow.
+- [LLM example](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/): Unified LLM example with setup and outputs.
+- [Image examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/image/): Image example status.
+- [Tabular examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/tabular/): Tabular example status.
+- [Text examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/text/): Text example status.
+- [Point-cloud examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/point-cloud/): Point-cloud example status.
+
+## Concepts and responsible use
+
+- [How SMILE works](https://dependable-intelligent-systems-lab.github.io/xwhy/concepts/smile/): The explanation workflow underlying XWhy.
+- [Local explanations](https://dependable-intelligent-systems-lab.github.io/xwhy/concepts/local-explanations/): Scope and interpretation of local explanations.
+- [Limitations and responsible use](https://dependable-intelligent-systems-lab.github.io/xwhy/concepts/limitations/): Appropriate and inappropriate uses.
+
+## Evaluation
+
+- [Evaluation overview](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/): Modality-aware explanation evaluation.
+- [ATT fidelity](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-fidelity/): Fidelity and implemented surrogate metrics.
+- [ATT accuracy](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-accuracy/): Attribution accuracy and image coverage functions.
+- [ATT stability](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-stability/): Stability under small input changes.
+- [ATT consistency](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-consistency/): Consistency across repeated executions.
+- [ATT faithfulness](https://dependable-intelligent-systems-lab.github.io/xwhy/evaluation/attribution-faithfulness/): Faithfulness under interventions.
+
+## Research and contribution
+
+- [Research overview](https://dependable-intelligent-systems-lab.github.io/xwhy/research/): Research and reproducibility entry point.
+- [Publications](https://dependable-intelligent-systems-lab.github.io/xwhy/research/publications/): Related publications.
+- [Citation](https://dependable-intelligent-systems-lab.github.io/xwhy/research/citation/): How to cite XWhy.
+- [Contributors](https://dependable-intelligent-systems-lab.github.io/xwhy/contributors/): Maintainers and contributors.
+- [Contributing guide](https://dependable-intelligent-systems-lab.github.io/xwhy/contribute/contributing/): Contribution guidance.

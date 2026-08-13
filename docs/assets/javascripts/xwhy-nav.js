@@ -57,6 +57,8 @@
     ["Contributors", "contributors/"]
   ];
 
+  const desktopNavigation = window.matchMedia("(min-width: 76.25em)");
+
   function siteRoot() {
     const marker = "/xwhy/";
     const path = window.location.pathname;
@@ -142,6 +144,14 @@
 
   function mountTopNav() {
     const existing = document.querySelector("[data-xwhy-topnav]");
+
+    if (!desktopNavigation.matches) {
+      if (existing) {
+        existing.remove();
+      }
+      return;
+    }
+
     if (existing) {
       updateActiveState(existing);
       return;
@@ -205,6 +215,12 @@
 
   if (typeof document$ !== "undefined") {
     document$.subscribe(mountTopNav);
+  }
+
+  if (typeof desktopNavigation.addEventListener === "function") {
+    desktopNavigation.addEventListener("change", mountTopNav);
+  } else {
+    desktopNavigation.addListener(mountTopNav);
   }
 
   document.addEventListener("DOMContentLoaded", mountTopNav);
