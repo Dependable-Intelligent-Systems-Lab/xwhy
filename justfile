@@ -77,6 +77,9 @@ test-models-segmentation:
 test-perturbation:
     uv run pytest tests/perturbation
 
+test-datasets:
+    uv run pytest tests/datasets
+
 test-distance:
     uv run pytest tests/distance
 
