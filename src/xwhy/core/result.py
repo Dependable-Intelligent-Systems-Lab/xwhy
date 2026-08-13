@@ -7,10 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import shap
 
 from xwhy.metrics.regression import RegressionMetricResult
-from xwhy.plots.metrics import plot_fidelity
 
 
 @dataclass
@@ -43,6 +41,8 @@ class BaseXWhyResult(ABC):
             object: A fully initialized shap.Explanation instance.
 
         """
+        import shap  # Lazy import to prevent numba/llvmlite initialization errors
+
         return shap.Explanation(
             values=self.coefficients,
             base_values=self.base_values,
@@ -66,6 +66,8 @@ class BaseXWhyResult(ABC):
             KeyError: If required data arrays are missing from raw_data.
 
         """
+        from xwhy.plots.metrics import plot_fidelity
+
         required_keys = ["y_target", "y_pred", "weights"]
         for key in required_keys:
             if key not in self.raw_data:
@@ -124,6 +126,8 @@ class ImageClassificationXWhyResult(BaseXWhyResult):
 
     def to_shap(self) -> object:
         """Convert the XWhy image result into a SHAP Explanation object."""
+        import shap  # Lazy import to prevent numba/llvmlite initialization errors
+
         from xwhy.plots.image import create_image_heat_mask
 
         if self.superpixels.size > 0:
@@ -173,3 +177,36 @@ class TabularXWhyResult(BaseXWhyResult):
     def data(self) -> np.ndarray | Sequence[Any] | None:
         """The underlying raw data instance (the explained sample)."""
         return self.instance
+
+
+@dataclass
+class ImageGenerationAndEditingXWhyResult(BaseXWhyResult):
+    """Container for image generation and editing explanation results.
+
+    Attributes:
+        words: Sequence of prompt words/tokens corresponding to the
+            explanation features.
+        instance: The underlying input instance, path, or text prompt data.
+
+    """
+
+    words: Sequence[str] = field(default_factory=list)
+    instance: np.ndarray | str | None = None
+
+    @property
+    def feature_names(self) -> Sequence[str]:
+        """Return sequence of feature names corresponding to prompt words."""
+        return self.words
+
+    @property
+    def data(self) -> np.ndarray:
+        """Return the underlying token array required for explanation visualization."""
+        if self.words:
+            return np.array(self.words)
+        if isinstance(self.instance, str):
+            return np.array(self.instance.split())
+        return (
+            np.array([str(self.instance)])
+            if self.instance is not None
+            else np.array([])
+        )

@@ -8,6 +8,7 @@ import pytest
 
 from xwhy.core.config import TabularConfig
 from xwhy.explainers.tabular import TabularExplainer
+from xwhy.models.tabular.adapter import TabularModelAdapter
 from xwhy.surrogate.types import SurrogateType
 
 
@@ -27,13 +28,16 @@ def test_tabular_explainer_init_invalid_mode(mock_model: MagicMock) -> None:
         TabularExplainer(model=mock_model, mode="invalid_mode")
 
 
-def test_tabular_explainer_init_with_custom_config(mock_model: MagicMock) -> None:
+def test_tabular_explainer_init_with_custom_config(
+    mock_model: MagicMock,
+) -> None:
     """Verify initialization when a custom TabularConfig is provided."""
     config = TabularConfig(mode="regression", num_perturbations=10)
     explainer = TabularExplainer(model=mock_model, config=config)
 
     assert explainer.config == config
-    assert explainer.state.model == mock_model
+    assert isinstance(explainer.state.model, TabularModelAdapter)
+    assert explainer.state.model.model == mock_model
 
 
 @patch("xwhy.explainers.tabular.logger")

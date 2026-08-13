@@ -41,7 +41,7 @@ class AnthropicProvider(BaseProvider):
 
         """
         try:
-            response = self._client.messages.create(  # type: ignore[attr-defined]
+            response = self._client.messages.create(
                 model=model,
                 max_tokens=max_tokens,
                 temperature=temperature,

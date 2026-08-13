@@ -64,9 +64,27 @@ def _build_huggingface_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     """Instantiate a HuggingFace provider using configuration settings or kwargs."""
     from huggingface_hub import InferenceClient
 
+    # Pop the token for the client
     token = kwargs.pop("token", settings.huggingface_token)
+
+    # Pop provider-specific arguments that InferenceClient doesn't accept
+    model_name = kwargs.pop("model_name", None)
+    pipe = kwargs.pop("pipe", None)
+    use_segmentation_model = kwargs.pop("use_segmentation_model", None)
+    config = kwargs.pop("config", None)
+
+    # Initialize the client with whatever kwargs are left (if any)
     client = InferenceClient(token=token, **kwargs)
-    return ProviderFactory.create(provider=ProviderType.HUGGINGFACE, client=client)
+
+    # Pass the intercepted arguments to the ProviderFactory
+    return ProviderFactory.create(
+        provider=ProviderType.HUGGINGFACE,
+        client=client,
+        model_name=model_name,
+        pipe=pipe,
+        use_segmentation_model=use_segmentation_model,
+        config=config,
+    )
 
 
 def _build_openai_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
@@ -74,6 +92,7 @@ def _build_openai_provider(**kwargs: Any) -> BaseProvider:  # noqa: ANN401
     from openai import OpenAI
 
     api_key = kwargs.pop("api_key", settings.openai_api_key)
+    _ = kwargs.pop("config", None)
     client = OpenAI(api_key=api_key, **kwargs)
     return ProviderFactory.create(provider=ProviderType.OPENAI, client=client)
 

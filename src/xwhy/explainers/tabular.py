@@ -16,6 +16,7 @@ from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
+from xwhy.models.tabular.adapter import TabularModelAdapter
 from xwhy.surrogate.factory import SurrogateFactory
 from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
@@ -43,6 +44,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         seed: int = 1024,
+        device: str = "cpu",
         validate_normalization: bool = True,
     ) -> None:
         """Initialize the Tabular explainer.
@@ -61,6 +63,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
             surrogate_type: Default surrogate method name.
             use_best_surrogate: Automatically search for the best surrogate.
             seed: Random seed for reproducibility.
+            device: Device type name.
             validate_normalization: Whether to warn if the input appears not
                 to be normalized.
 
@@ -87,12 +90,15 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
                 seed=seed,
+                device=device,
                 validate_normalization=validate_normalization,
             )
 
         super().__init__(config)
         self.state = TabularState()
-        self.state.model = model
+        self.state.model = TabularModelAdapter(
+            model=model, device=getattr(config, "device", "cpu")
+        )
 
         self._rng = np.random.default_rng(self.config.seed)  # type: ignore[union-attr]
 

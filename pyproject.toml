@@ -4,10 +4,10 @@ build-backend = "uv_build"
 
 [project]
 name = "xwhy"
-version = "0.0.3"
+version = "0.0.3-alpha"
 description = "Explain Why (XWhy) with Statistical Model-agnostic Interpretability with Local Explanations (SMILE)"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12, <3.14"
 license = { file = "LICENSE" }
 authors = [
     { name = "Mojgan Hashemian" },
@@ -65,9 +65,17 @@ dependencies = [
     "torch>=2.11.0",
     "torchvision>=0.26.0",
     "scikit-image>=0.25.2",
-    "pillow>=11.3.0",
+    "pillow>=12.3.0",
     "tqdm>=4.67.3",
     "plotly>=5.24.1",
+    "sentence-transformers>=5.6.0",
+    "opencv-python>=5.0.0.93",
+    "tiktoken>=0.13.0",
+    "accelerate>=1.14.0",
+    "diffusers>=0.39.0",
+    "safetensors>=0.8.0",
+    "kaleido>=1.3.0",
+    "img2img-turbo>=0.0.4",
 ]
 
 [project.optional-dependencies]

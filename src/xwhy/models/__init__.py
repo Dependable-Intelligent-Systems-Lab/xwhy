@@ -15,6 +15,7 @@ from xwhy.models.segmentation.base import BaseSegmentation
 from xwhy.models.segmentation.factory import SegmentationFactory
 from xwhy.models.segmentation.torchvision_models import TorchvisionSegmentation
 from xwhy.models.segmentation.types import SegmentationType
+from xwhy.models.tabular.adapter import TabularModelAdapter
 
 __all__ = [
     "BaseClassification",
@@ -26,6 +27,7 @@ __all__ = [
     "EmbeddingType",
     "SegmentationFactory",
     "SegmentationType",
+    "TabularModelAdapter",
     "TorchvisionClassification",
     "TorchvisionSegmentation",
     "Word2VecEmbedding",

@@ -7,6 +7,8 @@
 
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+checkpoints
+checkpoints/*
 
 # IPython
 profile_default/
@@ -209,5 +211,11 @@ pyrightconfig.json
 # Ignore all local history of files
 .history
 .ionide
+
+## outputs
+output
+output/*
+outputs
+outputs/*
 
 # End of https://www.toptal.com/developers/gitignore/api/python,jupyternotebooks,visualstudiocode
