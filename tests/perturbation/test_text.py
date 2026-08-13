@@ -223,3 +223,17 @@ def test_generate_returns_early_if_no_masks_found() -> None:
     assert perturber._rng.binomial.call_count >= (
         num_perturbations * perturber._MAX_ATTEMPT_FACTOR
     )
+
+
+def test_text_perturbation_set_seed() -> None:
+    """Test text perturbation seed updates RNG."""
+    perturbator = TextPerturbation()
+    perturbator.set_seed(123)
+
+    assert isinstance(perturbator._rng, np.random.Generator)
+
+    # Verify reproducibility
+    val1 = perturbator._rng.random()
+    perturbator.set_seed(123)
+    val2 = perturbator._rng.random()
+    assert val1 == val2
