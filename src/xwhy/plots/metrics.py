@@ -148,7 +148,7 @@ def plot_stability_visualization(
         denom = 1e-8
 
     # Helper to get color
-    cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)  # type: ignore[attr-defined]
+    cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)
     cmap.set_clim(0, 1)
 
     def get_color(score: float) -> str:
@@ -347,8 +347,8 @@ def plot_importance_roc_curve(
     # Plot the diagonal baseline (random classifier)
     plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
 
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
+    plt.xlim((0.0, 1.0))
+    plt.ylim((0.0, 1.05))
     plt.xlabel("False Positive Rate (Irrelevant tokens marked as important)")
     plt.ylabel("True Positive Rate (Relevant tokens correctly identified)")
     plt.title(title)

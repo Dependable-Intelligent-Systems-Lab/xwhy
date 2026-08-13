@@ -30,7 +30,7 @@ def download_i2ebench_dataset(
 
     """
     logger.info("Downloading dataset from: %s to %s", url, output_filename)
-    gdown.download(url, output_filename, quiet=False)
+    gdown.download(url, output_filename, quiet=False)  # type: ignore[attr-defined]
 
     logger.info("Creating extraction directory: %s", extract_dir)
     os.makedirs(extract_dir, exist_ok=True)

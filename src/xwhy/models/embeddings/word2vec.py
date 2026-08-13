@@ -231,7 +231,7 @@ class Word2VecEmbedding(BaseEmbedding):
 
         try:
             # Download directly to bin_cache_path since the GDrive file is already .bin
-            gdown.download(id=google_id, output=str(bin_cache_path), quiet=False)
+            gdown.download(id=google_id, output=str(bin_cache_path), quiet=False)  # type: ignore[attr-defined]
 
             # All files on GDrive are pre-converted binary format. Force binary=True.
             model = KeyedVectors.load_word2vec_format(
@@ -339,7 +339,7 @@ class Word2VecEmbedding(BaseEmbedding):
                 logger.info(f"Downloading {self._model_name} via gdown...")
 
                 temp_path = txt_path.with_suffix(".tmp")
-                gdown.download(id=file_id, output=str(temp_path), quiet=False)
+                gdown.download(id=file_id, output=str(temp_path), quiet=False)  # type: ignore[attr-defined]
 
                 if zipfile.is_zipfile(str(temp_path)):
                     logger.info("Extracting zip archive...")

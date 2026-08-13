@@ -71,7 +71,6 @@ def mock_metrics() -> RegressionMetricResult:
 if "shap" not in sys.modules:
     shap_mock = MagicMock()
     sys.modules["shap"] = shap_mock
-    sys.modules["shap.plots"] = MagicMock()
 
 
 @pytest.fixture(autouse=True)
@@ -641,19 +640,28 @@ def test_plots_raise_error_for_1d_text_result(
 def test_decorator_modifies_matplotlib_xlabel() -> None:
     """Ensure matplotlib x-axis labels are intercepted and converted."""
 
-    @replace_shap_label
     def bar(*args: Any, **kwargs: Any) -> None:  # noqa: ANN401
+        """Local stand-in that writes a SHAP xlabel and optionally shows."""
         _, ax = plt.subplots()
         ax.set_xlabel("Average SHAP value magnitude")
         if kwargs.get("show", True):
             plt.show()
 
-    with patch("matplotlib.pyplot.show") as mock_show:
-        bar(show=True)
-        ax = plt.gca()
-        assert ax.get_xlabel() == "Average XWhy value magnitude"
-        mock_show.assert_called_once()
-        plt.close("all")
+    with patch("shap.plots") as mock_shap_plots:
+        # Real callable (no ``.called``) that accepts ``show`` so the
+        # decorator enters the label-rewrite branch.
+        def real_shap_bar(*, show: bool = True) -> None:
+            """Accept a show flag so the decorator enters the label-rewrite path."""
+
+        mock_shap_plots.bar = real_shap_bar
+        decorated_bar = replace_shap_label(bar)
+
+        with patch("matplotlib.pyplot.show") as mock_show:
+            decorated_bar(show=True)
+            ax = plt.gca()
+            assert ax.get_xlabel() == "Average XWhy value magnitude"
+            mock_show.assert_called_once()
+            plt.close("all")
 
 
 def test_decorator_bypasses_non_show_functions() -> None:
