@@ -10,6 +10,7 @@ import pytest
 from xwhy.core.result import (
     BaseXWhyResult,
     ImageClassificationXWhyResult,
+    ImageGenerationAndEditingXWhyResult,
     TabularXWhyResult,
     TextXWhyResult,
 )
@@ -366,3 +367,52 @@ def test_tabular_feature_names_empty(mock_metrics: RegressionMetricResult) -> No
     )
 
     assert result.feature_names == []
+
+
+def test_image_result_with_words(mock_metrics: RegressionMetricResult) -> None:
+    """Test result properties when words are provided."""
+    result = ImageGenerationAndEditingXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        words=["hello", "world"],
+    )
+    assert list(result.feature_names) == ["hello", "world"]
+    np.testing.assert_array_equal(result.data, np.array(["hello", "world"]))
+
+
+def test_image_result_with_string_instance(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Test result data property when instance is a string."""
+    result = ImageGenerationAndEditingXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        words=[],
+        instance="test prompt string",
+    )
+    assert list(result.feature_names) == []
+    np.testing.assert_array_equal(result.data, np.array(["test", "prompt", "string"]))
+
+
+def test_image_result_with_ndarray_instance(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Test result data property when instance is a numpy array."""
+    arr = np.array([1, 2, 3])
+    result = ImageGenerationAndEditingXWhyResult(
+        coefficients=np.array([0.1, 0.2]), metrics=mock_metrics, words=[], instance=arr
+    )
+    assert list(result.feature_names) == []
+    np.testing.assert_array_equal(result.data, np.array([str(arr)]))
+
+
+def test_image_result_with_none_instance(mock_metrics: RegressionMetricResult) -> None:
+    """Test result data property when instance is None and words are empty."""
+    result = ImageGenerationAndEditingXWhyResult(
+        coefficients=np.array([0.1, 0.2]),
+        metrics=mock_metrics,
+        words=[],
+        instance=None,
+    )
+    assert list(result.feature_names) == []
+    np.testing.assert_array_equal(result.data, np.array([]))
