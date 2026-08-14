@@ -2,8 +2,9 @@
 
 import sys
 from collections.abc import Generator
+from pathlib import Path
 from typing import Any, cast
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, PropertyMock, patch
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -24,7 +25,11 @@ from xwhy.plots.plots import (
     heatmap,
     image,
     image_to_text,
+    initjs,
     monitoring,
+    partial_dependence,
+    plot_feature_bar_chart,
+    plot_feature_box_plot,
     replace_shap_label,
     scatter,
     text,
@@ -45,6 +50,20 @@ class DummyResult(BaseXWhyResult):
     def feature_names(self) -> list[str]:
         """Mock feature names."""
         return []
+
+    @property
+    def data(self) -> np.ndarray:
+        """Mock data instance."""
+        return np.array([])
+
+
+class EmptyFeatureDummyResult(BaseXWhyResult):
+    """Dummy result with None feature names for testing fallback branches."""
+
+    @property
+    def feature_names(self) -> list[str] | None:
+        """Mock feature names."""
+        return None
 
     @property
     def data(self) -> np.ndarray:
@@ -810,3 +829,188 @@ def test_replace_shap_label_shap_func_is_none(mock_shap_plots: MagicMock) -> Non
     result = decorated()
 
     assert result == "bypassed and executed"
+
+
+# ==============================================================================
+# TABULAR FEATURE PLOT TESTS (Bar Chart & Box Plot)
+# ==============================================================================
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_bar_chart_default(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Verify feature bar chart renders interactively with default options."""
+    result = DummyResult(coefficients=np.array([1.5, -2.0, 0.5]), metrics=mock_metrics)
+    # Trigger feature_names empty branch via PropertyMock
+    with patch.object(
+        DummyResult, "feature_names", new_callable=PropertyMock
+    ) as mock_fn:
+        mock_fn.return_value = []
+        plot_feature_bar_chart(result)
+
+    mock_show.assert_called_once()
+
+
+@patch("plotly.graph_objects.Figure.write_image")
+def test_plot_feature_bar_chart_save_image(
+    mock_write_image: MagicMock, mock_metrics: RegressionMetricResult, tmp_path: Path
+) -> None:
+    """Verify feature bar chart saves to disk as a non-html image."""
+    result = DummyResult(coefficients=np.array([1.0, 2.0]), metrics=mock_metrics)
+    save_path = tmp_path / "sub" / "bar_chart.png"
+
+    plot_feature_bar_chart(
+        result,
+        feature_names=["f1", "f2"],
+        save_path=save_path,
+    )
+
+    mock_write_image.assert_called_once_with(str(save_path))
+    assert Path(save_path).exists() or mock_write_image.called
+
+
+@patch("plotly.graph_objects.Figure.write_html")
+def test_plot_feature_bar_chart_save_html(
+    mock_write_html: MagicMock, mock_metrics: RegressionMetricResult, tmp_path: Path
+) -> None:
+    """Verify feature bar chart saves to disk as an html file."""
+    result = DummyResult(coefficients=np.array([1.0, 2.0]), metrics=mock_metrics)
+    save_path = tmp_path / "bar_chart.html"
+
+    plot_feature_bar_chart(
+        result,
+        feature_names=["f1", "f2"],
+        save_path=save_path,
+    )
+
+    mock_write_html.assert_called_once_with(str(save_path))
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_box_plot_1d_and_2d(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Verify feature box plot handles both 1D and 2D coefficient arrays."""
+    # Test 1D coeffs
+    result_1d = DummyResult(coefficients=np.array([1.0, 2.0]), metrics=mock_metrics)
+    with patch.object(
+        DummyResult, "feature_names", new_callable=PropertyMock
+    ) as mock_fn:
+        mock_fn.return_value = []
+        plot_feature_box_plot(result_1d)
+
+    # Test 2D coeffs branch
+    result_2d = DummyResult(
+        coefficients=np.array([[1.0, 2.0], [3.0, 4.0]]), metrics=mock_metrics
+    )
+    plot_feature_box_plot(
+        result_2d,
+        feature_names=["feat_a", "feat_b"],
+        title="Custom Box Plot",
+    )
+
+    assert mock_show.call_count == 2
+
+
+@patch("plotly.graph_objects.Figure.write_image")
+def test_plot_feature_box_plot_save(
+    mock_write_image: MagicMock, mock_metrics: RegressionMetricResult, tmp_path: Path
+) -> None:
+    """Verify feature box plot saves successfully with an existing parent directory."""
+    result = DummyResult(coefficients=np.array([[1.0]]), metrics=mock_metrics)
+    save_path = tmp_path / "box_plot.png"
+    # Ensure directory exists branch is covered or handled via exist_ok=True
+    plot_feature_box_plot(result, feature_names=["f1"], save_path=save_path)
+    mock_write_image.assert_called_once_with(str(save_path))
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_bar_chart_fallback_feature_names(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Test bar chart default feature names fallback."""
+    result = EmptyFeatureDummyResult(
+        coefficients=np.array([1.5, -2.0, 0.5]), metrics=mock_metrics
+    )
+
+    plot_feature_bar_chart(result, feature_names=None)
+    mock_show.assert_called_once()
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_box_plot_fallback_feature_names(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Test box plot default feature names fallback."""
+    result = EmptyFeatureDummyResult(
+        coefficients=np.array([1.0, 2.0]), metrics=mock_metrics
+    )
+
+    plot_feature_box_plot(result, feature_names=None)
+    mock_show.assert_called_once()
+
+
+@patch("plotly.graph_objects.Figure.write_html")
+def test_plot_feature_box_plot_save_html_and_dir(
+    mock_write_html: MagicMock, mock_metrics: RegressionMetricResult, tmp_path: Path
+) -> None:
+    """Test box plot HTML saving and directory creation."""
+    result = DummyResult(coefficients=np.array([[1.0, 2.0]]), metrics=mock_metrics)
+    save_path = tmp_path / "nested_box_dir" / "box_plot.html"
+
+    plot_feature_box_plot(
+        result,
+        feature_names=["f1", "f2"],
+        save_path=save_path,
+    )
+
+    # Verifies the .html saving branch
+    mock_write_html.assert_called_once_with(str(save_path))
+    assert save_path.parent.exists()
+
+
+# ==============================================================================
+# INITJS & PARTIAL DEPENDENCE TESTS
+# ==============================================================================
+
+
+@patch("shap.plots.initjs")
+def test_initjs_direct(mock_shap_initjs: MagicMock) -> None:
+    """Verify initjs correctly calls the underlying shap module method."""
+    initjs()
+    mock_shap_initjs.assert_called_once()
+
+
+@patch("shap.plots.partial_dependence")
+def test_partial_dependence_direct(mock_shap_pd: MagicMock) -> None:
+    """Verify partial_dependence correctly delegates arguments to shap."""
+    partial_dependence("model", data=[1, 2, 3], interaction_index=0)
+    mock_shap_pd.assert_called_once_with("model", data=[1, 2, 3], interaction_index=0)
+
+
+# ==============================================================================
+# SPECIFIC SHAP DECORATOR YLABEL TEST
+# ==============================================================================
+
+
+@patch("shap.plots", create=True)
+@patch("matplotlib.pyplot.show")
+def test_replace_shap_label_updates_ylabel(
+    mock_show: MagicMock, mock_shap_plots: MagicMock
+) -> None:
+    """Verify decorator correctly replaces 'SHAP value' in Y-axis labels."""
+
+    def dummy_ylabel_plot(show: bool = True) -> str:
+        _, ax = plt.subplots()
+        ax.set_ylabel("SHAP value (impact)")
+        return "ylabel_success"
+
+    mock_shap_plots.dummy_ylabel_plot = dummy_ylabel_plot
+
+    decorated = replace_shap_label(dummy_ylabel_plot)
+    result = decorated(show=True)
+
+    assert result == "ylabel_success"
+    assert plt.gca().get_ylabel() == "XWhy value (impact)"
+    mock_show.assert_called_once()

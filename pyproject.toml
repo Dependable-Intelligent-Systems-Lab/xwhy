@@ -197,6 +197,7 @@ addopts = [
 filterwarnings = [
     "ignore::PendingDeprecationWarning:shap.*",
     "ignore::pyparsing.PyparsingDeprecationWarning",
+    "ignore:.*torch.jit.script.*:DeprecationWarning",
 ]
 
 ################################################################################

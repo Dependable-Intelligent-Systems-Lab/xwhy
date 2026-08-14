@@ -146,3 +146,17 @@ def test_apply_mask_all_inactive(perturber: ImagePerturbation) -> None:
 
     perturbed_img = perturber.apply_mask(item=img, mask=mask, segments=segments)
     assert np.allclose(perturbed_img, 0.0)
+
+
+def test_image_perturbation_set_seed(perturber: ImagePerturbation) -> None:
+    """Test image perturbation seed updates state and RNG."""
+    perturber.set_seed(42)
+
+    assert perturber.seed == 42
+    assert isinstance(perturber._rng, np.random.Generator)
+
+    # Verify reproducibility
+    val1 = perturber._rng.random()
+    perturber.set_seed(42)
+    val2 = perturber._rng.random()
+    assert val1 == val2

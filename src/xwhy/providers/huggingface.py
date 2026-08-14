@@ -76,29 +76,33 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         # Special Case 1: Instruct-Pix2Pix
         if "instruct-pix2pix" in model_name_lower:
-            from diffusers import (
-                EulerAncestralDiscreteScheduler,
+            from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_instruct_pix2pix import (  # noqa: E501
                 StableDiffusionInstructPix2PixPipeline,
+            )
+            from diffusers.schedulers.scheduling_euler_ancestral_discrete import (
+                EulerAncestralDiscreteScheduler,
             )
 
             logger.debug(
                 "Initializing InstructPix2Pix pipeline for '%s'...",
                 self.model_name,
             )
-            pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(  # type: ignore[no-untyped-call]
+            pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
                 self.model_name,
                 dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
                 safety_checker=None,
             )
             pipe.to(self.device)
-            pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(  # type: ignore[no-untyped-call]
+            pipe.scheduler = EulerAncestralDiscreteScheduler.from_config(
                 pipe.scheduler.config
             )
             return pipe
 
         # Special Case 2: Inpainting models
         if "inpaint" in model_name_lower:
-            from diffusers import StableDiffusionInpaintPipeline
+            from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_inpaint import (  # noqa: E501
+                StableDiffusionInpaintPipeline,
+            )
 
             if not self.use_segmentation_model:
                 raise RuntimeError(
@@ -110,7 +114,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
                 "Initializing Inpainting pipeline for '%s'...",
                 self.model_name,
             )
-            pipe = StableDiffusionInpaintPipeline.from_pretrained(  # type: ignore[no-untyped-call]
+            pipe = StableDiffusionInpaintPipeline.from_pretrained(  # type: ignore[assignment]
                 self.model_name,
                 dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             )
@@ -123,7 +127,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             "Attempting to initialize Diffusers pipeline for '%s'...", self.model_name
         )
         try:
-            from diffusers import AutoPipelineForText2Image
+            from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
 
             pipe = AutoPipelineForText2Image.from_pretrained(  # type: ignore[no-untyped-call]
                 self.model_name,
@@ -142,9 +146,9 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
                 exc,
             )
             try:
-                from diffusers import DiffusionPipeline
+                from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 
-                pipe = DiffusionPipeline.from_pretrained(  # type: ignore[no-untyped-call]
+                pipe = DiffusionPipeline.from_pretrained(  # type: ignore[assignment]
                     self.model_name,
                     torch_dtype=torch.float16
                     if torch.cuda.is_available()
@@ -318,10 +322,10 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
                 and not is_inpaint
                 and "Image2Image" not in pipe_class_name
             ):
-                from diffusers import AutoPipelineForImage2Image
+                from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image
 
                 logger.debug("Converting pipeline to AutoPipelineForImage2Image...")
-                current_pipe = AutoPipelineForImage2Image.from_pipe(self.pipe)
+                current_pipe = AutoPipelineForImage2Image.from_pipe(self.pipe)  # type: ignore[no-untyped-call]
 
             call_kwargs: dict[str, Any] = {"prompt": prompt}
             if image is not None:
