@@ -19,4 +19,4 @@ Planned documentation will cover:
 - stability and fidelity evaluation;
 - bar, waterfall, and comparison visualisations.
 
-[View the current API reference](../reference/xwhy/explainers/tabular/)
+[View the current API reference](../reference/xwhy/explainers/tabular.md)

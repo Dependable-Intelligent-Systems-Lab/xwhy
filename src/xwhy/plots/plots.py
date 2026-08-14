@@ -8,8 +8,10 @@ signatures stay stable for existing notebooks.
 
 import functools
 import inspect
+import os
 from collections.abc import Callable
 from functools import singledispatch
+from pathlib import Path
 from typing import Any, TypeVar, cast
 
 import matplotlib.pyplot as plt
@@ -17,8 +19,13 @@ import numpy as np
 import plotly.graph_objects as go
 from matplotlib.figure import Figure
 
-from xwhy.core.result import BaseXWhyResult, TextXWhyResult
+from xwhy.core.result import (
+    BaseXWhyResult,
+    ImageGenerationAndEditingXWhyResult,
+    TextXWhyResult,
+)
 from xwhy.plots import visualisation as viz
+from xwhy.logger import logger
 from xwhy.plots.factory import TextPlotterFactory
 from xwhy.plots.image import image_heatmap, plot_image  # noqa: F401
 from xwhy.plots.tabular import (
@@ -37,7 +44,9 @@ type PlotResult = Figure | go.Figure | None
 
 
 @singledispatch
-def text_heatmap(result: BaseXWhyResult, **kwargs: object) -> None:
+def text_heatmap(
+    result: BaseXWhyResult | ImageGenerationAndEditingXWhyResult, **kwargs: object
+) -> None:
     """Plot a heatmap visualization for the given explanation result.
 
     This function automatically delegates plotting to the appropriate plotter
@@ -56,7 +65,9 @@ def text_heatmap(result: BaseXWhyResult, **kwargs: object) -> None:
 
 
 @text_heatmap.register
-def _text_heatmap(result: TextXWhyResult, **kwargs: object) -> None:
+def _text_heatmap(
+    result: TextXWhyResult | ImageGenerationAndEditingXWhyResult, **kwargs: object
+) -> None:
     """Plot a text heatmap visualization.
 
     Args:
@@ -86,6 +97,174 @@ def _text_heatmap(result: TextXWhyResult, **kwargs: object) -> None:
         title=title,
         **kwargs,
     )
+
+
+def plot_feature_bar_chart(
+    result: BaseXWhyResult,
+    **kwargs: Any,  # noqa: ANN401
+) -> None:
+    """Generate and optionally save a Plotly bar chart for feature contributions.
+
+    Args:
+        result: The explanation result containing feature names and coefficients.
+        **kwargs: Additional arguments including 'title', 'xaxis_title',
+            'yaxis_title', 'width', 'height', and 'save_path'.
+
+    """
+    coeffs = np.asarray(result.coefficients).flatten()
+    feature_names = result.feature_names
+    num_features = len(coeffs)
+
+    if not feature_names:
+        feature_names = [f"Feature {i}" for i in range(num_features)]
+
+    title: str = str(kwargs.get("title", "Feature Contributions"))
+    xaxis_title: str = str(kwargs.get("xaxis_title", "Features"))
+    yaxis_title: str = str(kwargs.get("yaxis_title", "Contribution Value"))
+    width: int = int(kwargs.get("width", 800))
+    height: int = int(kwargs.get("height", 600))
+    save_path: str | Path | None = kwargs.get("save_path")
+
+    fig = go.Figure(
+        data=[
+            go.Bar(
+                x=list(feature_names),
+                y=coeffs.tolist(),
+                marker_color="skyblue",
+            )
+        ]
+    )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        showlegend=False,
+        xaxis={
+            "tickangle": 45,
+            "tickfont": {
+                "size": 14,
+                "family": "Arial",
+                "color": "black",
+                "weight": "bold",
+            },
+        },
+        yaxis={
+            "tickfont": {
+                "size": 12,
+                "family": "Arial",
+                "color": "black",
+                "weight": "bold",
+            },
+        },
+        title_font={
+            "size": 16,
+            "family": "Arial",
+            "color": "black",
+            "weight": "bold",
+        },
+        width=width,
+        height=height,
+    )
+
+    if save_path:
+        path_str = str(save_path)
+        save_dir = os.path.dirname(path_str)
+        if save_dir and not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+
+        if path_str.endswith(".html"):
+            fig.write_html(path_str)
+        else:
+            fig.write_image(path_str)
+
+        logger.debug("Bar chart saved to: %s", path_str)
+    else:
+        fig.show()
+
+
+def plot_feature_box_plot(
+    result: BaseXWhyResult,
+    **kwargs: Any,  # noqa: ANN401
+) -> None:
+    """Generate and optionally save a Plotly box plot for feature contributions.
+
+    Args:
+        result: The explanation result containing feature names and coefficients.
+        **kwargs: Additional arguments including 'title', 'xaxis_title',
+            'yaxis_title', 'width', 'height', and 'save_path'.
+
+    """
+    coeffs = np.asarray(result.coefficients)
+    feature_names = result.feature_names
+    num_features = len(coeffs)
+
+    if not feature_names:
+        feature_names = [f"Feature {i}" for i in range(num_features)]
+
+    title: str = str(kwargs.get("title", "Feature Contributions Box Plot"))
+    xaxis_title: str = str(kwargs.get("xaxis_title", "Features"))
+    yaxis_title: str = str(kwargs.get("yaxis_title", "Contribution Value"))
+    width: int = int(kwargs.get("width", 800))
+    height: int = int(kwargs.get("height", 800))
+    save_path: str | Path | None = kwargs.get("save_path")
+
+    fig = go.Figure()
+
+    # Handle both 1D arrays (single value per feature) and 2D arrays
+    if coeffs.ndim == 1:
+        for name, val in zip(feature_names, coeffs, strict=False):
+            fig.add_trace(go.Box(y=[val], name=str(name), boxpoints="all"))
+    else:
+        for idx, name in enumerate(feature_names):
+            fig.add_trace(go.Box(y=coeffs[:, idx], name=str(name), boxpoints="all"))
+
+    fig.update_layout(
+        title=title,
+        xaxis_title=xaxis_title,
+        yaxis_title=yaxis_title,
+        showlegend=False,
+        xaxis={
+            "tickangle": 45,
+            "tickfont": {
+                "size": 14,
+                "family": "Arial",
+                "color": "black",
+                "weight": "bold",
+            },
+        },
+        yaxis={
+            "tickfont": {
+                "size": 12,
+                "family": "Arial",
+                "color": "black",
+                "weight": "bold",
+            },
+        },
+        title_font={
+            "size": 16,
+            "family": "Arial",
+            "color": "black",
+            "weight": "bold",
+        },
+        width=width,
+        height=height,
+    )
+
+    if save_path:
+        path_str = str(save_path)
+        save_dir = os.path.dirname(path_str)
+        if save_dir and not os.path.exists(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+
+        if path_str.endswith(".html"):
+            fig.write_html(path_str)
+        else:
+            fig.write_image(path_str)
+
+        logger.debug("Box plot saved to: %s", path_str)
+    else:
+        fig.show()
 
 
 # ==============================================================================

@@ -21,4 +21,4 @@ Planned documentation will cover:
 
 For implemented prompt-response analysis, use the [LLM explainer](llm/index.md).
 
-[View the current API reference](../reference/xwhy/explainers/text/)
+[View the current API reference](../reference/xwhy/explainers/text.md)

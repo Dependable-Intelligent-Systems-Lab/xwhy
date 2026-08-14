@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal
+
+import numpy as np
 
 from xwhy.logger import logger
 
@@ -14,45 +17,76 @@ class DistanceNormalizer:
     def min_max(
         *,
         scores: Sequence[tuple[str, float]],
+        mode: Literal["linear", "inverse"] = "linear",
     ) -> list[tuple[str, float]]:
         """Normalize distances using Min-Max normalization.
 
-        Distances are converted into similarity values in the range
+        Convert distance values into similarity scores in the range
         ``[0.0, 1.0]`` where larger values indicate greater similarity.
+
+        This method supports two normalization strategies:
+
+        1. 'linear':
+            Computes similarity via linear scaling:
+            similarity = 1 - MinMax(distance)
+            Preserves linear proportionality and avoids non-linear
+            distortion, making it recommended for regression-based
+            explainability.
+
+        2. 'inverse':
+            Computes similarity via inverse distance scaling:
+            similarity = MinMax(1 / (distance + epsilon))
+            Emphasizes small distances more aggressively through a
+            non-linear boost.
 
         Args:
             scores:
                 Sequence of ``(text, distance)`` pairs.
+            mode:
+                Normalization mode, either "linear" or "inverse".
 
         Returns:
             List of ``(text, similarity)`` pairs.
 
+        Raises:
+            ValueError: If the scores sequence is empty.
+
         """
-        distances = [distance for _, distance in scores]
+        if not scores:
+            logger.error("Distance list is empty. Cannot normalize similarities.")
+            return []
 
-        min_distance = min(distances)
-        max_distance = max(distances)
+        texts = [text for text, _ in scores]
+        distances = np.array([distance for _, distance in scores], dtype=float)
 
-        normalized: list[tuple[str, float]] = []
+        if mode == "inverse":
+            epsilon = 1e-8
+            inv = 1.0 / (distances + epsilon)
+            min_v = inv.min()
+            max_v = inv.max()
 
-        for text, distance in scores:
-            if max_distance == min_distance:
-                similarity = 1.0
+            if max_v == min_v:
+                sim_vals = np.ones_like(inv)
             else:
-                similarity = 1.0 - (
-                    (distance - min_distance) / (max_distance - min_distance)
-                )
+                sim_vals = (inv - min_v) / (max_v - min_v)
+        else:  # linear
+            min_v = distances.min()
+            max_v = distances.max()
 
-            normalized.append(
-                (
-                    text,
-                    similarity,
-                )
-            )
+            if max_v == min_v:
+                sim_vals = np.ones_like(distances)
+            else:
+                norm = (distances - min_v) / (max_v - min_v)
+                sim_vals = 1.0 - norm
+
+        normalized = [
+            (text, float(sim)) for text, sim in zip(texts, sim_vals, strict=False)
+        ]
 
         for text, similarity in normalized:
             logger.debug(
-                "Perturbed Text: %s",
+                "Mode: %s | Perturbed Text: %s",
+                mode,
                 text,
             )
             logger.debug(

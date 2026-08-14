@@ -135,6 +135,10 @@ def test_build_huggingface_provider(
     mock_factory_create.assert_called_once_with(
         provider=pytest.importorskip("xwhy.providers.types").ProviderType.HUGGINGFACE,
         client=mock_client_instance,
+        model_name=None,
+        pipe=None,
+        use_segmentation_model=None,
+        config=None,
     )
     assert result is mock_provider_instance
 

@@ -5,7 +5,7 @@ import sys
 from collections.abc import Generator
 from pathlib import Path
 from typing import Any, cast
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, MagicMock, PropertyMock, patch
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -26,7 +26,11 @@ from xwhy.plots.plots import (
     heatmap,
     image,
     image_to_text,
+    initjs,
     monitoring,
+    partial_dependence,
+    plot_feature_bar_chart,
+    plot_feature_box_plot,
     replace_shap_label,
     scatter,
     text,
@@ -47,6 +51,20 @@ class DummyResult(BaseXWhyResult):
     def feature_names(self) -> list[str]:
         """Mock feature names."""
         return []
+
+    @property
+    def data(self) -> np.ndarray:
+        """Mock data instance."""
+        return np.array([])
+
+
+class EmptyFeatureDummyResult(BaseXWhyResult):
+    """Dummy result with None feature names for testing fallback branches."""
+
+    @property
+    def feature_names(self) -> list[str] | None:
+        """Mock feature names."""
+        return None
 
     @property
     def data(self) -> np.ndarray:
@@ -652,12 +670,21 @@ def test_decorator_modifies_matplotlib_xlabel() -> None:
         if show:
             plt.show()
 
-    with patch("matplotlib.pyplot.show") as mock_show:
-        bar(show=True)
-        ax = plt.gca()
-        assert ax.get_xlabel() == "Average XWhy value magnitude"
-        mock_show.assert_called_once()
-        plt.close("all")
+    with patch("shap.plots") as mock_shap_plots:
+        # Real callable (no ``.called``) that accepts ``show`` so the
+        # decorator enters the label-rewrite branch.
+        def real_shap_bar(*, show: bool = True) -> None:
+            """Accept a show flag so the decorator enters the label-rewrite path."""
+
+        mock_shap_plots.bar = real_shap_bar
+        decorated_bar = replace_shap_label(bar)
+
+        with patch("matplotlib.pyplot.show") as mock_show:
+            decorated_bar(show=True)
+            ax = plt.gca()
+            assert ax.get_xlabel() == "Average XWhy value magnitude"
+            mock_show.assert_called_once()
+            plt.close("all")
 
 
 def test_decorator_bypasses_non_show_functions() -> None:

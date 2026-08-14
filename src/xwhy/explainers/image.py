@@ -2,22 +2,37 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+import inspect
+import os
+import random
+import time
+from collections.abc import Callable
+from typing import Any, Literal, cast
 
 import numpy as np
 import skimage.transform
 import torch
 import torch.nn as nn
+from matplotlib import pyplot as plt
 from PIL import Image
 from tqdm import tqdm
 
-from xwhy.core.config import ImageClassificationConfig
+from xwhy.core.config import ImageClassificationConfig, ImageGenerationAndEditingConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.pipeline import ExplanationPipeline
-from xwhy.core.result import ImageClassificationXWhyResult
-from xwhy.core.types import ImageClassificationState
+from xwhy.core.result import (
+    ImageClassificationXWhyResult,
+    ImageGenerationAndEditingXWhyResult,
+)
+from xwhy.core.types import (
+    BaseImageGenerationAndEditing,
+    ImageClassificationState,
+    ImageGenerationAndEditingState,
+)
 from xwhy.distance.calculator import calculate_distance
+from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
+from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
 from xwhy.metrics.image import ImageCoverageMetrics
 from xwhy.metrics.regression import RegressionMetrics
@@ -26,9 +41,17 @@ from xwhy.models.classification.factory import ClassificationFactory
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.factory import EmbeddingFactory
 from xwhy.models.embeddings.types import EmbeddingType
+from xwhy.models.image_generation_and_editing.custom import (
+    CustomImageGenerationAndEditingModel,
+)
 from xwhy.models.segmentation.factory import SegmentationFactory
 from xwhy.models.segmentation.types import SegmentationType
 from xwhy.perturbation.image import ImagePerturbation
+from xwhy.perturbation.text import TextPerturbation
+from xwhy.providers.base import BaseProvider
+from xwhy.providers.openai import OpenAIProvider
+from xwhy.providers.resolver import ProviderResolver
+from xwhy.providers.types import ProviderType
 from xwhy.surrogate.factory import SurrogateFactory
 from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
@@ -38,6 +61,7 @@ from xwhy.utils.image import (
     numpy_image_to_tensor,
     tensor_to_numpy_image,
 )
+from xwhy.utils.io import save_data_to_pickle, save_perturbation_data_to_csv
 
 
 class ImageClassificationExplainer(
@@ -173,7 +197,7 @@ class ImageClassificationExplainer(
             )
             self.state.classification_model.load()
 
-            self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+            self.state.transform_fn = self.state.classification_model.preprocess_fn
 
         else:
             logger.info(
@@ -193,7 +217,7 @@ class ImageClassificationExplainer(
 
             # Extract the transform function directly from the adapter
             if self.config.use_model_preprocess:  # type: ignore[union-attr]
-                self.state.transform_fn = self.state.classification_model.preprocess_fn  # type: ignore[assignment]
+                self.state.transform_fn = self.state.classification_model.preprocess_fn
 
         # 2. Load Embedding Model (if enabled)
         if self.config.use_embedding_model:  # type: ignore
@@ -552,6 +576,905 @@ class ImageClassificationExplainer(
             top_features=top_features_indices,
             coverage=cov,
             weighted_coverage=w_cov,
+        )
+
+        if fidelity_plot:
+            logger.info("Rendering fidelity plot as requested...")
+            result.plot(show=True)
+
+        return result
+
+
+class ImageGenerationAndEditingExplainer(BaseExplainer):
+    """Explainer for image generation and editing tasks.
+
+    This class manages the lifecycle of generating text perturbations, executing
+    image generation or editing models, calculating distance metrics between base
+    and perturbed images, and training a surrogate model to extract feature
+    importances (explanations) for the generation process.
+    """
+
+    def __init__(
+        self,
+        config: ImageGenerationAndEditingConfig | None = None,
+        # Base Provider & Model Settings
+        engine: (
+            str
+            | ProviderType
+            | BaseProvider
+            | BaseImageGenerationAndEditing
+            | type[BaseImageGenerationAndEditing]
+            | None
+        ) = None,
+        model_name: str = "dall-e-3",
+        pipe: Any | None = None,  # noqa: ANN401
+        # Custom Model Injection
+        custom_model: Any = None,  # noqa: ANN401
+        custom_generate_fn: Callable[..., Any] | None = None,
+        # Core Shared Generation Parameters
+        temperature: float = 0.0,
+        seed: int = 1024,
+        # Explainer Components
+        use_image_embedding_model: bool = False,
+        image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2,
+        text_embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC,
+        use_segmentation_model: bool = True,
+        segmentation_type: (
+            str | SegmentationType
+        ) = SegmentationType.DEEPLABV3_RESNET101,
+        # Core Explainability Settings
+        output_dir: str = "outputs",
+        device: str = "cpu",  # or "cuda",
+        num_perturbations: int = 64,
+        distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        surrogate_type: SurrogateType | str = SurrogateType.LIME,
+        use_best_surrogate: bool = True,
+        **provider_kwargs: Any,  # noqa: ANN401
+    ) -> None:
+        """Initialize the image generation and editing explainer.
+
+        Args:
+            config: Optional pre-configured settings object.
+            engine: The primary model provider, custom class, or string identifier.
+            model_name: Name of the underlying model to use.
+            pipe: HuggingFace pipeline or custom pipeline object.
+            custom_model: Custom model instance for generation/editing.
+            custom_generate_fn: Callable function for custom model generation.
+            temperature: Temperature parameter for the model.
+            seed: Random seed for reproducibility.
+            use_image_embedding_model: Flag to enable image embedding.
+            image_embedding_type: Type of image embedding to utilize.
+            text_embedding_type: Type of text embedding to utilize.
+            use_segmentation_model: Flag to enable image segmentation.
+            segmentation_type: Type of segmentation model to utilize.
+            output_dir: Directory to save intermediate and final outputs.
+            device: Device to run local models on ('cpu' or 'cuda').
+            num_perturbations: Number of text perturbations to generate.
+            distance_type: Metric used to compute distance between images.
+            surrogate_type: Type of surrogate model to train for explanation.
+            use_best_surrogate: Flag to automatically find the best surrogate model.
+            **provider_kwargs: Additional keyword arguments for the model provider.
+
+        Raises:
+            ValueError: If an invalid distance metric is provided.
+
+        """
+        self._action: Literal["generate", "edit"] = "generate"
+        distance_type = DistanceType.from_str(distance_type)
+
+        if not distance_type.is_numeric_metric:
+            raise ValueError(
+                f"Invalid distance metric '{distance_type}' "
+                "for ImageClassificationExplainer. Must be a numeric distance."
+            )
+
+        self._provider_kwargs = provider_kwargs
+
+        # Resolve device and initialize state prior to engine creation
+        resolved_device = device
+        if config is not None and getattr(config, "device", None) is not None:
+            resolved_device = config.device
+        elif resolved_device is None:
+            resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
+            if config is not None:
+                config.device = resolved_device
+
+        self.state = ImageGenerationAndEditingState(
+            device_=torch.device(resolved_device)
+        )
+
+        # -----------------------------------------------------------------
+        # Engine and Provider Type Detection
+        # -----------------------------------------------------------------
+        provider_type: ProviderType | str | None = None
+        engine_type: Literal["provider", "custom", "pipeline"] = "provider"
+
+        # Case 1: Pre-loaded HuggingFace Diffusers Pipeline passed via `pipe`
+        if pipe is not None and custom_generate_fn is None:
+            provider_type = ProviderType.HUGGINGFACE
+            engine_type = "provider"
+            self._provider_kwargs["pipe"] = pipe
+            if model_name == "dall-e-3" and hasattr(pipe, "_name_or_path"):
+                model_name = getattr(pipe, "_name_or_path", "pipeline_model")
+
+        # Case 2: Custom pipeline passed with an explicit custom_generate_fn
+        elif pipe is not None:
+            engine_type = "pipeline"
+            model_name = "pipeline_model"
+            custom_model = pipe  # Treat the pipeline as the custom model itself
+            if custom_generate_fn is None:
+                # Fallback generator assuming HuggingFace diffusers standard behavior
+                def _default_pipe_generate(
+                    model: Any,  # noqa: ANN401
+                    prompt: str,
+                    **kwargs: Any,  # noqa: ANN401
+                ) -> Any:  # noqa: ANN401
+                    return model(prompt, **kwargs).images[0]
+
+                custom_generate_fn = _default_pipe_generate
+
+        # Case 3: Engine parameter provided (Standard Provider or Custom Class/Instance)
+        elif engine is not None:
+            is_resolved_as_standard_provider = False
+
+            # Check if engine is a standard provider enum/string/instance
+            if isinstance(engine, (str, BaseProvider, ProviderType)):
+                target_str = (
+                    engine
+                    if isinstance(engine, str)
+                    else (
+                        engine.value
+                        if isinstance(engine, ProviderType)
+                        else engine.__class__.__name__.lower().replace("provider", "")
+                    )
+                )
+                try:
+                    provider_type = ProviderType.from_str(target_str)
+                    if isinstance(engine, BaseProvider):
+                        self.state.engine = engine  # type: ignore[assignment]
+                    engine_type = "provider"
+                    is_resolved_as_standard_provider = True
+                except ValueError:
+                    # Not a standard provider, pass to Custom checking
+                    pass
+
+            # Check if engine is a Custom BaseImageGenerationAndEditing
+            # Instance or Subclass
+            if not is_resolved_as_standard_provider:
+                engine_type = "custom"
+                if hasattr(engine, "__class__") and "BaseImageGenerationAndEditing" in [
+                    b.__name__
+                    for b in engine.__class__.__mro__  # type: ignore[union-attr]
+                ]:
+                    # Pre-instantiated custom engine instance
+                    self.state.engine = engine  # type: ignore[assignment]
+                elif isinstance(engine, type):
+                    # Class type passed; instantiate with provider kwargs
+                    self.state.engine = engine(**provider_kwargs)
+                elif isinstance(engine, str):
+                    # Handle known specific custom engines
+                    engine_lower = engine.lower()
+                    if engine_lower in ("paired", "img2img-turbo"):
+                        from xwhy.models.image_generation_and_editing.paired import (
+                            PairedInferenceModel,
+                        )
+
+                        self.state.engine = PairedInferenceModel(model_name=model_name)
+                    else:
+                        # String passed but has no specific resolver (e.g.,
+                        # unrecognized)
+                        if custom_model is None:
+                            custom_model = engine
+
+        # Fallback if config needs to be created
+        elif custom_model is not None or custom_generate_fn is not None:
+            engine_type = "custom"
+        else:
+            # Default behavior if absolutely nothing is passed
+            provider_type = ProviderType.OPENAI
+            engine_type = "provider"
+
+        image_embedding_type = EmbeddingType.from_str(image_embedding_type)
+        text_embedding_type = EmbeddingType.from_str(text_embedding_type)
+        segmentation_type = SegmentationType.from_str(segmentation_type)
+        surrogate_type = SurrogateType.from_str(surrogate_type)
+
+        if config is None:
+            config = ImageGenerationAndEditingConfig(
+                provider_type=provider_type,
+                engine_type=engine_type,
+                model_name=model_name,
+                custom_model=custom_model,
+                custom_generate_fn=custom_generate_fn,
+                temperature=temperature,
+                seed=seed,
+                use_image_embedding_model=use_image_embedding_model,
+                image_embedding_type=image_embedding_type,
+                text_embedding_type=text_embedding_type,
+                use_segmentation_model=use_segmentation_model,
+                segmentation_type=segmentation_type,
+                output_dir=output_dir,
+                device=resolved_device,
+                num_perturbations=num_perturbations,
+                distance_type=distance_type,
+                surrogate_type=surrogate_type,
+                use_best_surrogate=use_best_surrogate,
+            )
+
+        super().__init__(config)
+        self._initialize()
+
+    def _initialize(self) -> None:
+        """Initialize runtime resources and load required models.
+
+        Raises:
+            ValueError: If configuration constraints are violated, such as missing
+                custom functions or unsupported provider modes.
+
+        """
+        if self.state.engine is None:
+            engine_type = self.config.engine_type  # type: ignore[union-attr]
+
+            if engine_type in ("custom", "pipeline"):
+                _ = getattr(self.config, "custom_model", None) is not None
+                has_custom_fn = (
+                    getattr(self.config, "custom_generate_fn", None) is not None
+                )
+
+                if not has_custom_fn:
+                    raise ValueError(
+                        f"When using a {engine_type} approach, 'custom_generate_fn' "
+                        "must be provided."
+                    )
+
+                logger.info(
+                    "Initializing %s Model Adapter...", engine_type.capitalize()
+                )
+                self.state.engine = CustomImageGenerationAndEditingModel(
+                    generate_fn=self.config.custom_generate_fn,  # type: ignore[union-attr]
+                    model=self.config.custom_model,  # type: ignore[union-attr]
+                    **self._provider_kwargs,
+                )
+            # Logic for standard providers (Case 1)
+            elif engine_type == "provider":
+                provider_type = self.config.provider_type  # type: ignore[union-attr]
+                if provider_type is None:
+                    raise ValueError(
+                        "Provider type cannot be None when engine_type is 'provider'."
+                    )
+
+                if isinstance(provider_type, ProviderType) and getattr(
+                    provider_type, "is_text_only", False
+                ):
+                    raise ValueError(
+                        f"Provider '{provider_type.value}' only supports text. "
+                        "ImageGenerationAndEditingExplainer requires a provider "
+                        "that supports image generation or both."
+                    )
+
+                # Add extra args for huggingface provider
+                if provider_type == ProviderType.HUGGINGFACE:
+                    self._provider_kwargs.update(
+                        {
+                            "model_name": self.config.model_name,  # type: ignore[union-attr]
+                            "use_segmentation_model": (
+                                self.config.use_segmentation_model  # type: ignore[union-attr]
+                            ),
+                            "config": self.config,
+                        }
+                    )
+                    if getattr(self.config, "custom_model", None) is not None:
+                        self._provider_kwargs["pipe"] = self.config.custom_model  # type: ignore[union-attr]
+
+                logger.info("Resolving provider type: %s", provider_type)
+                self.state.engine = ProviderResolver.resolve(  # type: ignore[assignment]
+                    provider_type,
+                    **self._provider_kwargs,
+                )
+
+        # 2. Load Image Embedding Model (if enabled)
+        if self.config.use_image_embedding_model:  # type: ignore[union-attr]
+            if not self.config.image_embedding_type.is_image_embedding:  # type: ignore[union-attr]
+                raise ValueError(
+                    "Invalid embedding type '%s' "
+                    "for ImageGenerationAndEditingExplainer. Must be an image "
+                    "embedding.",
+                    self.config.image_embedding_type,  # type: ignore[union-attr]
+                )
+
+            logger.info(
+                "Loading image embedding model: %s",
+                self.config.image_embedding_type,  # type: ignore[union-attr]
+            )
+            self.state.image_embedding_model = EmbeddingFactory.create(
+                embedding=self.config.image_embedding_type,  # type: ignore[union-attr]
+                device=self.state.device,
+            )
+            self.state.image_embedding_model.load()
+
+        # 3. Load Text Embedding Model
+        if not self.config.text_embedding_type.is_text_embedding:  # type: ignore[union-attr]
+            raise ValueError(
+                "Invalid text embedding type '%s' "
+                "for ImageGenerationAndEditingExplainer. Must be a text embedding.",
+                self.config.text_embedding_type,  # type: ignore[union-attr]
+            )
+
+        logger.info(
+            "Loading text embedding model: %s",
+            self.config.text_embedding_type,  # type: ignore[union-attr]
+        )
+        embedding_factory_result = EmbeddingFactory.create(
+            embedding=self.config.text_embedding_type,  # type: ignore[union-attr]
+        )
+        self.state.text_embedding_model = embedding_factory_result.load()
+        self.state.text_embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+
+        # 4. Load Segmentation Model (if enabled)
+        if self.config.use_segmentation_model:  # type: ignore[union-attr]
+            if not isinstance(self.config.segmentation_type, SegmentationType):  # type: ignore[union-attr]
+                raise ValueError(
+                    "Invalid segmentation type '%s'.",
+                    self.config.segmentation_type,  # type: ignore[union-attr]
+                )
+
+            logger.info(
+                "Loading segmentation model: %s",
+                self.config.segmentation_type,  # type: ignore[union-attr]
+            )
+            self.state.segmentation_model = SegmentationFactory.create(
+                segmentation=self.config.segmentation_type,  # type: ignore[union-attr]
+                device=self.state.device,
+            )
+            self.state.segmentation_model.load()
+
+        # 5. Initialize Perturbator
+        logger.info("Initializing text perturbator...")
+        self.state.text_perturbator = TextPerturbation(
+            seed=self.config.seed  # type: ignore[union-attr]
+        )
+
+    def _prepare_environment(self, output_dir: str, seed: int) -> None:
+        """Set random seeds and ensure the output directory exists.
+
+        Args:
+            output_dir: Target directory path to create.
+            seed: Random seed value for torch and numpy.
+
+        """
+        logger.debug("Setting seeds for reproducibility (seed=%d)...", seed)
+        random.seed(seed)
+        _ = np.random.default_rng(seed)
+        torch.manual_seed(seed)
+
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+        else:
+            logger.debug("CUDA not available. Running on CPU.")
+
+        logger.debug("Preparing output directory at: '%s'", output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info("Environment prepared: Output Dir='%s' | Seed=%d", output_dir, seed)
+
+    def _get_provider_specific_kwargs(self) -> dict[str, Any]:
+        """Retrieve provider-specific keyword arguments.
+
+        Dynamically configures compatibility parameters for providers that require
+        specialized payload flags.
+
+        Returns:
+            A dictionary containing required extra keyword arguments.
+
+        """
+        kwargs: dict[str, Any] = {}
+        provider_type = self.config.provider_type  # type: ignore[union-attr]
+
+        # Important guard since provider_type can be None for custom/pipeline cases
+        if provider_type is None:
+            return kwargs
+
+        if isinstance(self.state.engine, OpenAIProvider):
+            kwargs["provider_name"] = (
+                provider_type.value
+                if isinstance(provider_type, ProviderType)
+                else str(provider_type)
+            )
+
+        if provider_type == ProviderType.BYTEDANCE:
+            kwargs.update(
+                {
+                    "use_image_data_uri": True,
+                    "use_image_url": True,
+                    "use_generate_for_edit": True,
+                    "response_format": None,
+                }
+            )
+        elif provider_type == ProviderType.OPENAI and self._action == "generate":
+            kwargs["response_format"] = None
+
+        return kwargs
+
+    def _generate_images(
+        self,
+        prompts: list[str],
+        output_dir: str,
+        input_image_path: str | None = None,
+        seed: int | None = None,
+        batch: bool = False,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> list[tuple[bool, str]]:
+        """Process image generation or editing for a list of prompts.
+
+        Args:
+            prompts: List of text prompts.
+            output_dir: Directory to save the generated images.
+            input_image_path: Path to the base image for editing (if any).
+            seed: Random seed for generation.
+            batch: Flag to use batch processing if supported by the provider.
+            **kwargs: Extra parameters (e.g., size, quality, extra_body).
+
+        Returns:
+            A list of tuples containing a boolean success flag and the image path.
+
+        """
+        total_prompts = len(prompts)
+        generated_paths: list[tuple[bool, str]] = []
+        engine = self.state.engine
+
+        # Merge provider kwargs (from __init__) with current method kwargs
+        provider_kwargs_extras = self._get_provider_specific_kwargs()
+        generation_kwargs = {
+            **self._provider_kwargs,
+            **kwargs,
+            **provider_kwargs_extras,
+            # Added here, because we get it from init as parameter not kwargs
+            "model_name": self.config.model_name,  # type: ignore[union-attr]
+        }
+
+        # The underlying Provider (HuggingFace, OpenAI, etc.) will decide
+        # whether to use it.
+        if getattr(self.state, "segmentation_model", None) is not None:
+            edit_sig = inspect.signature(engine.edit_image)  # type: ignore[union-attr]
+            if "segmentation_model" in edit_sig.parameters:
+                generation_kwargs["segmentation_model"] = self.state.segmentation_model
+
+        # Handle Gemini Batch Processing
+        if batch and "gemini" in engine.__class__.__name__.lower():
+            logger.debug("Using batch image generation via Gemini API.")
+            job_name = engine.submit_image_batch(  # type: ignore[union-attr]
+                image_path=input_image_path,
+                text_list=prompts,
+                seed=seed,
+                **generation_kwargs,
+            )
+
+            generated_paths = engine.retrieve_image_batch(  # type: ignore[union-attr]
+                job_name=job_name,
+                text_list=prompts,
+                output_dir=output_dir,
+            )
+            return generated_paths
+
+        # Handle Standard Loop (Generation / Editing)
+        logger.debug(
+            "Starting image generation: %d prompts | model=%s",
+            total_prompts,
+            self.config.model_name,  # type: ignore[union-attr]
+        )
+
+        start_time = time.perf_counter()
+
+        for idx, text in enumerate(prompts, start=1):
+            iter_start = time.perf_counter()
+            logger.debug("Prompt %d text: %s", idx, text)
+
+            try:
+                if input_image_path is not None:
+                    success, path = engine.edit_image(  # type: ignore[union-attr]
+                        prompt=text,
+                        image_path=input_image_path,
+                        output_dir=output_dir,
+                        **generation_kwargs,
+                    )
+                else:
+                    success, path = engine.generate_image(  # type: ignore[union-attr]
+                        prompt=text,
+                        output_dir=output_dir,
+                        **generation_kwargs,
+                    )
+            except Exception as exc:
+                logger.warning("Generation failed for prompt %d: %s", idx, exc)
+                success, path = False, ""
+
+            generated_paths.append((success, path))
+
+            iter_duration = time.perf_counter() - iter_start
+            elapsed = time.perf_counter() - start_time
+            avg_time = elapsed / idx
+            eta = avg_time * (total_prompts - idx)
+
+            if idx % 5 == 0 or idx == total_prompts:
+                logger.debug(
+                    "Progress %d/%d | Success=%s | Iter=%.4fs | ETA=%.4fs",
+                    idx,
+                    total_prompts,
+                    success,
+                    iter_duration,
+                    eta,
+                )
+
+            if not success:
+                logger.debug("Failed at %d/%d (path=%s)", idx, total_prompts, path)
+
+        total_duration = time.perf_counter() - start_time
+        logger.debug(
+            "Completed: %d prompts | Total=%.4fs | Avg=%.4fs",
+            total_prompts,
+            total_duration,
+            total_duration / max(total_prompts, 1),
+        )
+
+        return generated_paths
+
+    def _compute_perturbation_distances(
+        self,
+        input_image_path: str,
+        generated_images: list[tuple[bool, str]],
+        prompts: list[str],
+        display_image: bool = False,
+        output_dir: str = "outputs",
+    ) -> np.ndarray:
+        """Compute distances between the original image and perturbations.
+
+        Args:
+            input_image_path: Path to the original input image.
+            generated_images: List of generated success flags and file paths.
+            prompts: List of perturbation text prompts.
+            display_image: Flag to display perturbation images and details.
+            output_dir: Directory to save the distance metrics array.
+
+        Returns:
+            An array of computed distance metrics for each perturbation.
+
+        Raises:
+            ValueError: If embedding extraction fails or representations are empty.
+
+        """
+        distances = []
+
+        use_embedding = self.config.use_image_embedding_model  # type: ignore[union-attr]
+        dist_type = self.config.distance_type  # type: ignore[union-attr]
+        if input_image_path:
+            self._action = "edit"
+
+        # 1. Pre-calculate original representation
+        _, original_image = load_image_as_tensor(image_path=input_image_path)
+        base_representation = original_image
+        if use_embedding:
+            original_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
+                original_image
+            )
+            if original_embedding is None:
+                raise ValueError("Original embedding extraction failed.")
+            base_representation = np.asarray(original_embedding)  # type: ignore[assignment]
+
+        logger.debug(
+            "Computing distances for %d generated images...",
+            len(generated_images),
+        )
+
+        for idx, ((success, img_path), text) in enumerate(
+            zip(generated_images, prompts, strict=False), start=1
+        ):
+            if success is not None and not success:
+                distances.append(float("inf"))
+                continue
+
+            if not os.path.exists(img_path):
+                logger.warning("Generated image path not found: %s", img_path)
+                distances.append(float("inf"))
+                continue
+
+            _, current_image = load_image_as_tensor(image_path=img_path)
+            current_representation = current_image
+
+            if use_embedding:
+                current_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
+                    current_representation
+                )
+                if current_embedding is None:
+                    raise ValueError(
+                        f"Embedding extraction failed for image: {img_path}"
+                    )
+                current_representation = np.asarray(current_embedding)  # type: ignore[assignment]
+
+            if current_representation is None or base_representation is None:
+                raise ValueError(
+                    "One or both representations are None. Check extraction."
+                )
+
+            current_representation = np.asarray(current_representation)  # type: ignore[assignment]
+            base_representation = np.asarray(base_representation)  # type: ignore[assignment]
+
+            if current_representation.size == 0 or base_representation.size == 0:  # type: ignore[comparison-overlap]
+                raise ValueError("Representations are empty. Cannot compute distance.")
+
+            # Compute distance metric
+            dist = calculate_distance(
+                metric=dist_type,
+                source=base_representation,
+                target=current_representation,
+            )
+            distances.append(dist)
+
+            if display_image:
+                gen_img = Image.open(img_path)
+                logger.debug("Perturbation %d:", idx)
+                logger.debug("Perturbed Text: %s", text)
+                logger.debug("Distance (generated vs orig): %f", dist)
+
+                plt.figure(figsize=(8, 8))
+                plt.imshow(gen_img)
+                plt.title(f"Perturbed Text: {text}", fontsize=12)
+                plt.axis("off")
+                plt.show()
+
+        os.makedirs(output_dir, exist_ok=True)
+        save_path = os.path.join(output_dir, "distances_generated_vs_orig.npy")
+        distances_array = np.array(distances)
+        np.save(save_path, distances_array)
+        logger.debug("All generated embeddings and distances saved.")
+
+        return distances_array
+
+    def explain(
+        self,
+        instance: str,
+        input_image_path: Any | None = None,  # noqa: ANN401
+        output_dir: str | None = None,
+        normalization_mode: Literal["linear", "inverse"] = "linear",
+        seed: int | None = 42,
+        fidelity_plot: bool = False,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> ImageGenerationAndEditingXWhyResult:
+        """Generate an explanation for the given input instance.
+
+        Args:
+            instance: Text description for image generation or editing.
+            input_image_path: The input object to explain.
+            output_dir: Custom directory to save outputs.
+            normalization_mode: Method used to normalize text similarities.
+            seed: Random seed for reproducibility.
+            fidelity_plot: Rendering fidelity scatter plot.
+            **kwargs: Additional generation options (e.g., batch, size, extra_body).
+
+        Returns:
+            An outcome container carrying explanation data and surrogate metrics.
+
+        Raises:
+            FileNotFoundError: If the provided image path does not exist.
+            TypeError: If the prompt is not a string.
+            ValueError: If the prompt is empty or too short.
+            RuntimeError: If base image generation fails.
+
+        """
+        kernel_width = getattr(self.config, "kernel_width", 0.25)
+        ridge_alpha = getattr(self.config, "ridge_alpha", 1.0)
+
+        prompt = instance
+        output_dir = output_dir if output_dir is not None else self.config.output_dir  # type: ignore[union-attr]
+        seed = seed if seed is not None else self.config.seed  # type: ignore[union-attr]
+
+        # Extract batch flag from kwargs if provided, defaulting to False
+        batch = kwargs.pop("batch", False)
+
+        self._prepare_environment(output_dir=output_dir, seed=seed)
+
+        if seed != self.config.seed:  # type: ignore[union-attr]
+            logger.debug("Updating perturbator RNG with new seed: %d", seed)
+            self.state.text_perturbator.set_seed(seed)  # type: ignore[union-attr]
+
+        if input_image_path is not None and not os.path.exists(input_image_path):
+            raise FileNotFoundError(f"Input image not found at {input_image_path}")
+
+        logger.debug("Validating input prompt...")
+        if not isinstance(prompt, str):
+            raise TypeError("Prompt must be a string.")
+
+        normalized_prompt = prompt.strip()
+
+        if not normalized_prompt:
+            raise ValueError("Prompt cannot be empty or whitespace only.")
+
+        logger.info("Starting explanation process...")
+
+        prompt_words = normalized_prompt.split()
+        prompt_word_count = len(prompt_words)
+
+        if len(normalized_prompt) < 10 and prompt_word_count >= 3:
+            raise ValueError(
+                "Prompt is too short for reliable image editing.\n"
+                f'Provided prompt ({len(normalized_prompt)} chars): "{prompt}"\n'
+                "Please use a more descriptive prompt (at least 18-20 chars)."
+            )
+
+        if self.config.num_perturbations < (2 * prompt_word_count):  # type: ignore[union-attr]
+            logger.warning(
+                "The 'num_perturbations' (%d) is relatively small for a prompt "
+                "with %d words. This may lead to inaccurate fidelity metrics "
+                "(e.g., R-squared). Consider increasing it for better stability.",
+                self.config.num_perturbations,  # type: ignore[union-attr]
+                prompt_word_count,
+            )
+
+        logger.info("Generating text perturbations...")
+        perturbed_texts, binary_masks = self.state.text_perturbator.generate(  # type: ignore[union-attr]
+            text=normalized_prompt,
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+        )
+
+        logger.info("Starting unified image generation/editing step...")
+
+        # Execute the unified generation method (handles batch, generate, edit)
+        base_generation_results = self._generate_images(
+            prompts=[normalized_prompt],
+            output_dir=output_dir,
+            input_image_path=input_image_path,
+            seed=seed,
+            batch=batch,
+            **kwargs,
+        )
+        is_base_success, base_image_path = base_generation_results[0]
+
+        if not is_base_success:
+            raise RuntimeError(
+                f"Failed to generate the base image for the prompt: "
+                f"'{normalized_prompt}'. The explanation process cannot proceed."
+            )
+
+        generated_images = self._generate_images(
+            prompts=perturbed_texts,
+            output_dir=output_dir,
+            input_image_path=input_image_path,
+            seed=seed,
+            batch=batch,
+            **kwargs,
+        )
+
+        logger.info(
+            "Computing %s distances between images...",
+            self.config.distance_type,  # type: ignore[union-attr]
+        )
+        image_distances = self._compute_perturbation_distances(
+            input_image_path=base_image_path,
+            generated_images=generated_images,
+            prompts=perturbed_texts,
+            output_dir=output_dir,
+        )
+
+        logger.info("Computing WMD scores...")
+        wmd_distance = WMDDistance()
+        wmd_scores = wmd_distance.compute_batch(
+            model=self.state.text_embedding_model,
+            original=normalized_prompt,
+            perturbed_texts=perturbed_texts,
+        )
+
+        logger.info("Normalizing similarities...")
+        sims = DistanceNormalizer.min_max(scores=wmd_scores)
+
+        # masks_as_arrays: list[np.ndarray] = [
+        #     np.array(m, dtype=int) for m in binary_masks
+        # ]
+
+        # ---------------------------------------------------------
+        # Surrogate Model Training Inputs & Targets setup:
+        # X: Matrix indicating word presence/absence in perturbations.
+        # Y: The change/distance in the generated output images.
+        # Weights: Derived from textual distance (WMD/sims).
+        # ---------------------------------------------------------
+        x_features = np.vstack([np.array(m, dtype=int) for m in binary_masks])
+        y_target = image_distances
+        text_distances_array = np.array([d for _, d in wmd_scores])
+
+        if self.config.use_best_surrogate:  # type: ignore[union-attr]
+            logger.info(
+                "Searching for the optimal surrogate model among available "
+                "candidates..."
+            )
+            method, score = SurrogateTrainer.find_best(
+                x=x_features,
+                y=y_target,
+                distances=text_distances_array,
+                seed=seed,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
+            )
+            logger.info(
+                "Optimization complete. Selected surrogate model: "
+                "'%s' (Best Score: %.4f)",
+                method.value,
+                score,
+            )
+        else:
+            method = self.config.surrogate_type  # type: ignore[union-attr]
+            logger.info(
+                "Skipping surrogate search. Using configured default: '%s'",
+                method.value,
+            )
+
+        weights = SurrogateTrainer.compute_weights(
+            method=method,
+            distances=text_distances_array,
+            kernel_width=kernel_width,
+        )
+
+        surrogate = SurrogateFactory.create(
+            method=method,
+            seed=self.config.seed,  # type: ignore[union-attr]
+        )
+        surrogate.fit(x_features, y_target, weights)
+
+        coeffs = surrogate.coefficients()
+        y_pred = surrogate.predict(x_features)
+
+        logger.info("Computing regression metrics...")
+        metrics = RegressionMetrics.calculate(
+            y_true=y_target,
+            y_pred=y_pred,
+            weights=weights,
+            num_features=len(coeffs),
+        )
+
+        logger.info("Save variables data to pickle file...")
+        save_data_to_pickle(
+            output_path=os.path.join(
+                output_dir,
+                f"{self.config.model_name.replace('/', '_')}.pkl",  # type: ignore[union-attr]
+            ),
+            responses=perturbed_texts,
+            perturbations=binary_masks,
+            image_distances=image_distances,
+            wmd_scores=wmd_scores,
+            sims=sims,
+            mode=normalization_mode,
+            normalized_prompt=normalized_prompt,
+            num_perturb=self.config.num_perturbations,  # type: ignore[union-attr]
+            seed=seed,
+        )
+
+        logger.info("Saving perturbation data to CSV...")
+        csv_path = save_perturbation_data_to_csv(
+            perturbations=binary_masks,  # type: ignore[arg-type]
+            similarities=sims,
+            wmd_scores=wmd_scores,
+            output_path=os.path.join(output_dir, f"perturbation_data_{method}.csv"),
+        )
+
+        raw_data = {
+            "prompt": normalized_prompt,
+            "csv_output_path": csv_path,
+            "perturbed_texts": perturbed_texts,
+            "wmd_scores": wmd_scores,
+            "similarities": sims,
+            "weights": weights,
+            "y_target": y_target,
+            "y_pred": y_pred,
+        }
+
+        if self.config.use_best_surrogate:  # type: ignore[union-attr]
+            raw_data["best_surrogate_method"] = method
+        else:
+            raw_data["surrogate_method"] = method
+
+        result = ImageGenerationAndEditingXWhyResult(
+            words=prompt_words,
+            instance=input_image_path,
+            coefficients=coeffs,
+            metrics=metrics,
+            raw_data=raw_data,
         )
 
         if fidelity_plot:

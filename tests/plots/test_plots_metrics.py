@@ -1,5 +1,6 @@
 """Unit tests for visualization functions in xwhy.plots.metrics."""
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -7,7 +8,11 @@ import numpy as np
 import pytest
 
 from xwhy.metrics.regression import RegressionMetricResult
-from xwhy.plots.metrics import plot_fidelity
+from xwhy.plots.metrics import (
+    plot_fidelity,
+    plot_importance_roc_curve,
+    plot_stability_visualization,
+)
 
 
 @pytest.fixture
@@ -123,3 +128,161 @@ class TestPlotFidelity:
 
         assert result is None
         mock_show.assert_not_called()
+
+
+class TestPlotStabilityVisualization:
+    """Test suite for the plot_stability_visualization function."""
+
+    @patch("xwhy.plots.metrics.plt.show")
+    @patch("xwhy.plots.metrics.plt.savefig")
+    def test_plot_stability_visualization_success(
+        self,
+        mock_savefig: MagicMock,
+        mock_show: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test successful stability visualization generation and saving."""
+        result_one = MagicMock()
+        result_one.feature_names = ["word1", "word2"]
+        result_one.coefficients = np.array([0.5, -0.5])
+
+        result_two = MagicMock()
+        result_two.feature_names = ["word3", "word4"]
+        result_two.coefficients = np.array([0.2, -0.8])
+
+        save_path = str(tmp_path / "stability.png")
+
+        plot_stability_visualization(
+            result_one,
+            result_two,
+            width=10.0,
+            height=6.0,
+            save_path=save_path,
+        )
+
+        mock_savefig.assert_called_once()
+        mock_show.assert_called_once()
+
+    @patch("xwhy.plots.metrics.plt.show")
+    def test_plot_stability_visualization_zero_denom(
+        self,
+        mock_show: MagicMock,
+    ) -> None:
+        """Test stability visualization handles zero coefficients (denom == 0)."""
+        result_one = MagicMock()
+        result_one.feature_names = ["word1"]
+        result_one.coefficients = np.array([0.0])
+
+        result_two = MagicMock()
+        result_two.feature_names = ["word2"]
+        result_two.coefficients = np.array([0.0])
+
+        plot_stability_visualization(result_one, result_two)
+
+        mock_show.assert_called_once()
+
+
+class TestPlotImportanceRocCurve:
+    """Test suite for the plot_importance_roc_curve function."""
+
+    def test_missing_truth_raises_value_error(self) -> None:
+        """Ensure ValueError is raised when truth parameter is missing."""
+        result = MagicMock()
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "The 'truth' parameter (list of ints) is required in kwargs."
+            ),
+        ):
+            plot_importance_roc_curve(result)
+
+    def test_mismatched_length_raises_value_error(self) -> None:
+        """Ensure ValueError is raised on truth labels and scores length mismatch."""
+        result = MagicMock()
+        result.coefficients = np.array([0.1, 0.2, 0.3])
+
+        with pytest.raises(
+            ValueError,
+            match="Length of truth labels and result scores must match",
+        ):
+            plot_importance_roc_curve(result, truth=[1, 0])
+
+    @patch("xwhy.plots.metrics.logger.warning")
+    @patch("xwhy.plots.metrics.plt.show")
+    def test_single_class_truth_logs_warning(
+        self,
+        mock_show: MagicMock,
+        mock_logger_warning: MagicMock,
+    ) -> None:
+        """Log warning and skip plotting when only one class is present in truth."""
+        result = MagicMock()
+        result.coefficients = np.array([0.1, 0.2, 0.3])
+
+        plot_importance_roc_curve(result, truth=[1, 1, 1])
+
+        mock_logger_warning.assert_called_once()
+        mock_show.assert_not_called()
+
+    @patch("xwhy.plots.metrics.plt.show")
+    @patch("xwhy.plots.metrics.plt.savefig")
+    def test_plot_importance_roc_curve_success(
+        self,
+        mock_savefig: MagicMock,
+        mock_show: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test successful ROC curve plotting and saving."""
+        result = MagicMock()
+        result.coefficients = np.array([0.1, 0.8, 0.3, 0.9])
+        save_path = str(tmp_path / "roc_curve.png")
+
+        plot_importance_roc_curve(
+            result,
+            truth=[0, 1, 0, 1],
+            title="Custom ROC Title",
+            save_path=save_path,
+        )
+
+        mock_savefig.assert_called_once()
+        mock_show.assert_called_once()
+
+    @patch("xwhy.plots.metrics.logger.debug")
+    @patch("xwhy.plots.metrics.plt.show")
+    @patch("xwhy.plots.metrics.plt.savefig")
+    def test_plot_importance_roc_curve_with_save_path_and_logging(
+        self,
+        mock_savefig: MagicMock,
+        mock_show: MagicMock,
+        mock_logger_debug: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """Test ROC curve saves to disk and logs the debug message."""
+        result = MagicMock()
+        result.coefficients = np.array([0.1, 0.8, 0.3, 0.9])
+        save_path = str(tmp_path / "roc_curve.png")
+
+        plot_importance_roc_curve(
+            result,
+            truth=[0, 1, 0, 1],
+            save_path=save_path,
+        )
+
+        mock_savefig.assert_called_once()
+        mock_logger_debug.assert_called_once_with("ROC curve saved to: %s", save_path)
+        mock_show.assert_called_once()
+
+    @patch("xwhy.plots.metrics.plt.show")
+    def test_plot_importance_roc_curve_without_save_path(
+        self,
+        mock_show: MagicMock,
+    ) -> None:
+        """Test ROC curve displays correctly without saving to disk."""
+        result = MagicMock()
+        result.coefficients = np.array([0.1, 0.8, 0.3, 0.9])
+
+        plot_importance_roc_curve(
+            result,
+            truth=[0, 1, 0, 1],
+        )
+
+        mock_show.assert_called_once()

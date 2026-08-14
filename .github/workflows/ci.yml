@@ -31,6 +31,9 @@ jobs:
       - name: Install Dependencies
         run: uv sync --group dev
 
+      - name: Check Public API Reference Contract
+        run: uv run python scripts/api_reference.py --check
+
       - name: Run Nox Sessions [All Checks] (Lint, Mypy, Tests & Matrix Tests)
         run: uv run nox
 

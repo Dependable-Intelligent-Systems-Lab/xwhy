@@ -77,6 +77,9 @@ test-models-segmentation:
 test-perturbation:
     uv run pytest tests/perturbation
 
+test-datasets:
+    uv run pytest tests/datasets
+
 test-distance:
     uv run pytest tests/distance
 
@@ -179,6 +182,8 @@ clean:
     rm -rf site
     rm -f coverage.xml
     rm -f .coverage
+    rm -rf output
+    rm -rf outputs
 
     find . -type d -name "__pycache__" -exec rm -rf {} +
     find . -type f -name "*.pyc" -delete

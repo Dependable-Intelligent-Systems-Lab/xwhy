@@ -21,7 +21,7 @@ Current documented capabilities include:
 
 [Open the complete LLM Example](../../llm_explainer.md)
 
-[Open the LLM explainer API reference](../../reference/xwhy/explainers/llm/)
+[Open the LLM explainer API reference](../../reference/xwhy/explainers/llm.md)
 
 ## Interpretation boundary
 
