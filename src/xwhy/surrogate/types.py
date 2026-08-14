@@ -14,14 +14,56 @@ class SurrogateType(StrEnum):
     LIME = "lime_ols"  # Local Weighted OLS
     LIME_RIDGE = "lime_ridge"  # Local Weighted Ridge Regression (L2)
     BAYLIME = "baylime"  # Bayesian Weighted Ridge (L2)
+
     # Non-Linear Tree-Based Models
     RANDOMFOREST = "randomforest"
     GRADIENT_BOOSTING = "gradientboosting"
     XGBOOST = "xgboost"
 
+    @property
+    def is_linear_model(self) -> bool:
+        """Check if the surrogate type is a linear model.
+
+        Returns:
+            bool: True if it is a linear model, False otherwise.
+
+        """
+        return self in {
+            SurrogateType.GLM_OLS,
+            SurrogateType.GLM_RIDGE,
+            SurrogateType.LIME,
+            SurrogateType.LIME_RIDGE,
+            SurrogateType.BAYLIME,
+        }
+
+    @property
+    def is_tree_model(self) -> bool:
+        """Check if the surrogate type is a tree-based model.
+
+        Returns:
+            bool: True if it is a tree-based model, False otherwise.
+
+        """
+        return self in {
+            SurrogateType.RANDOMFOREST,
+            SurrogateType.GRADIENT_BOOSTING,
+            SurrogateType.XGBOOST,
+        }
+
     @classmethod
     def from_str(cls, value: str | SurrogateType) -> SurrogateType:
-        """Safely convert a string or enum instance to SurrogateType."""
+        """Safely convert a string or enum instance to SurrogateType.
+
+        Args:
+            value: The string or SurrogateType instance to convert.
+
+        Returns:
+            SurrogateType: The corresponding enumeration member.
+
+        Raises:
+            ValueError: If the provided value is not a valid SurrogateType.
+
+        """
         try:
             return cls(value)
         except ValueError as err:

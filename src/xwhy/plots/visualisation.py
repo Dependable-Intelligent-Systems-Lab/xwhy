@@ -321,9 +321,9 @@ def _format_value(value: Any, fmt: str = "%.2f") -> str:  # noqa: ANN401
 def _global_importance(values: np.ndarray) -> np.ndarray:
     """Collapse an attribution array to one importance score per feature."""
     if values.ndim == 1:
-        return cast(np.ndarray, np.abs(values))
+        return np.abs(values)
     axes = tuple(range(values.ndim - 1))
-    return cast(np.ndarray, np.abs(values).mean(axis=axes))
+    return np.abs(values).mean(axis=axes)
 
 
 def _group_minor_features(
@@ -1482,7 +1482,7 @@ def beeswarm(
     backend: str = "matplotlib",
     title: str | None = None,
     figsize: tuple[float, float] | None = None,
-    seed: int = 0,
+    seed: int = 42,
     **kwargs: Any,  # noqa: ANN401
 ) -> Figure | go.Figure | None:
     """Create a beeswarm summary plot.

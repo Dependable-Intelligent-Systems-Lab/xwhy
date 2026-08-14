@@ -88,7 +88,7 @@ class ImageClassificationExplainer(
         segmentation_type: str
         | SegmentationType = SegmentationType.DEEPLABV3_RESNET101,
         device: str = "cpu",
-        seed: int = 222,
+        seed: int = 42,
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
@@ -168,6 +168,18 @@ class ImageClassificationExplainer(
 
         if config.device is None:
             config.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        if (
+            getattr(config, "use_best_surrogate", True)
+            or not config.surrogate_type.is_linear_model  # type: ignore[attr-defined]
+        ):
+            logger.warning(
+                "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+                "can replace a black-box model with another complex model, "
+                "sacrificing local interpretability. The scientific community highly "
+                "recommends utilizing simple linear models (e.g., LIME, OLS) to "
+                "guarantee transparent and additive feature attributions."
+            )
 
         super().__init__(config)
 
@@ -613,7 +625,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         custom_generate_fn: Callable[..., Any] | None = None,
         # Core Shared Generation Parameters
         temperature: float = 0.0,
-        seed: int = 1024,
+        seed: int = 42,
         # Explainer Components
         use_image_embedding_model: bool = False,
         image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2,

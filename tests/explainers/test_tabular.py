@@ -58,7 +58,8 @@ def test_tabular_explainer_explain_classification_and_best_surrogate(
     """Verify explain execution in classification mode with surrogate search.
 
     Tests normalization warning, bincount prediction aggregation, find_best
-    surrogate search, classification y_pred thresholding, and fidelity plot.
+    surrogate search, classification y_pred thresholding, fidelity plot,
+    and non-linear surrogate warnings.
     """
     mock_calc_dist.return_value = 0.1
     mock_trainer.find_best.return_value = (SurrogateType.LIME, 0.95)
@@ -87,8 +88,18 @@ def test_tabular_explainer_explain_classification_and_best_surrogate(
         fidelity_plot=True,
     )
 
-    # Verify warning for unnormalized instance
-    mock_logger.warning.assert_called_once_with(
+    # Verify both warnings were triggered (Surrogate & Unnormalized)
+    assert mock_logger.warning.call_count == 2
+
+    mock_logger.warning.assert_any_call(
+        "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+        "can replace a black-box model with another complex model, "
+        "sacrificing local interpretability. The scientific community highly "
+        "recommends utilizing simple linear models (e.g., LIME, OLS) to guarantee "
+        "transparent and additive feature attributions."
+    )
+
+    mock_logger.warning.assert_any_call(
         "Instance appears not normalized. Ensure you pass standardized data."
     )
 
@@ -97,6 +108,28 @@ def test_tabular_explainer_explain_classification_and_best_surrogate(
     mock_result_cls.assert_called_once()
     mock_result_cls.return_value.plot.assert_called_once_with(show=True)
     assert result == mock_result_cls.return_value
+
+
+@patch("xwhy.explainers.tabular.logger")
+def test_tabular_explainer_nonlinear_surrogate_warning(
+    mock_logger: MagicMock,
+    mock_model: MagicMock,
+) -> None:
+    """Verify warning is logged when explicitly using a non-linear surrogate."""
+    _ = TabularExplainer(
+        model=mock_model,
+        mode="classification",
+        surrogate_type=SurrogateType.RANDOMFOREST,
+        use_best_surrogate=False,
+    )
+
+    mock_logger.warning.assert_called_once_with(
+        "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+        "can replace a black-box model with another complex model, "
+        "sacrificing local interpretability. The scientific community highly "
+        "recommends utilizing simple linear models (e.g., LIME, OLS) to guarantee "
+        "transparent and additive feature attributions."
+    )
 
 
 @patch("xwhy.explainers.tabular.logger")

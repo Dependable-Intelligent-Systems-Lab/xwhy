@@ -140,7 +140,7 @@ def test_init_classification_type_not_enum_in_config(
     mock_cfg.kernel_size = 4
     mock_cfg.max_dist = 200
     mock_cfg.ratio = 0.2
-    mock_cfg.seed = 222
+    mock_cfg.seed = 42
 
     with pytest.raises(ValueError, match=re.escape("Invalid classification type")):
         ImageClassificationExplainer(config=mock_cfg)
@@ -170,7 +170,7 @@ def test_init_embedding_validation_fails(
     mock_cfg.kernel_size = 4
     mock_cfg.max_dist = 200
     mock_cfg.ratio = 0.2
-    mock_cfg.seed = 222
+    mock_cfg.seed = 42
 
     with pytest.raises(ValueError, match=re.escape("Invalid embedding type")):
         ImageClassificationExplainer(config=mock_cfg)
@@ -225,7 +225,7 @@ def test_init_segmentation_validation_fails(
     mock_cfg.kernel_size = 4
     mock_cfg.max_dist = 200
     mock_cfg.ratio = 0.2
-    mock_cfg.seed = 222
+    mock_cfg.seed = 42
 
     with pytest.raises(ValueError, match=re.escape("Invalid segmentation type")):
         ImageClassificationExplainer(config=mock_cfg)
@@ -302,7 +302,7 @@ def test_init_device_auto_cuda(
     mock_cfg.kernel_size = 4
     mock_cfg.max_dist = 200
     mock_cfg.ratio = 0.2
-    mock_cfg.seed = 222
+    mock_cfg.seed = 42
 
     explainer = ImageClassificationExplainer(config=mock_cfg)
     assert explainer.config.device == "cuda"  # type: ignore[union-attr]
@@ -331,7 +331,7 @@ def test_init_device_auto_cpu(
     mock_cfg.kernel_size = 4
     mock_cfg.max_dist = 200
     mock_cfg.ratio = 0.2
-    mock_cfg.seed = 222
+    mock_cfg.seed = 42
 
     explainer = ImageClassificationExplainer(config=mock_cfg)
     assert explainer.config.device == "cpu"  # type: ignore[union-attr]
@@ -361,6 +361,40 @@ def test_init_custom_model_with_extras(
     assert explainer.config.custom_model is custom_mod  # type: ignore[union-attr]
     assert explainer.config.custom_preprocess is preprocess  # type: ignore[union-attr]
     assert explainer.config.categories is cats  # type: ignore[union-attr]
+
+
+@patch("xwhy.explainers.image.ImageClassificationExplainer._initialize")
+@patch("xwhy.explainers.image.logger")
+def test_image_classification_nonlinear_surrogate_warning(
+    mock_logger: MagicMock,
+    mock_initialize: MagicMock,
+) -> None:
+    """Verify warning is logged when explicitly using a non-linear surrogate.
+
+    Ensures that initializing the ImageClassificationExplainer with a tree-based
+    or complex surrogate model triggers the standard scientific community warning
+    regarding local interpretability.
+
+    Args:
+        mock_logger: Mocked logger object to verify warning calls.
+        mock_initialize: Mocked _initialize method to prevent loading heavy
+            PyTorch models during the test execution.
+
+    """
+    _ = ImageClassificationExplainer(
+        use_best_surrogate=False,
+        surrogate_type=SurrogateType.RANDOMFOREST,
+        use_embedding_model=False,
+        use_segmentation_model=False,
+    )
+
+    mock_logger.warning.assert_any_call(
+        "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+        "can replace a black-box model with another complex model, "
+        "sacrificing local interpretability. The scientific community highly "
+        "recommends utilizing simple linear models (e.g., LIME, OLS) to "
+        "guarantee transparent and additive feature attributions."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -549,7 +583,7 @@ def _build_explainer_mocks(
     explainer.config.use_model_preprocess = True
     explainer.config.use_embedding_model = use_embed
     explainer.config.distance_type = DistanceType.WASSERSTEIN
-    explainer.config.seed = 222
+    explainer.config.seed = 42
 
     explainer._run_perturbation_loop.return_value = (
         np.zeros((num_perturb, num_classes)),
@@ -1447,7 +1481,7 @@ def test_explain_logic(
     res_best = exp.explain(
         instance="valid long text description",
         input_image_path=str(p1),
-        seed=999,
+        seed=42,
         fidelity_plot=False,
     )
     assert isinstance(res_best, ImageGenerationAndEditingXWhyResult)
@@ -1513,7 +1547,7 @@ def test_image_generation_and_editing_explain_fidelity_plot_true(
         result = exp.explain(
             instance="valid long text description",
             input_image_path=str(p1),
-            seed=999,
+            seed=42,
             fidelity_plot=True,
         )
         assert result is mock_result_instance
@@ -1569,7 +1603,7 @@ def test_init_device_from_config_none_sets_cuda(
     mock_cfg.distance_type = DistanceType.WASSERSTEIN
     mock_cfg.surrogate_type = SurrogateType.LIME
     mock_cfg.use_best_surrogate = True
-    mock_cfg.seed = 1024
+    mock_cfg.seed = 42
     mock_cfg.temperature = 0.0
 
     explainer = ImageGenerationAndEditingExplainer(
@@ -1608,7 +1642,7 @@ def test_init_device_from_config_none_sets_cpu(
     mock_cfg.distance_type = DistanceType.WASSERSTEIN
     mock_cfg.surrogate_type = SurrogateType.LIME
     mock_cfg.use_best_surrogate = True
-    mock_cfg.seed = 1024
+    mock_cfg.seed = 42
     mock_cfg.temperature = 0.0
 
     explainer = ImageGenerationAndEditingExplainer(
@@ -1921,7 +1955,7 @@ def test_explain_seed_update_perturbator(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
     """Update text perturbator seed when explain seed differs from config."""
-    exp = ImageGenerationAndEditingExplainer(seed=1024)
+    exp = ImageGenerationAndEditingExplainer(seed=42)
     p1 = tmp_path / "valid.png"
     Image.new("RGB", (10, 10), color="blue").save(p1)
 
@@ -2087,7 +2121,7 @@ def test_init_invalid_segmentation_type_raises(
     mock_cfg.distance_type = DistanceType.WASSERSTEIN
     mock_cfg.surrogate_type = SurrogateType.LIME
     mock_cfg.use_best_surrogate = True
-    mock_cfg.seed = 1024
+    mock_cfg.seed = 42
     mock_cfg.temperature = 0.0
 
     with pytest.raises(ValueError, match="Invalid segmentation type"):
@@ -2209,7 +2243,7 @@ def test_initialize_unknown_engine_type_falls_through(
     mock_cfg.distance_type = DistanceType.WASSERSTEIN
     mock_cfg.surrogate_type = SurrogateType.LIME
     mock_cfg.use_best_surrogate = True
-    mock_cfg.seed = 1024
+    mock_cfg.seed = 42
     mock_cfg.temperature = 0.0
 
     # state.engine stays None

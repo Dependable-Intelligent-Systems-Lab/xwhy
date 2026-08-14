@@ -43,7 +43,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        seed: int = 1024,
+        seed: int = 42,
         device: str = "cpu",
         validate_normalization: bool = True,
     ) -> None:
@@ -92,6 +92,18 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
                 seed=seed,
                 device=device,
                 validate_normalization=validate_normalization,
+            )
+
+        if (
+            getattr(config, "use_best_surrogate", True)
+            or not config.surrogate_type.is_linear_model  # type: ignore[attr-defined]
+        ):
+            logger.warning(
+                "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+                "can replace a black-box model with another complex model, "
+                "sacrificing local interpretability. The scientific community highly "
+                "recommends utilizing simple linear models (e.g., LIME, OLS) to "
+                "guarantee transparent and additive feature attributions."
             )
 
         super().__init__(config)

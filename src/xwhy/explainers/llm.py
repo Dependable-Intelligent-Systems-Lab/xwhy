@@ -40,7 +40,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         model_name: str = "gpt-3.5-turbo-instruct",
         max_tokens: int = 200,
         temperature: float = 0.0,
-        seed: int = 1024,
+        seed: int = 42,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
@@ -129,11 +129,19 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 **self._provider_kwargs,
             )
 
+        if not self.config.embedding_type.is_text_embedding:  # type: ignore[union-attr]
+            raise ValueError(
+                "Invalid embedding type '%s' "
+                "for ImageGenerationAndEditingExplainer. Must be a text embedding.",
+                self.config.embedding_type,  # type: ignore[union-attr]
+            )
+
         logger.info(
-            f"Loading text embedding model: {self.config.embedding_type}"  # type: ignore[union-attr]
+            "Loading text embedding model: %s",
+            self.config.embedding_type,  # type: ignore[union-attr]
         )
         embedding_factory_result = EmbeddingFactory.create(
-            embedding=self.config.embedding_type  # type: ignore[union-attr]
+            embedding=self.config.embedding_type,  # type: ignore[union-attr]
         )
         self.state.embedding_model = embedding_factory_result.load()
         self.state.embedding_model.fill_norms(force=True)  # type: ignore[union-attr]

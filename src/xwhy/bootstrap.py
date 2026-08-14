@@ -450,7 +450,7 @@ def _build_glm_ols(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: ANN401
 
 
 def _build_ridge(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: ANN401
-    seed = int(kwargs.get("seed", 1024))
+    seed = int(kwargs.get("seed", 42))
     alpha = float(kwargs.get("ridge_alpha", 1.0))
     return LinearRegressionSurrogate(model=Ridge(alpha=alpha, random_state=seed))
 
@@ -460,17 +460,17 @@ def _build_bayesian_ridge(**kwargs: Any) -> LinearRegressionSurrogate:  # noqa: 
 
 
 def _build_random_forest(**kwargs: Any) -> TreeBasedSurrogate:  # noqa: ANN401
-    seed = int(kwargs.get("seed", 1024))
+    seed = int(kwargs.get("seed", 42))
     return TreeBasedSurrogate(model=RandomForestRegressor(random_state=seed))
 
 
 def _build_gradient_boosting(**kwargs: Any) -> TreeBasedSurrogate:  # noqa: ANN401
-    seed = int(kwargs.get("seed", 1024))
+    seed = int(kwargs.get("seed", 42))
     return TreeBasedSurrogate(model=GradientBoostingRegressor(random_state=seed))
 
 
 def _build_xgboost(**kwargs: Any) -> TreeBasedSurrogate:  # noqa: ANN401
-    seed = int(kwargs.get("seed", 1024))
+    seed = int(kwargs.get("seed", 42))
     return TreeBasedSurrogate(model=XGBRegressor(random_state=seed, verbosity=0))
 
 

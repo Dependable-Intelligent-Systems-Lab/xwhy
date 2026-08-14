@@ -22,3 +22,40 @@ def test_surrogate_type_from_str_invalid() -> None:
         ValueError, match=f"'{invalid_input}' is not a valid SurrogateType"
     ):
         SurrogateType.from_str(invalid_input)
+
+
+"""Unit tests for the surrogate model types enumeration."""
+
+
+def test_is_linear_model_property() -> None:
+    """Verify that the is_linear_model property correctly identifies linear models.
+
+    Ensures that all GLM, LIME, and BAYLIME variants return True, while
+    tree-based models return False.
+    """
+    assert SurrogateType.GLM_OLS.is_linear_model is True
+    assert SurrogateType.GLM_RIDGE.is_linear_model is True
+    assert SurrogateType.LIME.is_linear_model is True
+    assert SurrogateType.LIME_RIDGE.is_linear_model is True
+    assert SurrogateType.BAYLIME.is_linear_model is True
+
+    assert SurrogateType.RANDOMFOREST.is_linear_model is False
+    assert SurrogateType.GRADIENT_BOOSTING.is_linear_model is False
+    assert SurrogateType.XGBOOST.is_linear_model is False
+
+
+def test_is_tree_model_property() -> None:
+    """Verify that the is_tree_model property correctly identifies tree models.
+
+    Ensures that Random Forest, Gradient Boosting, and XGBoost return True,
+    while linear models return False.
+    """
+    assert SurrogateType.RANDOMFOREST.is_tree_model is True
+    assert SurrogateType.GRADIENT_BOOSTING.is_tree_model is True
+    assert SurrogateType.XGBOOST.is_tree_model is True
+
+    assert SurrogateType.GLM_OLS.is_tree_model is False
+    assert SurrogateType.GLM_RIDGE.is_tree_model is False
+    assert SurrogateType.LIME.is_tree_model is False
+    assert SurrogateType.LIME_RIDGE.is_tree_model is False
+    assert SurrogateType.BAYLIME.is_tree_model is False
