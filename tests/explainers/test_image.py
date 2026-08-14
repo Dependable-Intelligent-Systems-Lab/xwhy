@@ -363,6 +363,40 @@ def test_init_custom_model_with_extras(
     assert explainer.config.categories is cats  # type: ignore[union-attr]
 
 
+@patch("xwhy.explainers.image.ImageClassificationExplainer._initialize")
+@patch("xwhy.explainers.image.logger")
+def test_image_classification_nonlinear_surrogate_warning(
+    mock_logger: MagicMock,
+    mock_initialize: MagicMock,
+) -> None:
+    """Verify warning is logged when explicitly using a non-linear surrogate.
+
+    Ensures that initializing the ImageClassificationExplainer with a tree-based
+    or complex surrogate model triggers the standard scientific community warning
+    regarding local interpretability.
+
+    Args:
+        mock_logger: Mocked logger object to verify warning calls.
+        mock_initialize: Mocked _initialize method to prevent loading heavy
+            PyTorch models during the test execution.
+
+    """
+    _ = ImageClassificationExplainer(
+        use_best_surrogate=False,
+        surrogate_type=SurrogateType.RANDOMFOREST,
+        use_embedding_model=False,
+        use_segmentation_model=False,
+    )
+
+    mock_logger.warning.assert_any_call(
+        "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+        "can replace a black-box model with another complex model, "
+        "sacrificing local interpretability. The scientific community highly "
+        "recommends utilizing simple linear models (e.g., LIME, OLS) to "
+        "guarantee transparent and additive feature attributions."
+    )
+
+
 # ---------------------------------------------------------------------------
 # run / explain type & runtime checks
 # ---------------------------------------------------------------------------

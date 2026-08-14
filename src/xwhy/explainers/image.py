@@ -169,6 +169,18 @@ class ImageClassificationExplainer(
         if config.device is None:
             config.device = "cuda" if torch.cuda.is_available() else "cpu"
 
+        if (
+            getattr(config, "use_best_surrogate", True)
+            or not config.surrogate_type.is_linear_model  # type: ignore[attr-defined]
+        ):
+            logger.warning(
+                "Using a non-linear surrogate model or enabling 'use_best_surrogate' "
+                "can replace a black-box model with another complex model, "
+                "sacrificing local interpretability. The scientific community highly "
+                "recommends utilizing simple linear models (e.g., LIME, OLS) to "
+                "guarantee transparent and additive feature attributions."
+            )
+
         super().__init__(config)
 
         self.state = ImageClassificationState(
