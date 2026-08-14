@@ -48,7 +48,7 @@ class TorchvisionClassification(BaseClassification):
         *,
         settings: Settings,
         model_name: str = "inception_v3",
-        seed: int = 222,
+        seed: int = 42,
         device: torch.device | str | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:

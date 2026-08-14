@@ -43,7 +43,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        seed: int = 1024,
+        seed: int = 42,
         device: str = "cpu",
         validate_normalization: bool = True,
     ) -> None:

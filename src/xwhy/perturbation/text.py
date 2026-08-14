@@ -26,7 +26,7 @@ class TextPerturbation(BasePerturbation[Sequence[str], Sequence[int], list[str]]
     _KEEP_PROBABILITY: float = 0.5
     _MAX_ATTEMPT_FACTOR: int = 10
 
-    def __init__(self, *, seed: int = 1024) -> None:
+    def __init__(self, *, seed: int = 42) -> None:
         """Initialize the perturbation generator.
 
         Args:

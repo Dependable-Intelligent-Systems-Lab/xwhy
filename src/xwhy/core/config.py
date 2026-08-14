@@ -35,7 +35,7 @@ class LLMConfig(ExplainerConfig):
     model_name: str = "gpt-3.5-turbo-instruct"
     max_tokens: int = Field(default=200, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    seed: int = 1024
+    seed: int = 42
     num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
@@ -68,7 +68,7 @@ class ImageClassificationConfig(ExplainerConfig):
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
-    seed: int = 222
+    seed: int = 42
 
     kernel_size: int = Field(default=4, ge=1)
     max_dist: int = Field(default=200, gt=0)
@@ -103,7 +103,7 @@ class TabularConfig(ExplainerConfig):
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
-    seed: int = 1024
+    seed: int = 42
     device: str = "cpu"
     validate_normalization: bool = True
 

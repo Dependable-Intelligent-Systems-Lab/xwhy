@@ -40,7 +40,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         model_name: str = "gpt-3.5-turbo-instruct",
         max_tokens: int = 200,
         temperature: float = 0.0,
-        seed: int = 1024,
+        seed: int = 42,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,

@@ -88,7 +88,7 @@ class ImageClassificationExplainer(
         segmentation_type: str
         | SegmentationType = SegmentationType.DEEPLABV3_RESNET101,
         device: str = "cpu",
-        seed: int = 222,
+        seed: int = 42,
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
@@ -625,7 +625,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         custom_generate_fn: Callable[..., Any] | None = None,
         # Core Shared Generation Parameters
         temperature: float = 0.0,
-        seed: int = 1024,
+        seed: int = 42,
         # Explainer Components
         use_image_embedding_model: bool = False,
         image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2,

@@ -1482,7 +1482,7 @@ def beeswarm(
     backend: str = "matplotlib",
     title: str | None = None,
     figsize: tuple[float, float] | None = None,
-    seed: int = 0,
+    seed: int = 42,
     **kwargs: Any,  # noqa: ANN401
 ) -> Figure | go.Figure | None:
     """Create a beeswarm summary plot.

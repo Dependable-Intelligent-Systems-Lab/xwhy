@@ -56,7 +56,7 @@ class TorchvisionSegmentation(BaseSegmentation):
         *,
         settings: Settings,
         model_name: str = "deeplabv3_resnet101",
-        seed: int = 222,
+        seed: int = 42,
         device: torch.device | str | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> None:
