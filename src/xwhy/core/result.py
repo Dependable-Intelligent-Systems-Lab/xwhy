@@ -9,7 +9,6 @@ from typing import Any
 import numpy as np
 
 from xwhy.metrics.regression import RegressionMetricResult
-from xwhy.plots.metrics import plot_fidelity
 from xwhy.plots.visualisation import Explanation
 
 
