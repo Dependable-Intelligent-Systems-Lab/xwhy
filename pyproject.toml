@@ -101,6 +101,7 @@ all = [
 Homepage = "https://dependable-intelligent-systems-lab.github.io/xwhy/"
 Repository = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy.git"
 Issues = "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/issues"
+"Release Notes" = "https://dependable-intelligent-systems-lab.github.io/xwhy/release-notes/"
 
 [dependency-groups]
 dev = [

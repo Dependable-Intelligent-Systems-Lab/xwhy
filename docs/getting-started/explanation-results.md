@@ -15,7 +15,7 @@ Typical result content includes:
 - explanation-quality metrics;
 - data required by supported plots.
 
-The exact fields depend on the modality. Consult the generated [API reference](../reference/) for the authoritative Python interface.
+The exact fields depend on the modality. Consult the generated [API reference](../reference/index.md) for the authoritative Python interface.
 
 !!! warning "Interpretation boundary"
     A high-ranked feature is associated with changes in the local surrogate approximation. It is not automatically a causal factor, a globally important feature, or evidence of the model's internal reasoning process.

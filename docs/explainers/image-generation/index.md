@@ -32,4 +32,4 @@ Image-generation documentation is expected to cover:
 
 The current code contains `Pix2PixExplainer` as an early interface. It should remain described as an implementation prototype until its behaviour, accepted inputs, perturbation strategy, result type, tests, and examples are complete.
 
-[View the current Pix2Pix API interface](../../reference/xwhy/explainers/pix2pix/)
+[View the current Pix2Pix API interface](../../reference/xwhy/explainers/pix2pix.md)

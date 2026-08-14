@@ -19,4 +19,4 @@ Planned documentation will cover:
 
 Legacy point-cloud examples exist in the repository, but they should be reviewed and migrated before being treated as current package documentation.
 
-[View the current API reference](../reference/xwhy/explainers/pointcloud/)
+[View the current API reference](../reference/xwhy/explainers/pointcloud.md)

@@ -251,4 +251,4 @@ When reporting an LLM explanation:
 - test whether the main attribution pattern changes across reasonable settings; and
 - avoid presenting term contributions as hidden reasoning, causal proof, or a complete safety assessment.
 
-The [LLM explainer overview](explainers/llm/index.md) summarises the capability, and the [API reference](reference/xwhy/explainers/llm/) provides the implementation interface.
+The [LLM explainer overview](explainers/llm/index.md) summarises the capability, and the [API reference](reference/xwhy/explainers/llm.md) provides the implementation interface.

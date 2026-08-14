@@ -21,7 +21,7 @@ Current documented capabilities include:
 
 [Read the complete image-classification tutorial](../../image_classification_explainer.md)
 
-[Open the image explainer API reference](../../reference/xwhy/explainers/image/)
+[Open the image explainer API reference](../../reference/xwhy/explainers/image.md)
 
 ## Scope
 

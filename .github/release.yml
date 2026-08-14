@@ -1,0 +1,18 @@
+changelog:
+  exclude:
+    authors:
+      - dependabot
+      - dependabot[bot]
+  categories:
+    - title: Added and improved
+      labels:
+        - enhancement
+    - title: Fixed
+      labels:
+        - bug
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Other changes
+      labels:
+        - "*"

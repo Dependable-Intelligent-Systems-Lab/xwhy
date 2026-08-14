@@ -31,4 +31,4 @@ A future worked example should document:
 - checking attribution stability across generation seeds;
 - detecting unintended changes outside the target edit region.
 
-[View the current `Pix2PixExplainer` API interface](../../reference/xwhy/explainers/pix2pix/)
+[View the current `Pix2PixExplainer` API interface](../../reference/xwhy/explainers/pix2pix.md)
