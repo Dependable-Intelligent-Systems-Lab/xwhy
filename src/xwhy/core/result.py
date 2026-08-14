@@ -9,6 +9,8 @@ from typing import Any
 import numpy as np
 
 from xwhy.metrics.regression import RegressionMetricResult
+from xwhy.plots.metrics import plot_fidelity
+from xwhy.plots.visualisation import Explanation
 
 
 @dataclass
@@ -34,21 +36,33 @@ class BaseXWhyResult(ABC):
     def data(self) -> np.ndarray | Sequence[Any] | None:
         """The underlying raw data instance associated with the explanation."""
 
-    def to_shap(self) -> object:
-        """Convert the XWhy result into a standard SHAP Explanation object.
+    def to_explanation(self) -> Explanation:
+        """Convert the XWhy result into an :class:`Explanation`.
 
         Returns:
-            object: A fully initialized shap.Explanation instance.
+            Explanation: A fully initialized explanation container.
 
         """
-        import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-        return shap.Explanation(
+        return Explanation(
             values=self.coefficients,
             base_values=self.base_values,
             data=self.data,
             feature_names=self.feature_names,
         )
+
+    def to_shap(self) -> Explanation:
+        """Convert the result into an explanation object.
+
+        Deprecated alias of :meth:`to_explanation`, kept so notebooks written
+        against the old SHAP-backed API keep working. XWhy no longer depends
+        on ``shap``, so this returns an :class:`Explanation`, not a
+        ``shap.Explanation``.
+
+        Returns:
+            Explanation: A fully initialized explanation container.
+
+        """
+        return self.to_explanation()
 
     def plot(
         self, save_path: str | Path | None = None, show: bool = True
@@ -124,10 +138,8 @@ class ImageClassificationXWhyResult(BaseXWhyResult):
         """The underlying original image as a numpy array."""
         return self.original_image
 
-    def to_shap(self) -> object:
-        """Convert the XWhy image result into a SHAP Explanation object."""
-        import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+    def to_explanation(self) -> Explanation:
+        """Convert the XWhy image result into an :class:`Explanation`."""
         from xwhy.plots.image import create_image_heat_mask
 
         if self.superpixels.size > 0:
@@ -151,7 +163,7 @@ class ImageClassificationXWhyResult(BaseXWhyResult):
             data_arr = self.original_image
             final_shap_values = np.asarray(self.coefficients)
 
-        return shap.Explanation(
+        return Explanation(
             values=final_shap_values,
             base_values=self.base_values,
             data=data_arr,

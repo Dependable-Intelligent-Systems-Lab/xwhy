@@ -1,4 +1,10 @@
-"""Plotting interface for XWhy results and SHAP visualizations."""
+"""Plotting interface for XWhy results.
+
+The visualisations themselves live in :mod:`xwhy.plots.visualisation`, a native
+matplotlib/plotly/HTML engine. This module is the thin public surface over it:
+it validates the shape of each result and forwards to the engine, so the call
+signatures stay stable for existing notebooks.
+"""
 
 import functools
 import inspect
@@ -11,12 +17,14 @@ from typing import Any, TypeVar, cast
 import matplotlib.pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
+from matplotlib.figure import Figure
 
 from xwhy.core.result import (
     BaseXWhyResult,
     ImageGenerationAndEditingXWhyResult,
     TextXWhyResult,
 )
+from xwhy.plots import visualisation as viz
 from xwhy.logger import logger
 from xwhy.plots.factory import TextPlotterFactory
 from xwhy.plots.image import image_heatmap, plot_image  # noqa: F401
@@ -27,8 +35,12 @@ from xwhy.plots.tabular import (
     plot_method_contributions,  # noqa: F401
 )
 from xwhy.plots.types import TextPlotterType
+from xwhy.plots.visualisation import Explanation  # noqa: F401
 
 F = TypeVar("F", bound=Callable[..., Any])
+
+#: Return type shared by the plotting wrappers.
+type PlotResult = Figure | go.Figure | None
 
 
 @singledispatch
@@ -256,75 +268,56 @@ def plot_feature_box_plot(
 
 
 # ==============================================================================
-# SHAP WRAPPER PLOTS
+# COMPATIBILITY HELPERS
 # ==============================================================================
 
 
 def replace_shap_label[F: Callable[..., Any]](plot_func: F) -> F:
-    """Replace 'SHAP value' with 'XWhy value' in SHAP plots.
+    """Rewrite a lingering 'SHAP value' axis label to 'XWhy value'.
 
-    Detect dynamically if the underlying SHAP plot function accepts a
-    'show' parameter upon execution. If it does, suppress immediate
-    rendering, update the matplotlib axis/colorbar labels, and honor the
-    original 'show' argument state. Otherwise, pass arguments untampered.
+    XWhy's own plots already label their axes correctly, so this decorator is
+    no longer applied internally. It is kept, and still exported, so that user
+    code wrapping a third-party plotting function keeps working.
+
+    It detects whether the wrapped function accepts a ``show`` parameter. If it
+    does, rendering is suppressed long enough to relabel the axis, then the
+    original ``show`` intent is honoured. Otherwise arguments pass through
+    untouched.
 
     Args:
-        plot_func: The plotting function to be decorated.
+        plot_func: The plotting function to wrap.
 
     Returns:
-        F: The wrapped function with delayed SHAP initialization.
+        F: The wrapped function.
 
     """
+    try:
+        accepts_show = "show" in inspect.signature(plot_func).parameters
+    except (ValueError, TypeError):
+        accepts_show = False
 
     @functools.wraps(plot_func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-        import shap  # Lazy import to prevent initialization errors
-
-        shap_func_name = plot_func.__name__
-        shap_func = getattr(shap.plots, shap_func_name, None)
-
-        # 1. Check if the function is mocked (for pytest compatibility)
-        if shap_func is not None and hasattr(shap_func, "called"):
+        if not accepts_show:
             return plot_func(*args, **kwargs)
 
-        # 2. Inspect signature dynamically at execution time
-        accepts_show = False
-        if shap_func is not None:
-            try:
-                sig = inspect.signature(shap_func)
-                accepts_show = "show" in sig.parameters
-            except (ValueError, TypeError):
-                accepts_show = False
+        original_show = kwargs.get("show", True)
+        kwargs["show"] = False
 
-        # 3. Apply the rendering logic
-        if accepts_show:
-            original_show = kwargs.get("show", True)
-            kwargs["show"] = False
+        result = plot_func(*args, **kwargs)
 
-            result = plot_func(*args, **kwargs)
+        if len(plt.get_fignums()) > 0:
+            ax = plt.gca()
+            current_xlabel = ax.get_xlabel()
 
-            # Check all axes in the current figure (includes subplots and colorbars)
-            if len(plt.get_fignums()) > 0:
-                for ax in plt.gcf().get_axes():
-                    # Check and replace X-axis label (used in standard plots)
-                    current_xlabel = ax.get_xlabel()
-                    if current_xlabel and "SHAP value" in current_xlabel:
-                        new_xlabel = current_xlabel.replace("SHAP value", "XWhy value")
-                        ax.set_xlabel(new_xlabel)
-
-                    # Check and replace Y-axis label (or colorbar axis
-                    # label if oriented)
-                    current_ylabel = ax.get_ylabel()
-                    if current_ylabel and "SHAP value" in current_ylabel:
-                        new_ylabel = current_ylabel.replace("SHAP value", "XWhy value")
-                        ax.set_ylabel(new_ylabel)
+            if current_xlabel and "SHAP value" in current_xlabel:
+                new_xlabel = current_xlabel.replace("SHAP value", "XWhy value")
+                ax.set_xlabel(new_xlabel)
 
             if original_show:
                 plt.show()
 
-            return result
-
-        return plot_func(*args, **kwargs)
+        return result
 
     return cast(F, wrapper)
 
@@ -340,58 +333,48 @@ def _ensure_2d(result: BaseXWhyResult, plot_name: str) -> None:
         )
 
 
+def _is_image_result(result: BaseXWhyResult) -> bool:
+    """Report whether a result carries image structure."""
+    return hasattr(result, "superpixels") or hasattr(result, "original_image")
+
+
 # ==============================================================================
 # LOCAL PLOTS (Support 1D Data)
 # ==============================================================================
 
 
-@replace_shap_label
-def bar(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a bar plot of a set of SHAP values."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    shap.plots.bar(result.to_shap(), **kwargs)
+def bar(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Create a bar plot of a set of XWhy values."""
+    return viz.bar(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def waterfall(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
+def waterfall(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
     """Plot an explanation of a single prediction as a waterfall plot."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    shap.plots.waterfall(result.to_shap(), **kwargs)
+    return viz.waterfall(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def text(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Plot a text explanation using coloring and interactive labels."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    shap.plots.text(result.to_shap(), **kwargs)
+def text(result: BaseXWhyResult, **kwargs: Any) -> str:  # noqa: ANN401
+    """Plot a text explanation using coloured, self-contained HTML."""
+    return viz.text(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def force(result: BaseXWhyResult, **kwargs: Any) -> Any:  # noqa: ANN401
-    """Visualize the given SHAP values with an additive force layout."""
+def force(result: BaseXWhyResult, **kwargs: Any) -> Figure | str | None:  # noqa: ANN401
+    """Visualize the given XWhy values with an additive force layout."""
     # Note: base_value is deliberately omitted from arguments because
-    # it is inherently encapsulated within the `result.to_shap()` Explanation object.
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    return shap.plots.force(result.to_shap(), **kwargs)
+    # it is inherently encapsulated within the `result.to_explanation()` object.
+    return viz.force(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def decision(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Visualize model decisions using cumulative SHAP values."""
-    # Note: shap.plots.decision does NOT currently support the new Explanation object.
-    # We must unpack and pass the raw numpy arrays (old SHAP API).
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def decision(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Visualize model decisions using cumulative XWhy values."""
+    # The decision plot works off raw arrays rather than an Explanation, so the
+    # result is unpacked here.
     features = result.data if result.data is not None else None
     feature_names = (
         list(result.feature_names) if result.feature_names is not None else None
     )
 
-    shap.plots.decision(
+    return viz.decision(
         base_value=float(result.base_values)
         if isinstance(result.base_values, float)
         else result.base_values,
@@ -407,72 +390,60 @@ def decision(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
 # ==============================================================================
 
 
-@replace_shap_label
-def scatter(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a SHAP dependence scatter plot (requires multiple instances/2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def scatter(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Create a dependence scatter plot (requires multiple instances/2D data)."""
     _ensure_2d(result, "scatter")
-    shap.plots.scatter(result.to_shap(), **kwargs)
+    return viz.scatter(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def heatmap(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a SHAP heatmap plot (requires multiple instances/2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def heatmap(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Create a heatmap plot (requires multiple instances/2D data)."""
     _ensure_2d(result, "heatmap")
-    shap.plots.heatmap(result.to_shap(), **kwargs)
+    return viz.heatmap(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def beeswarm(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a SHAP beeswarm plot (requires multiple instances/2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def beeswarm(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Create a beeswarm plot (requires multiple instances/2D data)."""
     _ensure_2d(result, "beeswarm")
-    shap.plots.beeswarm(result.to_shap(), **kwargs)
+    return viz.beeswarm(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def violin(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a SHAP violin plot (requires multiple instances/2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def violin(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN401
+    """Create a violin plot (requires multiple instances/2D data)."""
     _ensure_2d(result, "violin")
-    shap.plots.violin(result.to_shap(), **kwargs)
+    return viz.violin(result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
-def embedding(ind: Any, result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Use the SHAP values as an embedding projected to 2D (requires 2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def embedding(
+    ind: Any,  # noqa: ANN401
+    result: BaseXWhyResult,
+    **kwargs: Any,  # noqa: ANN401
+) -> PlotResult:
+    """Use the XWhy values as an embedding projected to 2D (requires 2D data)."""
     _ensure_2d(result, "embedding")
-    shap.plots.embedding(ind, result.to_shap(), **kwargs)
+    return viz.embedding(ind, result.to_explanation(), **kwargs)
 
 
-@replace_shap_label
 def group_difference(
     result: BaseXWhyResult,
     group_mask: np.ndarray,
     **kwargs: Any,  # noqa: ANN401
-) -> None:
-    """Plot the difference in mean SHAP values between two groups (requires 2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+) -> PlotResult:
+    """Plot the difference in mean XWhy values between two groups (2D data)."""
     _ensure_2d(result, "group_difference")
     # group_mask is a required boolean array indicating group membership
-    shap.plots.group_difference(result.to_shap(), group_mask, **kwargs)
+    return viz.group_difference(result.to_explanation(), group_mask, **kwargs)
 
 
-@replace_shap_label
-def monitoring(ind: Any, result: BaseXWhyResult, features: Any, **kwargs: Any) -> None:  # noqa: ANN401
-    """Create a SHAP monitoring plot over time or indices (requires 2D data)."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
+def monitoring(
+    ind: Any,  # noqa: ANN401
+    result: BaseXWhyResult,
+    features: Any,  # noqa: ANN401
+    **kwargs: Any,  # noqa: ANN401
+) -> PlotResult:
+    """Create a monitoring plot over time or indices (requires 2D data)."""
     _ensure_2d(result, "monitoring")
-    shap.plots.monitoring(ind, result.to_shap(), features, **kwargs)
+    return viz.monitoring(ind, result.to_explanation(), features, **kwargs)
 
 
 # ==============================================================================
@@ -480,23 +451,20 @@ def monitoring(ind: Any, result: BaseXWhyResult, features: Any, **kwargs: Any) -
 # ==============================================================================
 
 
-@replace_shap_label
-def image(result: BaseXWhyResult, pixel_values: Any = None, **kwargs: Any) -> None:  # noqa: ANN401
-    """Plot SHAP values for image inputs."""
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    is_image_result = hasattr(result, "superpixels") or hasattr(
-        result, "original_image"
-    )
-
-    if result.coefficients.ndim < 3 and not is_image_result:
+def image(
+    result: BaseXWhyResult,
+    pixel_values: Any = None,  # noqa: ANN401
+    **kwargs: Any,  # noqa: ANN401
+) -> Figure | None:
+    """Plot XWhy values for image inputs."""
+    if result.coefficients.ndim < 3 and not _is_image_result(result):
         raise ValueError(
             "The 'image' plot requires image-structured explanations "
             "(3D or 4D arrays) or a result containing superpixels. "
             "It is not supported for 1D text explanations from LLMExplainer."
         )
 
-    shap_obj = result.to_shap()
+    explanation = result.to_explanation()
 
     if pixel_values is not None:
         pixel_values = np.asarray(pixel_values)
@@ -505,22 +473,18 @@ def image(result: BaseXWhyResult, pixel_values: Any = None, **kwargs: Any) -> No
         elif pixel_values.ndim == 2:  # (H, W)
             pixel_values = np.expand_dims(pixel_values, axis=0)  # (1, H, W)
 
-    shap.plots.image(shap_obj, pixel_values=pixel_values, **kwargs)
+    return viz.image(explanation, pixel_values=pixel_values, **kwargs)
 
 
-@replace_shap_label
-def image_to_text(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN401
-    """Plot SHAP values for image inputs with text outputs.
+def image_to_text(
+    result: BaseXWhyResult,
+    **kwargs: Any,  # noqa: ANN401
+) -> Figure | None:
+    """Plot XWhy values for image inputs with text outputs.
 
     Requires multimodal data.
     """
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    is_image_result = hasattr(result, "superpixels") or hasattr(
-        result, "original_image"
-    )
-
-    if result.coefficients.ndim < 3 and not is_image_result:
+    if result.coefficients.ndim < 3 and not _is_image_result(result):
         raise ValueError(
             "The 'image_to_text' plot requires multimodal "
             "image-to-text explanations (3D+ arrays) or a result containing "
@@ -528,45 +492,37 @@ def image_to_text(result: BaseXWhyResult, **kwargs: Any) -> None:  # noqa: ANN40
             "LLMExplainer."
         )
 
-    shap_obj = result.to_shap()
+    explanation = result.to_explanation()
 
-    if shap_obj.values.ndim < 5:  # type: ignore[attr-defined]
+    if explanation.values.ndim < 5:
         raise ValueError(
             "The 'image_to_text' plot is designed for multimodal text generation "
             "models (e.g., Image captioning) and requires 5D explanations. "
             "For Image Classification models, please use `xwhy.plots.image()` instead."
         )
 
-    shap.plots.image_to_text(shap_obj, **kwargs)
+    return viz.image_to_text(explanation, **kwargs)
+
+
+# ==============================================================================
+# MODEL INSPECTION
+# ==============================================================================
+
+
+def partial_dependence(
+    ind: Any,  # noqa: ANN401
+    model: Any,  # noqa: ANN401
+    data: Any,  # noqa: ANN401
+    **kwargs: Any,  # noqa: ANN401
+) -> PlotResult:
+    """Plot the partial dependence of a model on a single feature."""
+    return viz.partial_dependence(ind, model, data, **kwargs)
 
 
 def initjs() -> None:
-    """Initialize JavaScript dependencies for SHAP visualizations.
+    """Do nothing; kept so SHAP-style notebooks keep running unchanged.
 
-    Load the required JavaScript libraries for interactive SHAP plots
-    within a Jupyter notebook environment.
+    XWhy renders its text and force plots as static HTML, so there is no
+    JavaScript bundle to initialise.
     """
-    logger.debug("Initializing SHAP JavaScript dependencies.")
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    shap.plots.initjs()
-
-
-def partial_dependence(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-    """Generate a partial dependence plot using SHAP.
-
-    Pass all positional and keyword arguments directly to the underlying
-    SHAP partial dependence plotting function.
-
-    Args:
-        *args: Positional arguments for the SHAP plotting function.
-        **kwargs: Keyword arguments for the SHAP plotting function.
-
-    Returns:
-        Any: The resulting SHAP plot object or matplotlib figure.
-
-    """
-    logger.debug("Executing SHAP partial dependence plot.")
-    import shap  # Lazy import to prevent numba/llvmlite initialization errors
-
-    return shap.plots.partial_dependence(*args, **kwargs)
+    viz.initjs()
