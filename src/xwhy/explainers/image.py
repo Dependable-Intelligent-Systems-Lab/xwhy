@@ -586,7 +586,13 @@ class ImageClassificationExplainer(
 
 
 class ImageGenerationAndEditingExplainer(BaseExplainer):
-    """Explainer for image generation and editing tasks."""
+    """Explainer for image generation and editing tasks.
+
+    This class manages the lifecycle of generating text perturbations, executing
+    image generation or editing models, calculating distance metrics between base
+    and perturbed images, and training a surrogate model to extract feature
+    importances (explanations) for the generation process.
+    """
 
     def __init__(
         self,
@@ -625,7 +631,34 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         use_best_surrogate: bool = True,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
-        """Initialize the image generation and editing explainer."""
+        """Initialize the image generation and editing explainer.
+
+        Args:
+            config: Optional pre-configured settings object.
+            engine: The primary model provider, custom class, or string identifier.
+            model_name: Name of the underlying model to use.
+            pipe: HuggingFace pipeline or custom pipeline object.
+            custom_model: Custom model instance for generation/editing.
+            custom_generate_fn: Callable function for custom model generation.
+            temperature: Temperature parameter for the model.
+            seed: Random seed for reproducibility.
+            use_image_embedding_model: Flag to enable image embedding.
+            image_embedding_type: Type of image embedding to utilize.
+            text_embedding_type: Type of text embedding to utilize.
+            use_segmentation_model: Flag to enable image segmentation.
+            segmentation_type: Type of segmentation model to utilize.
+            output_dir: Directory to save intermediate and final outputs.
+            device: Device to run local models on ('cpu' or 'cuda').
+            num_perturbations: Number of text perturbations to generate.
+            distance_type: Metric used to compute distance between images.
+            surrogate_type: Type of surrogate model to train for explanation.
+            use_best_surrogate: Flag to automatically find the best surrogate model.
+            **provider_kwargs: Additional keyword arguments for the model provider.
+
+        Raises:
+            ValueError: If an invalid distance metric is provided.
+
+        """
         self._action: Literal["generate", "edit"] = "generate"
         distance_type = DistanceType.from_str(distance_type)
 
@@ -643,7 +676,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             resolved_device = config.device
         elif resolved_device is None:
             resolved_device = "cuda" if torch.cuda.is_available() else "cpu"
-            config.device = resolved_device
+            if config is not None:
+                config.device = resolved_device
 
         self.state = ImageGenerationAndEditingState(
             device_=torch.device(resolved_device)
@@ -688,9 +722,11 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 target_str = (
                     engine
                     if isinstance(engine, str)
-                    else engine.value
-                    if isinstance(engine, ProviderType)
-                    else engine.__class__.__name__.lower().replace("provider", "")
+                    else (
+                        engine.value
+                        if isinstance(engine, ProviderType)
+                        else engine.__class__.__name__.lower().replace("provider", "")
+                    )
                 )
                 try:
                     provider_type = ProviderType.from_str(target_str)
@@ -758,7 +794,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 use_segmentation_model=use_segmentation_model,
                 segmentation_type=segmentation_type,
                 output_dir=output_dir,
-                device=device,
+                device=resolved_device,
                 num_perturbations=num_perturbations,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
@@ -769,8 +805,13 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         self._initialize()
 
     def _initialize(self) -> None:
-        """Initialize runtime resources."""
-        # 1. Unified engine Initialization
+        """Initialize runtime resources and load required models.
+
+        Raises:
+            ValueError: If configuration constraints are violated, such as missing
+                custom functions or unsupported provider modes.
+
+        """
         if self.state.engine is None:
             engine_type = self.config.engine_type  # type: ignore[union-attr]
 
@@ -790,8 +831,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                     "Initializing %s Model Adapter...", engine_type.capitalize()
                 )
                 self.state.engine = CustomImageGenerationAndEditingModel(
-                    generate_fn=self.config.custom_generate_fn,  # type: ignore
-                    model=self.config.custom_model,  # type: ignore
+                    generate_fn=self.config.custom_generate_fn,  # type: ignore[union-attr]
+                    model=self.config.custom_model,  # type: ignore[union-attr]
                     **self._provider_kwargs,
                 )
             # Logic for standard providers (Case 1)
@@ -832,49 +873,57 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 )
 
         # 2. Load Image Embedding Model (if enabled)
-        if self.config.use_image_embedding_model:  # type: ignore
-            if not self.config.image_embedding_type.is_image_embedding:  # type: ignore
+        if self.config.use_image_embedding_model:  # type: ignore[union-attr]
+            if not self.config.image_embedding_type.is_image_embedding:  # type: ignore[union-attr]
                 raise ValueError(
                     "Invalid embedding type '%s' "
                     "for ImageGenerationAndEditingExplainer. Must be an image "
                     "embedding.",
-                    self.config.image_embedding_type,  # type: ignore
+                    self.config.image_embedding_type,  # type: ignore[union-attr]
                 )
 
             logger.info(
-                f"Loading image embedding model: {self.config.image_embedding_type}"  # type: ignore[union-attr]
+                "Loading image embedding model: %s",
+                self.config.image_embedding_type,  # type: ignore[union-attr]
             )
             self.state.image_embedding_model = EmbeddingFactory.create(
-                embedding=self.config.image_embedding_type,  # type: ignore
+                embedding=self.config.image_embedding_type,  # type: ignore[union-attr]
                 device=self.state.device,
             )
             self.state.image_embedding_model.load()
 
         # 3. Load Text Embedding Model
-        if not self.config.text_embedding_type.is_text_embedding:  # type: ignore
+        if not self.config.text_embedding_type.is_text_embedding:  # type: ignore[union-attr]
             raise ValueError(
                 "Invalid text embedding type '%s' "
                 "for ImageGenerationAndEditingExplainer. Must be a text embedding.",
-                self.config.text_embedding_type,  # type: ignore
+                self.config.text_embedding_type,  # type: ignore[union-attr]
             )
 
-        logger.info(f"Loading text embedding model: {self.config.text_embedding_type}")  # type: ignore
+        logger.info(
+            "Loading text embedding model: %s",
+            self.config.text_embedding_type,  # type: ignore[union-attr]
+        )
         embedding_factory_result = EmbeddingFactory.create(
-            embedding=self.config.text_embedding_type,  # type: ignore
+            embedding=self.config.text_embedding_type,  # type: ignore[union-attr]
         )
         self.state.text_embedding_model = embedding_factory_result.load()
         self.state.text_embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
 
         # 4. Load Segmentation Model (if enabled)
-        if self.config.use_segmentation_model:  # type: ignore
-            if not isinstance(self.config.segmentation_type, SegmentationType):  # type: ignore
+        if self.config.use_segmentation_model:  # type: ignore[union-attr]
+            if not isinstance(self.config.segmentation_type, SegmentationType):  # type: ignore[union-attr]
                 raise ValueError(
-                    f"Invalid segmentation type '{self.config.segmentation_type}'."  # type: ignore
+                    "Invalid segmentation type '%s'.",
+                    self.config.segmentation_type,  # type: ignore[union-attr]
                 )
 
-            logger.info(f"Loading segmentation model: {self.config.segmentation_type}")  # type: ignore
+            logger.info(
+                "Loading segmentation model: %s",
+                self.config.segmentation_type,  # type: ignore[union-attr]
+            )
             self.state.segmentation_model = SegmentationFactory.create(
-                segmentation=self.config.segmentation_type,  # type: ignore
+                segmentation=self.config.segmentation_type,  # type: ignore[union-attr]
                 device=self.state.device,
             )
             self.state.segmentation_model.load()
@@ -886,7 +935,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         )
 
     def _prepare_environment(self, output_dir: str, seed: int) -> None:
-        """Set seeds and create output directory for the current run.
+        """Set random seeds and ensure the output directory exists.
 
         Args:
             output_dir: Target directory path to create.
@@ -912,11 +961,11 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
     def _get_provider_specific_kwargs(self) -> dict[str, Any]:
         """Retrieve provider-specific keyword arguments.
 
-        Dynamically configures compatibility parameters for providers (like ByteDance)
-        that utilize OpenAI's client format but require specialized payload flags.
+        Dynamically configures compatibility parameters for providers that require
+        specialized payload flags.
 
         Returns:
-            dict[str, Any]: A dictionary containing required extra kwargs.
+            A dictionary containing required extra keyword arguments.
 
         """
         kwargs: dict[str, Any] = {}
@@ -1077,11 +1126,11 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         display_image: bool = False,
         output_dir: str = "outputs",
     ) -> np.ndarray:
-        """Compute distances between the original image and generated perturbations.
+        """Compute distances between the original image and perturbations.
 
         Args:
             input_image_path: Path to the original input image.
-            generated_images: List of tuples containing success flags and file paths.
+            generated_images: List of generated success flags and file paths.
             prompts: List of perturbation text prompts.
             display_image: Flag to display perturbation images and details.
             output_dir: Directory to save the distance metrics array.
@@ -1202,7 +1251,13 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             **kwargs: Additional generation options (e.g., batch, size, extra_body).
 
         Returns:
-            An ``ImageGenerationAndEditingXWhyResult`` containing explanation output.
+            An outcome container carrying explanation data and surrogate metrics.
+
+        Raises:
+            FileNotFoundError: If the provided image path does not exist.
+            TypeError: If the prompt is not a string.
+            ValueError: If the prompt is empty or too short.
+            RuntimeError: If base image generation fails.
 
         """
         kernel_width = getattr(self.config, "kernel_width", 0.25)
