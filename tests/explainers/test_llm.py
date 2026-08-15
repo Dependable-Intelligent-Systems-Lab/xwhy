@@ -55,6 +55,30 @@ def test_init_raises_value_error_for_non_text_embedding(
         LLMExplainer(embedding_type="invalid")
 
 
+def test_init_raises_value_error_for_invalid_provider_string() -> None:
+    """Ensure initialization fails if provider string is unknown."""
+    provider = "unknown_provider_xyz"
+    with pytest.raises(
+        ValueError,
+        match=f"'{provider}' is not a valid ProviderType. ",
+    ):
+        LLMExplainer(provider=provider)
+
+
+@patch("xwhy.explainers.llm.ProviderResolver.resolve")
+def test_initialize_raises_value_error_for_invalid_config_embedding(
+    mock_resolve: MagicMock,
+) -> None:
+    """Ensure _initialize fails if an explicit config has non-text embedding."""
+    mock_config = MagicMock()
+    mock_config.provider_type = ProviderType.OPENAI
+    mock_config.embedding_type.is_text_embedding = False
+    mock_config.embedding_type.__str__.return_value = "fake_emb"
+
+    with pytest.raises(ValueError, match="Invalid embedding type"):
+        LLMExplainer(config=mock_config)
+
+
 @patch("xwhy.explainers.llm.EmbeddingFactory")
 @patch("xwhy.explainers.llm.TextPerturbation")
 def test_init_with_known_base_provider(

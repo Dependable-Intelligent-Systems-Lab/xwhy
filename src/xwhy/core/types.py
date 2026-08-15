@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Any
 
+import numpy as np
 import torch
 
 from xwhy.models.classification.base import BaseClassification
@@ -151,3 +152,19 @@ class ImageGenerationAndEditingState:
         self.segmentation_model: BaseSegmentation | None = None
         self.image_embedding_model: BaseEmbedding | None = None
         self.text_embedding_model: BaseEmbedding | None = None
+
+
+class TextState:
+    """Runtime state for the Text explainer."""
+
+    def __init__(self) -> None:
+        """Initialize the runtime state.
+
+        This object stores runtime resources created during the explainer
+        lifecycle, including models, prediction callables, perturbators, and
+        embeddings.
+        """
+        self.model: Any = None
+        self.predict_fn: Callable[[Sequence[str]], np.ndarray] | None = None
+        self.perturbator: TextPerturbation | None = None
+        self.embedding_model: BaseEmbedding | None = None

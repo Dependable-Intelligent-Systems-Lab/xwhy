@@ -6,6 +6,7 @@ from xwhy.core.types import (
     ImageClassificationState,
     ImageGenerationAndEditingState,
     TabularState,
+    TextState,
 )
 
 
@@ -58,3 +59,13 @@ def test_image_generation_and_editing_state_init_with_cuda() -> None:
     state = ImageGenerationAndEditingState(device_=expected_device)
 
     assert state.device == expected_device
+
+
+def test_text_state_init() -> None:
+    """Test the initialization of TabularState."""
+    state = TextState()
+
+    assert state.model is None
+    assert state.predict_fn is None
+    assert state.perturbator is None
+    assert state.embedding_model is None

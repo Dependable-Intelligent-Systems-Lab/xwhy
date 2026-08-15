@@ -654,3 +654,162 @@ def test_retrieve_image_batch_comprehensive_coverage(
     assert results[0][0] is True
     assert results[1][0] is False
     assert results[2][0] is False
+
+
+@patch("os.makedirs")
+def test_retrieve_image_batch_missing_response_and_candidates(
+    mock_makedirs: MagicMock,
+) -> None:
+    """Test batch retrieval with missing response or candidates keys."""
+    client = MagicMock()
+    mock_job = MagicMock()
+    mock_job.state.name = "JOB_STATE_SUCCEEDED"
+    mock_job.dest.file_name = "results.jsonl"
+    client.batches.get.return_value = mock_job
+
+    lines = [
+        json.dumps(
+            {
+                "custom_id": "gemini_request_0_image",
+                "other_key": "value",
+            }
+        ),
+        json.dumps(
+            {
+                "custom_id": "gemini_request_1_image",
+                "response": {
+                    "other_field": "value",
+                },
+            }
+        ),
+    ]
+    client.files.download.return_value = b"\n".join(x.encode() for x in lines)
+
+    provider = GeminiProvider(client)
+    provider._create_placeholder_image = MagicMock(return_value="placeholder.png")  # type: ignore[method-assign]
+
+    results = provider.retrieve_image_batch(
+        job_name="job1", text_list=["prompt0", "prompt1"]
+    )
+
+    assert len(results) == 2
+    assert results[0][0] is False
+    assert results[1][0] is False
+
+
+@patch("os.makedirs")
+def test_retrieve_image_batch_json_parse_error_with_custom_id_branch(
+    mock_makedirs: MagicMock,
+) -> None:
+    """Test JSON parse error with custom_id present."""
+    client = MagicMock()
+    mock_job = MagicMock()
+    mock_job.state.name = "JOB_STATE_SUCCEEDED"
+    mock_job.dest.file_name = "results.jsonl"
+    client.batches.get.return_value = mock_job
+
+    content = b'{"custom_id": "gemini_request_0_image", invalid_json}\n'
+    client.files.download.return_value = content
+
+    provider = GeminiProvider(client)
+    provider._create_placeholder_image = MagicMock(return_value="placeholder.png")  # type: ignore[method-assign]
+
+    results = provider.retrieve_image_batch(job_name="job1", text_list=["t1"])
+
+    assert len(results) == 1
+    assert results[0][0] is False
+
+
+@patch("os.makedirs")
+def test_retrieve_image_batch_candidate_missing_content_or_parts(
+    mock_makedirs: MagicMock,
+) -> None:
+    """Test candidate missing content or parts structure."""
+    client = MagicMock()
+    mock_job = MagicMock()
+    mock_job.state.name = "JOB_STATE_SUCCEEDED"
+    mock_job.dest.file_name = "results.jsonl"
+    client.batches.get.return_value = mock_job
+
+    lines = [
+        json.dumps(
+            {
+                "custom_id": "gemini_request_0_image",
+                "response": {"candidates": [{"other_field": "value"}]},
+            }
+        )
+    ]
+    client.files.download.return_value = b"\n".join(x.encode() for x in lines)
+
+    provider = GeminiProvider(client)
+    provider._create_placeholder_image = MagicMock(return_value="placeholder.png")  # type: ignore[method-assign]
+
+    results = provider.retrieve_image_batch(job_name="job1", text_list=["prompt0"])
+
+    assert len(results) == 1
+    assert results[0][0] is False
+
+
+@patch("os.makedirs")
+def test_retrieve_image_batch_json_parse_error_without_custom_id(
+    mock_makedirs: MagicMock,
+) -> None:
+    """Test JSON parse error without custom_id key."""
+    client = MagicMock()
+    mock_job = MagicMock()
+    mock_job.state.name = "JOB_STATE_SUCCEEDED"
+    mock_job.dest.file_name = "results.jsonl"
+    client.batches.get.return_value = mock_job
+
+    # Malformed line entirely missing "custom_id" to trigger the 'else' branch
+    content = b"completely malformed line without custom id key\n"
+    client.files.download.return_value = content
+
+    provider = GeminiProvider(client)
+    provider._create_placeholder_image = MagicMock(return_value="placeholder.png")  # type: ignore[method-assign]
+
+    results = provider.retrieve_image_batch(job_name="job1", text_list=["t1"])
+
+    assert len(results) == 1
+    assert results[0][0] is False
+
+
+@patch("os.makedirs")
+def test_retrieve_image_batch_path_none_non_string_placeholder(
+    mock_makedirs: MagicMock,
+) -> None:
+    """Cover path is None with non-string placeholder (isinstance false branch).
+
+    When a custom_id is present in processed_results with path=None (API
+    refusal / no inlineData) and _create_placeholder_image returns a
+    non-string value, the result must not be appended to final_output_list.
+    """
+    client = MagicMock()
+    mock_job = MagicMock()
+    mock_job.state.name = "JOB_STATE_SUCCEEDED"
+    mock_job.dest.file_name = "results.jsonl"
+    client.batches.get.return_value = mock_job
+
+    lines = [
+        json.dumps(
+            {
+                "custom_id": "gemini_request_0_image",
+                "response": {
+                    "candidates": [{"content": {"parts": [{"text": "refused"}]}}]
+                },
+            }
+        )
+    ]
+    client.files.download.return_value = b"\n".join(x.encode() for x in lines)
+
+    provider = GeminiProvider(client)
+    # Non-string return covers the false branch of isinstance(placeholder, str)
+    # at the path-is-None arm inside the custom_id-in-results block.
+    provider._create_placeholder_image = MagicMock(  # type: ignore[method-assign]
+        return_value=Image.new("RGB", (10, 10))
+    )
+
+    results = provider.retrieve_image_batch(job_name="job1", text_list=["t1"])
+
+    assert len(results) == 0
+    provider._create_placeholder_image.assert_called_once()

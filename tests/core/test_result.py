@@ -33,7 +33,12 @@ class ConcreteResult(BaseXWhyResult):
 
 @pytest.fixture
 def mock_metrics() -> RegressionMetricResult:
-    """Provide a dummy metric result fixture."""
+    """Provide a dummy metric result fixture.
+
+    Returns:
+        RegressionMetricResult: A mocked metric result object.
+
+    """
     return RegressionMetricResult(
         weighted_mse=0.1,
         weighted_mae=0.1,
@@ -73,6 +78,28 @@ def test_text_result_initialization(mock_metrics: RegressionMetricResult) -> Non
     assert result.words == words
     assert result.feature_names == words
     assert np.array_equal(result.data, np.array(words))
+
+
+def test_text_result_word_importances(mock_metrics: RegressionMetricResult) -> None:
+    """Verify that word_importances correctly zips words with float coefficients."""
+    coeffs = np.array([0.5, -1.2, 3.0])
+    words = ["word1", "word2", "word3"]
+    result = TextXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        original_output="output",
+        words=words,
+    )
+
+    importances = result.word_importances
+
+    assert isinstance(importances, list)
+    assert len(importances) == 3
+    assert importances == [
+        ("word1", 0.5),
+        ("word2", -1.2),
+        ("word3", 3.0),
+    ]
 
 
 def test_raw_data_mutation(mock_metrics: RegressionMetricResult) -> None:

@@ -101,7 +101,15 @@ class BaseXWhyResult(ABC):
 
 @dataclass
 class TextXWhyResult(BaseXWhyResult):
-    """Container for text-specific explanation results."""
+    """Container for text-specific explanation results.
+
+    Supports explanations from both LLMExplainer and standard NLP TextExplainer.
+
+    Attributes:
+        original_output: Model prediction or text output for the original input.
+        words: Sequence of text tokens/words corresponding to attribution scores.
+
+    """
 
     original_output: str = ""
     words: Sequence[str] = field(default_factory=list)
@@ -115,6 +123,17 @@ class TextXWhyResult(BaseXWhyResult):
     def data(self) -> np.ndarray:
         """The underlying raw data tokens as a numpy array."""
         return np.array(self.words)
+
+    @property
+    def word_importances(self) -> list[tuple[str, float]]:
+        """List of (word, coefficient) pairs representing feature importances."""
+        return list(
+            zip(
+                self.words,
+                [float(c) for c in self.coefficients],
+                strict=False,
+            )
+        )
 
 
 @dataclass

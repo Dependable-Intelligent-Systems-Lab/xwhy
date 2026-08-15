@@ -928,3 +928,33 @@ def test_partial_dependence_direct(mock_viz_pd: MagicMock) -> None:
     mock_viz_pd.assert_called_once_with(
         "ind_val", "model_val", [1, 2, 3], interaction_index=0
     )
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_bar_chart_with_feature_names(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Skip the feature-name fallback when result already provides names."""
+    result = DummyResult(coefficients=np.array([1.5, -2.0, 0.5]), metrics=mock_metrics)
+    with patch.object(
+        DummyResult, "feature_names", new_callable=PropertyMock
+    ) as mock_fn:
+        mock_fn.return_value = ["alpha", "beta", "gamma"]
+        plot_feature_bar_chart(result)
+
+    mock_show.assert_called_once()
+
+
+@patch("plotly.graph_objects.Figure.show")
+def test_plot_feature_box_plot_with_feature_names(
+    mock_show: MagicMock, mock_metrics: RegressionMetricResult
+) -> None:
+    """Skip the feature-name fallback when result already provides names."""
+    result = DummyResult(coefficients=np.array([1.0, 2.0]), metrics=mock_metrics)
+    with patch.object(
+        DummyResult, "feature_names", new_callable=PropertyMock
+    ) as mock_fn:
+        mock_fn.return_value = ["feat_a", "feat_b"]
+        plot_feature_box_plot(result)
+
+    mock_show.assert_called_once()
