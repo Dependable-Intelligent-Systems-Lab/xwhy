@@ -152,3 +152,23 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     normalization_mode: Literal["linear", "inverse"] = "linear"
     kernel_width: float = Field(default=0.25, gt=0.0)
     ridge_alpha: float = Field(default=1.0, ge=0.0)
+
+
+class TextConfig(ExplainerConfig):
+    """Configuration for the Text explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+        arbitrary_types_allowed=True,
+    )
+
+    model: Any = None
+    predict_fn: Callable[..., Any] | None = None
+    seed: int = 42
+    num_perturbations: int = Field(default=64, gt=0)
+    embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True

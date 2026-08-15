@@ -6,6 +6,7 @@ import re
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
 from gensim.models import KeyedVectors
 
 from xwhy.distance.base import BaseDistance
@@ -25,11 +26,10 @@ class WMDDistance(BaseDistance):
         and trims surrounding whitespace.
 
         Args:
-            text:
-                Input text.
+            text: Input text to be normalized.
 
         Returns:
-            Cleaned text.
+            Cleaned and normalized text string.
 
         """
         cleaned = re.sub(r"[^\w\s]", "", text.lower())
@@ -42,15 +42,18 @@ class WMDDistance(BaseDistance):
         target: str,
         **kwargs: Any,  # noqa: ANN401
     ) -> float:
-        """Compute Word Mover's Distance.
+        """Compute Word Mover's Distance between two text instances.
 
         Args:
-            source: Source text.
-            target: Target text.
-            **kwargs: Must contain 'model' (Loaded Word2Vec KeyedVectors).
+            source: Source text string.
+            target: Target text string.
+            **kwargs: Must contain 'model' (loaded Word2Vec KeyedVectors).
 
         Returns:
-            float: Word Mover's Distance.
+            float: Calculated Word Mover's Distance value.
+
+        Raises:
+            ValueError: If 'model' is missing or not an instance of KeyedVectors.
 
         """
         model = kwargs.get("model")
@@ -71,38 +74,67 @@ class WMDDistance(BaseDistance):
 
         return float(model.wmdistance(words1, words2))
 
+    @staticmethod
+    def sanitize_distances(distances: np.ndarray) -> np.ndarray:
+        """Sanitize raw distance array by safely handling NaN and Infinite values.
+
+        Non-finite values are replaced by a fallback distance equal to the maximum
+        finite distance plus 50.0, or 100.0 if all values are non-finite.
+
+        Args:
+            distances: 1D array of raw distance values.
+
+        Returns:
+            np.ndarray: Sanitized 1D array guaranteed to contain finite float values.
+
+        """
+        cleaned = np.array(distances, dtype=float, copy=True)
+        finite_mask = np.isfinite(cleaned)
+        finite_distances = cleaned[finite_mask]
+
+        if finite_distances.size > 0:
+            max_finite_distance = float(np.max(finite_distances))
+            safe_fallback = max_finite_distance + 50.0
+            cleaned[~finite_mask] = safe_fallback
+        else:
+            cleaned[:] = 100.0
+
+        return cleaned
+
     def compute_batch(
         self,
         *,
         model: KeyedVectors,
         original: str,
         perturbed_texts: Sequence[str],
+        sanitize: bool = False,
     ) -> list[tuple[str, float]]:
-        """Compute WMD scores for perturbed texts.
+        """Compute WMD scores for a batch of perturbed texts.
 
         Args:
-            model:
-                Loaded Word2Vec model.
-
-            original:
-                Original text.
-
-            perturbed_texts:
-                Perturbed text samples.
+            model: Loaded Word2Vec model.
+            original: Original input text string.
+            perturbed_texts: Sequence of perturbed text samples.
+            sanitize: If True, applies sanitize_distances to clean non-finite values.
 
         Returns:
-            List of (text, distance).
+            list[tuple[str, float]]: List of (perturbed_text, distance) tuples.
 
         """
-        scores: list[tuple[str, float]] = []
-
-        for text in perturbed_texts:
-            distance = self.compute(
+        raw_distances = [
+            self.compute(
                 source=original,
                 target=text,
                 model=model,
             )
+            for text in perturbed_texts
+        ]
 
-            scores.append((text, distance))
+        if sanitize:
+            distances = self.sanitize_distances(
+                np.array(raw_distances, dtype=float)
+            ).tolist()
+        else:
+            distances = raw_distances
 
-        return scores
+        return list(zip(perturbed_texts, distances, strict=True))
