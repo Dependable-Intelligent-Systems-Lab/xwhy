@@ -397,6 +397,29 @@ def test_image_classification_nonlinear_surrogate_warning(
     )
 
 
+@patch("xwhy.explainers.image.ImageClassificationExplainer._initialize")
+@patch("xwhy.explainers.image.logger")
+def test_image_classification_linear_surrogate_no_warning(
+    mock_logger: MagicMock,
+    mock_initialize: MagicMock,
+) -> None:
+    """Skip the non-linear surrogate warning when conditions are false.
+
+    Covers the false branch of the guard at line 172 (172 -> 184):
+    use_best_surrogate=False and surrogate_type is a linear model (LIME).
+    """
+    _ = ImageClassificationExplainer(
+        use_best_surrogate=False,
+        surrogate_type=SurrogateType.LIME,
+        use_embedding_model=False,
+        use_segmentation_model=False,
+    )
+
+    warning_msg = "Using a non-linear surrogate model or enabling 'use_best_surrogate'"
+    for call in mock_logger.warning.call_args_list:
+        assert warning_msg not in str(call)
+
+
 # ---------------------------------------------------------------------------
 # run / explain type & runtime checks
 # ---------------------------------------------------------------------------

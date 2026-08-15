@@ -714,16 +714,6 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             engine_type = "pipeline"
             model_name = "pipeline_model"
             custom_model = pipe  # Treat the pipeline as the custom model itself
-            if custom_generate_fn is None:
-                # Fallback generator assuming HuggingFace diffusers standard behavior
-                def _default_pipe_generate(
-                    model: Any,  # noqa: ANN401
-                    prompt: str,
-                    **kwargs: Any,  # noqa: ANN401
-                ) -> Any:  # noqa: ANN401
-                    return model(prompt, **kwargs).images[0]
-
-                custom_generate_fn = _default_pipe_generate
 
         # Case 3: Engine parameter provided (Standard Provider or Custom Class/Instance)
         elif engine is not None:

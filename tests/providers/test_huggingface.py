@@ -726,3 +726,28 @@ def test_pipeline_exception_fallback_not_image(
     assert success is False
     # path is still built, but no .save() occurred
     assert path.endswith(".png")
+
+
+@patch("os.makedirs")
+def test_generate_image_inpaint_pipe_no_mask_required(
+    mock_makedirs: MagicMock,
+    tmp_path: Any,  # noqa: ANN401
+) -> None:
+    """Fall through supports_mask block when input_image_path is None."""
+    mock_pipe = _make_pipe("StableDiffusionInpaintPipeline")
+    mock_image = MagicMock(spec=Image.Image)
+    mock_pipe.return_value = MagicMock(images=[mock_image])
+
+    provider = HuggingFaceProvider(
+        client=MagicMock(),
+        pipe=mock_pipe,
+        use_segmentation_model=True,
+    )
+    success, path = provider.generate_image(
+        prompt="a landscape",
+        output_dir=str(tmp_path),
+    )
+
+    assert success is True
+    assert path.endswith(".png")
+    mock_image.save.assert_called_once()
