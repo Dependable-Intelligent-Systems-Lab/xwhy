@@ -238,14 +238,40 @@ class TextExplainer(BaseExplainer):
         if self.state.embedding_model is None:
             raise RuntimeError("Embedding model state is not initialized.")
 
-        wmd_scores = wmd_distance.compute_batch(
+        raw_wmd_scores = wmd_distance.compute_batch(
             model=self.state.embedding_model,
             original=instance,
             perturbed_texts=perturbed_texts,
             sanitize=True,
         )
 
-        distances_array = np.array([d for _, d in wmd_scores], dtype=float)
+        # ---------------------------------------------------------
+        # Distance Validation & Imputation setup:
+        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # ---------------------------------------------------------
+        logger.info("Validating perturbation distances...")
+        distances_raw = np.array([d for _, d in raw_wmd_scores], dtype=float)
+
+        # Filter out non-finite values to determine the maximum valid distance
+        valid_distances = distances_raw[np.isfinite(distances_raw)]
+
+        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
+        # all failed
+        if len(valid_distances) > 0:
+            max_penalty = np.max(valid_distances) + 1000.0
+        else:
+            max_penalty = 1000.0
+
+        # Impute infinite/NaN values with the dynamically calculated maximum penalty
+        distances_array = np.where(
+            np.isfinite(distances_raw), distances_raw, max_penalty
+        )
+
+        # Reconstruct wmd_scores with imputed values for downstream consistency
+        wmd_scores = [
+            (text, float(dist))
+            for (text, _), dist in zip(raw_wmd_scores, distances_array, strict=False)
+        ]
 
         masks_as_arrays: list[np.ndarray] = [
             np.array(m, dtype=int) for m in binary_masks
