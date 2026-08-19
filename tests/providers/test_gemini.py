@@ -1,12 +1,16 @@
 """Unit tests for the Gemini provider functionality."""
 
 import json
-from unittest.mock import MagicMock, PropertyMock, mock_open, patch
+from unittest.mock import MagicMock, PropertyMock, call, mock_open, patch
 
 import pytest
 from PIL import Image
 
 from xwhy.providers.gemini import GeminiProvider
+
+# -------------------------------------------------------------------------
+# Text Generation Tests
+# -------------------------------------------------------------------------
 
 
 @patch("xwhy.providers.gemini.types")
@@ -44,8 +48,12 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
     )
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.types")
-def test_gemini_provider_safety_block_fallback(mock_types: MagicMock) -> None:
+def test_gemini_provider_safety_block_fallback(
+    mock_types: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
     """Test that Gemini provider raises RuntimeError when blocked by safety filters."""
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -61,28 +69,39 @@ def test_gemini_provider_safety_block_fallback(mock_types: MagicMock) -> None:
     with pytest.raises(
         RuntimeError, match="blocked \\(likely due to safety filters\\)"
     ):
-        provider.answer(prompt="Blocked prompt test")
+        provider.answer(prompt="Blocked prompt test", max_retries=2)
 
-    mock_client.models.generate_content.assert_called_once()
-    mock_types.Part.from_text.assert_called_once_with(text="Blocked prompt test")
+    # Asserts retries happened and sleep was called once before failing on 2nd try
+    assert mock_client.models.generate_content.call_count == 2
+    mock_sleep.assert_called_once()
+    mock_types.Part.from_text.assert_called_with(text="Blocked prompt test")
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.types")
-def test_gemini_provider_api_error(mock_types: MagicMock) -> None:
-    """Test general exception handling during API calls."""
+def test_gemini_provider_api_error(
+    mock_types: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """Test general exception handling and retries during API calls."""
     mock_client = MagicMock()
     mock_client.models.generate_content.side_effect = Exception("API error")
 
     provider = GeminiProvider(client=mock_client)
 
     with pytest.raises(RuntimeError, match="API error"):
-        provider.answer(prompt="Error prompt test")
+        provider.answer(prompt="Error prompt test", max_retries=3)
 
-    mock_client.models.generate_content.assert_called_once()
+    assert mock_client.models.generate_content.call_count == 3
+    assert mock_sleep.call_count == 2
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.types")
-def test_gemini_empty_text_response_raises_error(mock_types: MagicMock) -> None:
+def test_gemini_empty_text_response_raises_error(
+    mock_types: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
     """Test RuntimeError is raised when Gemini returns empty text directly."""
     mock_client = MagicMock()
     mock_response = MagicMock()
@@ -94,16 +113,77 @@ def test_gemini_empty_text_response_raises_error(mock_types: MagicMock) -> None:
 
     expected_error = "empty response from the Gemini API"
     with pytest.raises(RuntimeError, match=expected_error):
-        provider.answer(prompt="Test empty response")
+        provider.answer(prompt="Test empty response", max_retries=2)
 
-    mock_client.models.generate_content.assert_called_once()
+    assert mock_client.models.generate_content.call_count == 2
+    mock_sleep.assert_called_once()
 
 
+def test_gemini_provider_zero_retries() -> None:
+    """Test text generation fails immediately if max_retries is less than 1."""
+    provider = GeminiProvider(client=MagicMock())
+
+    with pytest.raises(RuntimeError, match="max_retries must be at least 1"):
+        provider.answer(prompt="Test", max_retries=0)
+
+
+@patch("time.sleep", return_value=None)
+@patch("xwhy.providers.gemini.types")
+def test_gemini_generate_success_after_retries(
+    mock_types: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """Test generation succeeds on a subsequent retry with an explicit delay."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    type(mock_response).text = PropertyMock(return_value="Delayed success")
+
+    mock_client.models.generate_content.side_effect = [
+        Exception("Temporary failure"),
+        mock_response,
+    ]
+
+    provider = GeminiProvider(client=mock_client)
+    result = provider.answer(prompt="Test", max_retries=3, delay=5.5)
+
+    assert result == "Delayed success"
+    assert mock_client.models.generate_content.call_count == 2
+    mock_sleep.assert_called_once_with(5.5)
+
+
+@patch("time.sleep", return_value=None)
+@patch("xwhy.providers.gemini.types")
+def test_gemini_generate_exponential_backoff_max(
+    mock_types: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """Test exponential backoff correctly caps at 30 seconds across retries."""
+    mock_client = MagicMock()
+    mock_client.models.generate_content.side_effect = Exception("Fail")
+
+    provider = GeminiProvider(client=mock_client)
+
+    with pytest.raises(RuntimeError):
+        # 6 retries mean 5 sleeps: 2, 4, 8, 16, 30 (cap)
+        provider.answer(prompt="Test", max_retries=6)
+
+    expected_sleep_calls = [call(2), call(4), call(8), call(16), call(30)]
+    mock_sleep.assert_has_calls(expected_sleep_calls)
+    assert mock_sleep.call_count == 5
+
+
+# -------------------------------------------------------------------------
+# Image Generation & Execution Tests
+# -------------------------------------------------------------------------
+
+
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.Image.open")
 @patch("os.makedirs")
 def test_generate_image_stream_no_inline_data(
     mock_makedirs: MagicMock,
     mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test stream generation where chunks/parts lack inline_data."""
     client = MagicMock()
@@ -117,18 +197,21 @@ def test_generate_image_stream_no_inline_data(
     provider._create_placeholder_image = MagicMock(return_value=None)  # type: ignore[method-assign]
 
     success, _ = provider.generate_image(
-        prompt="Test", output_dir="fake_dir", stream=True
+        prompt="Test", output_dir="fake_dir", stream=True, max_retries=2
     )
 
     assert success is False
+    assert mock_sleep.call_count == 1
     provider._create_placeholder_image.assert_called_once()
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.Image.open")
 @patch("os.makedirs")
 def test_generate_image_no_stream_no_inline_data(
     mock_makedirs: MagicMock,
     mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test non-stream generation where response parts lack inline_data."""
     client = MagicMock()
@@ -142,16 +225,19 @@ def test_generate_image_no_stream_no_inline_data(
     provider._create_placeholder_image = MagicMock(return_value=None)  # type: ignore[method-assign]
 
     success, _ = provider.generate_image(
-        prompt="Test", output_dir="fake_dir", stream=False
+        prompt="Test", output_dir="fake_dir", stream=False, max_retries=2
     )
 
     assert success is False
+    assert mock_sleep.call_count == 1
     provider._create_placeholder_image.assert_called_once()
 
 
+@patch("time.sleep", return_value=None)
 @patch("os.makedirs")
 def test_execute_image_request_fallback_not_pil_image(
     mock_makedirs: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test when fallback image is not a PIL Image instance."""
     client = MagicMock()
@@ -160,17 +246,13 @@ def test_execute_image_request_fallback_not_pil_image(
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value=12345)  # type: ignore[method-assign]
 
-    success, _ = provider.generate_image("Test", "out", stream=False)
+    success, _ = provider.generate_image("Test", "out", stream=False, max_retries=1)
 
     assert success is False
     provider._create_placeholder_image.assert_called_once()
 
 
-# -------------------------------------------------------------------------
-# Image Generation Tests
-# -------------------------------------------------------------------------
-
-
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.Image.open")
 @patch("os.makedirs")
 @patch("time.time", return_value=1234567.89)
@@ -178,6 +260,7 @@ def test_generate_image_stream_success(
     mock_time: MagicMock,
     mock_makedirs: MagicMock,
     mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test successful image generation with stream enabled."""
     client = MagicMock()
@@ -201,11 +284,13 @@ def test_generate_image_stream_success(
     mock_img_instance.save.assert_called_once()
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.Image.open")
 @patch("os.makedirs")
 def test_generate_image_no_stream_success(
     mock_makedirs: MagicMock,
     mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test successful image generation with stream disabled."""
     client = MagicMock()
@@ -229,21 +314,55 @@ def test_generate_image_no_stream_success(
     mock_img_instance.save.assert_called_once()
 
 
+@patch("time.sleep", return_value=None)
 @patch("os.makedirs")
-def test_generate_image_exception_fallback(mock_makedirs: MagicMock) -> None:
+def test_generate_image_exception_fallback(
+    mock_makedirs: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
     """Test exception during API call triggers the placeholder fallback logic."""
     client = MagicMock()
     client.models.generate_content_stream.side_effect = Exception("Stream fail")
 
     provider = GeminiProvider(client)
-
-    # Mock fallback to return a non-image (string) to test type checking branch
     provider._create_placeholder_image = MagicMock(return_value="not_an_image")  # type: ignore[method-assign]
 
-    success, _ = provider.generate_image("Test", "out", stream=True)
+    success, _ = provider.generate_image("Test", "out", stream=True, max_retries=2)
 
     assert success is False
+    assert mock_sleep.call_count == 1
     provider._create_placeholder_image.assert_called_once()
+
+
+@patch("time.sleep", return_value=None)
+@patch("xwhy.providers.gemini.Image.open")
+@patch("os.makedirs")
+def test_generate_image_success_after_retry_with_delay(
+    mock_makedirs: MagicMock,
+    mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """Test image generation success on a subsequent retry with an explicit delay."""
+    client = MagicMock()
+
+    mock_response = MagicMock()
+    mock_part = MagicMock()
+    mock_part.inline_data = MagicMock(data=b"img", mime_type="image/png")
+    mock_response.parts = [mock_part]
+
+    client.models.generate_content.side_effect = [Exception("Fail"), mock_response]
+
+    mock_img_instance = MagicMock(spec=Image.Image)
+    mock_image_open.return_value = mock_img_instance
+
+    provider = GeminiProvider(client)
+    success, _ = provider.generate_image(
+        prompt="Test", output_dir="out", stream=False, max_retries=2, delay=4.2
+    )
+
+    assert success is True
+    mock_sleep.assert_called_once_with(4.2)
+    assert client.models.generate_content.call_count == 2
 
 
 # -------------------------------------------------------------------------
@@ -328,7 +447,7 @@ def test_edit_image_png_success(
 @patch("os.remove")
 @patch("builtins.open")
 def test_submit_image_batch_with_image_and_seed(
-    mock_open: MagicMock, mock_remove: MagicMock
+    mock_open_func: MagicMock, mock_remove: MagicMock
 ) -> None:
     """Test batch submission with a base image and a deterministic seed."""
     client = MagicMock()
@@ -343,21 +462,20 @@ def test_submit_image_batch_with_image_and_seed(
     )
 
     assert job_name == str(mock_job.name)
-    assert client.files.upload.call_count == 2  # Once for img, once for JSONL
+    assert client.files.upload.call_count == 2
     mock_remove.assert_called_once()
 
 
 @patch("os.remove")
 @patch("builtins.open")
 def test_submit_image_batch_no_image_os_error(
-    mock_open: MagicMock, mock_remove: MagicMock
+    mock_open_func: MagicMock, mock_remove: MagicMock
 ) -> None:
-    """Test batch submission without a base image, and catching OSError on cleanup."""
+    """Test batch submission without base image, catching OSError on cleanup."""
     client = MagicMock()
     mock_job = MagicMock(name="job_123")
     client.batches.create.return_value = mock_job
 
-    # Trigger OSError in the try/except block for os.remove
     mock_remove.side_effect = OSError("Permission denied")
 
     provider = GeminiProvider(client)
@@ -366,13 +484,13 @@ def test_submit_image_batch_no_image_os_error(
     )
 
     assert job_name == str(mock_job.name)
-    client.files.upload.assert_called_once()  # Only JSONL uploaded
+    client.files.upload.assert_called_once()
 
 
 @patch("os.makedirs")
 @patch("builtins.open")
 def test_retrieve_image_batch_success_found_image(
-    mock_open: MagicMock, mock_makedirs: MagicMock
+    mock_open_func: MagicMock, mock_makedirs: MagicMock
 ) -> None:
     """Test polling success and processing of JSONL with valid PNG and JPG data."""
     client = MagicMock()
@@ -380,7 +498,6 @@ def test_retrieve_image_batch_success_found_image(
     mock_job.state.name = "JOB_STATE_SUCCEEDED"
     client.batches.get.return_value = mock_job
 
-    # Construct JSONL with one PNG candidate and one JPG candidate
     lines = [
         json.dumps(
             {
@@ -405,7 +522,7 @@ def test_retrieve_image_batch_success_found_image(
         ),
         json.dumps(
             {
-                "key": "gemini_request_1_image",  # Testing fallback "key" lookup
+                "key": "gemini_request_1_image",
                 "response": {
                     "candidates": [
                         {
@@ -447,7 +564,6 @@ def test_retrieve_image_batch_no_inline_data_and_missing_result(
     mock_job.state.name = "JOB_STATE_SUCCEEDED"
     client.batches.get.return_value = mock_job
 
-    # Line 1: Valid JSON but missing inlineData. Line 2 (for t2) is completely missing.
     lines = [
         json.dumps(
             {
@@ -461,14 +577,10 @@ def test_retrieve_image_batch_no_inline_data_and_missing_result(
     client.files.download.return_value = b"\n".join(x.encode() for x in lines)
 
     provider = GeminiProvider(client)
-
-    # Mock placeholder to test returning both a string path and None
     provider._create_placeholder_image = MagicMock(side_effect=["out.png", None])  # type: ignore[method-assign]
 
     results = provider.retrieve_image_batch(job_name="job1", text_list=["t1", "t2"])
 
-    # First one appends because placeholder returns a string
-    # Second one skips appending because placeholder returns None
     assert len(results) == 1
     assert results[0][0] is False
     assert results[0][1] == "out.png"
@@ -484,7 +596,6 @@ def test_retrieve_image_batch_json_parse_error(
     mock_job.state.name = "JOB_STATE_SUCCEEDED"
     client.batches.get.return_value = mock_job
 
-    # One line with a parseable custom_id, one completely malformed
     content = (
         b'{"custom_id": "gemini_request_0_image", invalid\n'
         b"completely bad string format\n"
@@ -545,11 +656,13 @@ def test_retrieve_image_batch_empty_lines_and_non_string_placeholder(
     provider._create_placeholder_image.assert_called_once()
 
 
+@patch("time.sleep", return_value=None)
 @patch("xwhy.providers.gemini.Image.open")
 @patch("os.makedirs")
 def test_execute_image_request_fallback_is_pil_image(
     mock_makedirs: MagicMock,
     mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
 ) -> None:
     """Test when API fails and fallback image returns a valid PIL Image instance."""
     client = MagicMock()
@@ -559,7 +672,7 @@ def test_execute_image_request_fallback_is_pil_image(
     dummy_img = MagicMock(spec=Image.Image)
     provider._create_placeholder_image = MagicMock(return_value=dummy_img)  # type: ignore[method-assign]
 
-    success, _ = provider.generate_image("Test", "out", stream=False)
+    success, _ = provider.generate_image("Test", "out", stream=False, max_retries=1)
 
     assert success is False
     dummy_img.save.assert_called_once()
@@ -603,8 +716,6 @@ def test_retrieve_image_batch_comprehensive_coverage(
     client.batches.get.return_value = mock_job
 
     lines = [
-        # 1. Valid JPEG inlineData (hits image/jpeg, .jpg extension, path is
-        # not None branch)
         json.dumps(
             {
                 "custom_id": "gemini_request_0_image",
@@ -626,8 +737,6 @@ def test_retrieve_image_batch_comprehensive_coverage(
                 },
             }
         ),
-        # 2. Candidate with no inlineData (hits "if not found_image:" and path is
-        # None -> placeholder)
         json.dumps(
             {
                 "custom_id": "gemini_request_1_image",
@@ -644,8 +753,6 @@ def test_retrieve_image_batch_comprehensive_coverage(
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value="placeholder.png")  # type: ignore[method-assign]
 
-    # Three items: index 0 (found), index 1 (not found -> path is None),
-    # index 2 (missing entirely from results)
     results = provider.retrieve_image_batch(
         job_name="job1", text_list=["prompt0", "prompt1", "prompt2"]
     )
@@ -761,7 +868,6 @@ def test_retrieve_image_batch_json_parse_error_without_custom_id(
     mock_job.dest.file_name = "results.jsonl"
     client.batches.get.return_value = mock_job
 
-    # Malformed line entirely missing "custom_id" to trigger the 'else' branch
     content = b"completely malformed line without custom id key\n"
     client.files.download.return_value = content
 
@@ -778,12 +884,7 @@ def test_retrieve_image_batch_json_parse_error_without_custom_id(
 def test_retrieve_image_batch_path_none_non_string_placeholder(
     mock_makedirs: MagicMock,
 ) -> None:
-    """Cover path is None with non-string placeholder (isinstance false branch).
-
-    When a custom_id is present in processed_results with path=None (API
-    refusal / no inlineData) and _create_placeholder_image returns a
-    non-string value, the result must not be appended to final_output_list.
-    """
+    """Cover path is None with non-string placeholder."""
     client = MagicMock()
     mock_job = MagicMock()
     mock_job.state.name = "JOB_STATE_SUCCEEDED"

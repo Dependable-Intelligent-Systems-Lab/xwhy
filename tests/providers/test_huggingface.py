@@ -1,8 +1,9 @@
 """Unit tests for the HuggingFace provider functionality."""
 
+import re
 from collections.abc import Callable
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 import torch
@@ -59,8 +60,9 @@ def test_huggingface_provider_success() -> None:
     )
 
 
-def test_huggingface_provider_api_error() -> None:
-    """Test general exception handling during HuggingFace API calls."""
+@patch("time.sleep", return_value=None)
+def test_huggingface_provider_api_error(mock_sleep: MagicMock) -> None:
+    """Test general exception handling and retries during HuggingFace API calls."""
     mock_client = MagicMock()
     mock_client.chat.completions.create.side_effect = Exception(
         "Model loading or API error"
@@ -69,21 +71,17 @@ def test_huggingface_provider_api_error() -> None:
     provider = HuggingFaceProvider(client=mock_client)
 
     with pytest.raises(RuntimeError, match="Model loading or API error"):
-        provider.answer(prompt="Error prompt test")
+        provider.answer(prompt="Error prompt test", max_retries=3)
 
-    mock_client.chat.completions.create.assert_called_once_with(
-        model="meta-llama/Meta-Llama-3-8B-Instruct",
-        messages=[{"role": "user", "content": "Error prompt test"}],
-        max_tokens=512,
-        temperature=0.1,
-    )
+    assert mock_client.chat.completions.create.call_count == 3
+    assert mock_sleep.call_count == 2
 
 
-def test_huggingface_empty_text_response_raises_error() -> None:
-    """Test RuntimeError is raised when HuggingFace returns empty text.
-
-    This covers the 'if not result_text:' block for the HuggingFace API.
-    """
+@patch("time.sleep", return_value=None)
+def test_huggingface_empty_text_response_raises_error(
+    mock_sleep: MagicMock,
+) -> None:
+    """Test RuntimeError is raised when HuggingFace returns empty text."""
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_choice = MagicMock()
@@ -96,9 +94,69 @@ def test_huggingface_empty_text_response_raises_error() -> None:
 
     expected_error = "empty response from the HuggingFace API"
     with pytest.raises(RuntimeError, match=expected_error):
-        provider.answer(prompt="Test empty response")
+        provider.answer(prompt="Test empty response", max_retries=2)
 
-    mock_client.chat.completions.create.assert_called_once()
+    assert mock_client.chat.completions.create.call_count == 2
+    mock_sleep.assert_called_once()
+
+
+@patch("time.sleep", return_value=None)
+def test_huggingface_generate_retry_success(mock_sleep: MagicMock) -> None:
+    """Test text generation succeeds after retry with explicit delay."""
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = "Recovered text"
+    mock_response.choices = [mock_choice]
+
+    mock_client.chat.completions.create.side_effect = [
+        Exception("Temporary failure"),
+        mock_response,
+    ]
+
+    provider = HuggingFaceProvider(client=mock_client)
+    result = provider.answer(prompt="Retry test", max_retries=3, delay=2.5)
+
+    assert result == "Recovered text"
+    assert mock_client.chat.completions.create.call_count == 2
+    mock_sleep.assert_called_once_with(2.5)
+
+
+@patch("time.sleep", return_value=None)
+def test_huggingface_generate_exponential_backoff(
+    mock_sleep: MagicMock,
+) -> None:
+    """Test exponential backoff for text generation retries up to the 30s cap."""
+    mock_client = MagicMock()
+    mock_client.chat.completions.create.side_effect = Exception("API error")
+
+    provider = HuggingFaceProvider(client=mock_client)
+
+    with pytest.raises(RuntimeError, match="HuggingFace request failed"):
+        provider.answer(prompt="Test backoff", max_retries=6)
+
+    expected_sleep_calls = [call(2), call(4), call(8), call(16), call(30)]
+    mock_sleep.assert_has_calls(expected_sleep_calls)
+    assert mock_sleep.call_count == 5
+
+
+def test_huggingface_generate_zero_retries_raises_fallback() -> None:
+    """Test that zero retries triggers the fallback RuntimeError.
+
+    The loop never executes when max_retries is set to zero, so control
+    falls through to the final exception raise.
+
+    """
+    mock_client = MagicMock()
+    provider = HuggingFaceProvider(client=mock_client)
+
+    with pytest.raises(
+        RuntimeError,
+        match=re.escape("HuggingFace text generation failed after max retries."),
+    ):
+        provider.answer(prompt="prompt", max_retries=0)
+
+    mock_client.chat.completions.create.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -214,7 +272,35 @@ def test_initialize_pipeline_instruct_pix2pix() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float32
     mock_pipe.to.assert_called_once()
+    assert provider.pipe is mock_pipe
+
+
+def test_initialize_pipeline_instruct_pix2pix_cuda() -> None:
+    """Build an InstructPix2Pix pipeline when CUDA is available (float16)."""
+    mock_client = MagicMock()
+    mock_pipe = MagicMock()
+    mock_pipe.scheduler.config = {}
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch(
+            "diffusers.StableDiffusionInstructPix2PixPipeline.from_pretrained",
+            return_value=mock_pipe,
+        ) as mock_from_pretrained,
+        patch(
+            "diffusers.EulerAncestralDiscreteScheduler.from_config",
+            return_value=MagicMock(),
+        ),
+    ):
+        provider = HuggingFaceProvider(
+            client=mock_client,
+            model_name="timbrooks/instruct-pix2pix",
+        )
+
+    mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 
@@ -252,7 +338,31 @@ def test_initialize_pipeline_inpaint_success() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float32
     mock_pipe.to.assert_called_once()
+    assert provider.pipe is mock_pipe
+
+
+def test_initialize_pipeline_inpaint_cuda() -> None:
+    """Build an inpainting pipeline when CUDA is available (float16)."""
+    mock_client = MagicMock()
+    mock_pipe = MagicMock()
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch(
+            "diffusers.StableDiffusionInpaintPipeline.from_pretrained",
+            return_value=mock_pipe,
+        ) as mock_from_pretrained,
+    ):
+        provider = HuggingFaceProvider(
+            client=mock_client,
+            model_name="runwayml/stable-diffusion-inpainting",
+            use_segmentation_model=True,
+        )
+
+    mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 
@@ -274,7 +384,30 @@ def test_initialize_pipeline_auto_text2image_success() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float32
     mock_pipe.to.assert_called_once()
+    assert provider.pipe is mock_pipe
+
+
+def test_initialize_pipeline_auto_text2image_cuda() -> None:
+    """Use AutoPipelineForText2Image with CUDA enabled (float16)."""
+    mock_client = MagicMock()
+    mock_pipe = MagicMock()
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch(
+            "diffusers.AutoPipelineForText2Image.from_pretrained",
+            return_value=mock_pipe,
+        ) as mock_from_pretrained,
+    ):
+        provider = HuggingFaceProvider(
+            client=mock_client,
+            model_name="stabilityai/stable-diffusion-2",
+        )
+
+    mock_from_pretrained.assert_called_once()
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 
@@ -300,6 +433,33 @@ def test_initialize_pipeline_falls_back_to_diffusion_pipeline() -> None:
         )
 
     mock_diffusion.assert_called_once()
+    assert mock_diffusion.call_args.kwargs["torch_dtype"] == torch.float32
+    assert provider.pipe is mock_pipe
+
+
+def test_initialize_pipeline_falls_back_to_diffusion_pipeline_cuda() -> None:
+    """Fall back to DiffusionPipeline when CUDA is available (float16)."""
+    mock_client = MagicMock()
+    mock_pipe = MagicMock()
+
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch(
+            "diffusers.AutoPipelineForText2Image.from_pretrained",
+            side_effect=Exception("not a text2image model"),
+        ),
+        patch(
+            "diffusers.DiffusionPipeline.from_pretrained",
+            return_value=mock_pipe,
+        ) as mock_diffusion,
+    ):
+        provider = HuggingFaceProvider(
+            client=mock_client,
+            model_name="some/other-model",
+        )
+
+    mock_diffusion.assert_called_once()
+    assert mock_diffusion.call_args.kwargs["torch_dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 
@@ -371,11 +531,7 @@ def test_execute_image_request_raises_when_pipe_none() -> None:
 
 
 def test_generate_image_success(tmp_path: Any) -> None:  # noqa: ANN401
-    """Successfully generate an image and write it to disk.
-
-    Explicitly supplies num_inference_steps so that the
-    ``if "num_inference_steps" not in kwargs`` branch evaluates to False.
-    """
+    """Successfully generate an image and write it to disk."""
     mock_pipe = _make_pipe("StableDiffusionPipeline")
     mock_image = MagicMock(spec=Image.Image)
     mock_pipe.return_value = MagicMock(images=[mock_image])
@@ -384,7 +540,7 @@ def test_generate_image_success(tmp_path: Any) -> None:  # noqa: ANN401
     success, path = provider.generate_image(
         prompt="a red cube",
         output_dir=str(tmp_path),
-        num_inference_steps=20,  # already present → if-branch skipped
+        num_inference_steps=20,
     )
 
     assert success is True
@@ -411,10 +567,12 @@ def test_generate_image_output_as_list(tmp_path: Any) -> None:  # noqa: ANN401
     assert path.endswith(".png")
 
 
+@patch("time.sleep", return_value=None)
 def test_generate_image_no_valid_output_uses_fallback(
+    mock_sleep: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Fall back to a placeholder image when the pipeline returns nothing useful."""
+    """Fall back to a placeholder image when pipeline returns no valid image."""
     mock_pipe = _make_pipe("StableDiffusionPipeline")
     mock_pipe.return_value = MagicMock(images=[])
 
@@ -429,11 +587,40 @@ def test_generate_image_no_valid_output_uses_fallback(
         success, path = provider.generate_image(
             prompt="broken",
             output_dir=str(tmp_path),
+            max_retries=2,
         )
 
     assert success is False
     placeholder.save.assert_called_once()
     assert path.endswith(".png")
+    mock_sleep.assert_called_once()
+
+
+@patch("time.sleep", return_value=None)
+def test_generate_image_retry_success(
+    mock_sleep: MagicMock,
+    tmp_path: Any,  # noqa: ANN401
+) -> None:
+    """Test image generation retry success on second attempt with explicit delay."""
+    mock_pipe = _make_pipe("StableDiffusionPipeline")
+    mock_image = MagicMock(spec=Image.Image)
+    mock_pipe.side_effect = [
+        Exception("Temporary failure"),
+        MagicMock(images=[mock_image]),
+    ]
+
+    provider = HuggingFaceProvider(client=MagicMock(), pipe=mock_pipe)
+    success, path = provider.generate_image(
+        prompt="a cat",
+        output_dir=str(tmp_path),
+        max_retries=3,
+        delay=3.5,
+    )
+
+    assert success is True
+    assert path.endswith(".png")
+    mock_sleep.assert_called_once_with(3.5)
+    assert mock_pipe.call_count == 2
 
 
 def test_edit_image_file_not_found() -> None:
@@ -458,7 +645,7 @@ def test_edit_image_success(
 ) -> None:
     """Edit an existing image with a generic (non-inpaint) pipeline."""
     src_path = tmp_path / "src.png"
-    src_path.write_bytes(b"")  # satisfy os.path.exists
+    src_path.write_bytes(b"")
 
     mock_pil = MagicMock(spec=Image.Image)
     mock_pil.convert.return_value = mock_pil
@@ -541,9 +728,9 @@ def test_edit_image_pix2pix_sets_guidance(
     mock_open: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Inject the default image_guidance_scale for InstructPix2Pix pipelines."""
+    """Inject default image_guidance_scale for InstructPix2Pix pipelines."""
     src_path = tmp_path / "src.png"
-    src_path.write_bytes(b"")  # satisfy os.path.exists
+    src_path.write_bytes(b"")
 
     mock_pil = MagicMock(spec=Image.Image)
     mock_pil.convert.return_value = mock_pil
@@ -566,7 +753,9 @@ def test_edit_image_pix2pix_sets_guidance(
     assert call_kwargs.get("image_guidance_scale") == 1.0
 
 
+@patch("time.sleep", return_value=None)
 def test_execute_image_request_pipeline_exception_uses_fallback(
+    mock_sleep: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
     """Catch pipeline exceptions, set success=False and save a placeholder."""
@@ -584,11 +773,13 @@ def test_execute_image_request_pipeline_exception_uses_fallback(
         success, path = provider.generate_image(
             prompt="boom",
             output_dir=str(tmp_path),
+            max_retries=2,
         )
 
     assert success is False
     placeholder.save.assert_called_once()
     assert path.endswith(".png")
+    mock_sleep.assert_called_once()
 
 
 @patch("xwhy.providers.huggingface.Image.open")
@@ -598,14 +789,7 @@ def test_edit_image_inpaint_without_segmentation_raises(
     mock_open: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Raise ValueError when an inpaint pipe is used without a segmentation model.
-
-    Covers the exact branch:
-        elif is_inpaint and input_image_path is not None:
-            raise ValueError(
-                "segmentation_model is required for Inpainting pipelines."
-            )
-    """
+    """Raise ValueError when inpaint pipe is used without segmentation model."""
     src_path = tmp_path / "src.png"
     src_path.write_bytes(b"")
 
@@ -626,19 +810,13 @@ def test_edit_image_inpaint_without_segmentation_raises(
             prompt="fill",
             image_path=str(src_path),
             output_dir=str(tmp_path),
-            # segmentation_model deliberately omitted
         )
 
 
 def test_generate_image_default_inference_steps(
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Inject num_inference_steps=30 for non-inpaint pipelines.
-
-    Covers the True arm of:
-        if "num_inference_steps" not in kwargs:
-            kwargs["num_inference_steps"] = 50 if is_inpaint else 30
-    """
+    """Inject num_inference_steps=30 for non-inpaint pipelines."""
     mock_pipe = _make_pipe("StableDiffusionPipeline")
     mock_image = MagicMock(spec=Image.Image)
     mock_pipe.return_value = MagicMock(images=[mock_image])
@@ -658,11 +836,7 @@ def test_edit_image_inpaint_default_inference_steps(
     mock_get_mask: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Inject num_inference_steps=50 for inpaint pipelines.
-
-    Covers the True arm of the same if-statement and the True arm of the
-    ternary ``50 if is_inpaint else 30``.
-    """
+    """Inject num_inference_steps=50 for inpaint pipelines."""
     src_path = tmp_path / "src.png"
     src_path.write_bytes(b"")
 
@@ -691,10 +865,12 @@ def test_edit_image_inpaint_default_inference_steps(
     assert mock_pipe.call_args.kwargs["num_inference_steps"] == 50
 
 
+@patch("time.sleep", return_value=None)
 def test_pipeline_exception_fallback_is_image(
+    mock_sleep: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Assign the placeholder when _create_placeholder_image returns an Image."""
+    """Assign placeholder when _create_placeholder_image returns an Image."""
     mock_pipe = _make_pipe("StableDiffusionPipeline")
     mock_pipe.side_effect = RuntimeError("boom")
 
@@ -702,17 +878,21 @@ def test_pipeline_exception_fallback_is_image(
     provider = HuggingFaceProvider(client=MagicMock(), pipe=mock_pipe)
 
     with patch.object(provider, "_create_placeholder_image", return_value=placeholder):
-        success, path = provider.generate_image(prompt="x", output_dir=str(tmp_path))
+        success, path = provider.generate_image(
+            prompt="x", output_dir=str(tmp_path), max_retries=1
+        )
 
     assert success is False
     placeholder.save.assert_called_once()
     assert path.endswith(".png")
 
 
+@patch("time.sleep", return_value=None)
 def test_pipeline_exception_fallback_not_image(
+    mock_sleep: MagicMock,
     tmp_path: Any,  # noqa: ANN401
 ) -> None:
-    """Skip save when the fallback is not a PIL Image."""
+    """Skip save when fallback is not a PIL Image."""
     mock_pipe = _make_pipe("StableDiffusionPipeline")
     mock_pipe.side_effect = RuntimeError("boom")
 
@@ -721,10 +901,11 @@ def test_pipeline_exception_fallback_not_image(
     with patch.object(
         provider, "_create_placeholder_image", return_value="not-an-image"
     ):
-        success, path = provider.generate_image(prompt="x", output_dir=str(tmp_path))
+        success, path = provider.generate_image(
+            prompt="x", output_dir=str(tmp_path), max_retries=1
+        )
 
     assert success is False
-    # path is still built, but no .save() occurred
     assert path.endswith(".png")
 
 
@@ -751,3 +932,43 @@ def test_generate_image_inpaint_pipe_no_mask_required(
     assert success is True
     assert path.endswith(".png")
     mock_image.save.assert_called_once()
+
+
+@patch("time.sleep", return_value=None)
+def test_execute_image_request_generated_img_none_no_break(
+    mock_sleep: MagicMock,
+    tmp_path: Any,  # noqa: ANN401
+) -> None:
+    """Test retry continuation when generated image is None.
+
+    Verifies that if the pipeline returns a list where the first element
+    is None, the retry loop continues instead of breaking.
+
+    Args:
+        mock_sleep: Mock for time.sleep to avoid real delays.
+        tmp_path: Pytest temporary directory fixture.
+
+    """
+    mock_pipe = _make_pipe("StableDiffusionPipeline")
+    mock_pipe.return_value = MagicMock(images=[None])
+
+    placeholder = MagicMock(spec=Image.Image)
+    provider = HuggingFaceProvider(client=MagicMock(), pipe=mock_pipe)
+
+    with patch.object(
+        provider,
+        "_create_placeholder_image",
+        return_value=placeholder,
+    ):
+        success, path = provider.generate_image(
+            prompt="none image",
+            output_dir=str(tmp_path),
+            max_retries=2,
+        )
+
+    assert success is False
+    assert path.endswith(".png")
+    # Both attempts ran (no break occurred).
+    assert mock_pipe.call_count == 2
+    mock_sleep.assert_called_once()
+    placeholder.save.assert_called_once()

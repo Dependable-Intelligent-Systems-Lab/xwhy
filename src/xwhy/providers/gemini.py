@@ -35,62 +35,84 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
         model: str,
         max_tokens: int,
         temperature: float,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
-        """Generate text from Gemini.
+        """Generate text from Gemini with built-in retries.
 
         Args:
             prompt: Input prompt.
             model: Gemini model name.
             max_tokens: Maximum output tokens.
             temperature: Sampling temperature.
+            **kwargs: Extra parameters (supports 'max_retries' and 'delay').
 
         Returns:
             Generated text.
 
         Raises:
             RuntimeError: If the API returns an empty response or is
-                          blocked by safety filters.
+                          blocked by safety filters after all retries.
 
         """
-        try:
-            response = self._client.models.generate_content(
-                model=model,
-                contents=types.Part.from_text(text=prompt),
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens,
-                    temperature=temperature,
-                ),
-            )
+        max_retries: int = kwargs.get("max_retries", 7)
+        delay_override: float | None = kwargs.get("delay")
 
+        for retry_number in range(1, max_retries + 1):
             try:
-                result_text = str(response.text).strip()
-            except ValueError as val_err:
-                # Gemini throws ValueError on .text access if the response was
-                # blocked by safety filters.
-                error_message = (
-                    f"Gemini generation was blocked (likely due to safety filters) "
-                    f"for model '{model}'. No content returned."
+                response = self._client.models.generate_content(
+                    model=model,
+                    contents=types.Part.from_text(text=prompt),
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=max_tokens,
+                        temperature=temperature,
+                    ),
                 )
-                logger.error(error_message)
-                raise RuntimeError(error_message) from val_err
 
-            if not result_text:
-                error_message = (
-                    "Received an empty response from the Gemini API. "
-                    "This could be due to network filtering (anti-filter) "
-                    "or provider-side anomalies."
+                try:
+                    result_text = str(response.text).strip()
+                except ValueError as val_err:
+                    # Gemini throws ValueError on .text access if the response was
+                    # blocked by safety filters.
+                    error_message = (
+                        f"Gemini generation was blocked (likely due to safety filters) "
+                        f"for model '{model}'. No content returned."
+                    )
+                    raise RuntimeError(error_message) from val_err
+
+                if not result_text:
+                    error_message = (
+                        "Received an empty response from the Gemini API. "
+                        "This could be due to network filtering (anti-filter) "
+                        "or provider-side anomalies."
+                    )
+                    raise RuntimeError(error_message)
+
+                return result_text
+
+            except Exception as exc:
+                if retry_number == max_retries:
+                    logger.error(
+                        "Gemini request failed after %d retries: %s", max_retries, exc
+                    )
+                    raise RuntimeError(f"Gemini request failed: {exc}") from exc
+
+                # Use provided delay or exponential backoff maxing at 30 seconds
+                delay: float = (
+                    delay_override
+                    if delay_override is not None
+                    else min(2**retry_number, 30)
                 )
-                logger.error(error_message)
-                raise RuntimeError(error_message)
+                logger.warning(
+                    "Retry %d/%d for Gemini text generation. Waiting %s seconds...",
+                    retry_number,
+                    max_retries,
+                    delay,
+                )
+                time.sleep(delay)
 
-            return result_text
-
-        except RuntimeError:
-            raise
-
-        except Exception as exc:
-            logger.error("Gemini request failed: %s", exc)
-            raise RuntimeError(f"Gemini request failed: {exc}") from exc
+        # Catch-all to satisfy mypy in case max_retries <= 0 prevents the loop
+        # from running
+        raise RuntimeError("Failed to generate text: max_retries must be at least 1.")
 
     def answer(
         self,
@@ -99,6 +121,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
         model: str = "gemini-2.5-flash",
         max_tokens: int = 200,
         temperature: float = 0.0,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
         """Generate a natural-language answer.
 
@@ -107,6 +130,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             model: Gemini model name.
             max_tokens: Maximum output tokens.
             temperature: Sampling temperature.
+            **kwargs: Extra parameters (supports 'max_retries' and 'delay').
 
         Returns:
             Generated response text.
@@ -117,6 +141,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
+            **kwargs,
         )
 
     # -------------------------------------------------------------------------
@@ -139,7 +164,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
         input_image_path: str | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
-        """Execute the core generation logic for image requests.
+        """Execute the core generation logic for image requests with built-in retries.
 
         Args:
             prompt: The text prompt provided by the user.
@@ -171,43 +196,71 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
         )
 
         generated_img: Image.Image | None = None
-        gen_img_flag = True
         final_mime = default_mime_type
 
-        try:
-            if stream:
-                response_iter = self._client.models.generate_content_stream(
-                    model=model_name,
-                    contents=contents,
-                    config=generate_content_config,
-                )
-                for chunk in response_iter:
-                    for part in chunk.parts:
+        max_retries: int = kwargs.get("max_retries", 7)
+        delay_override: float | None = kwargs.get("delay")
+
+        for retry_number in range(1, max_retries + 1):
+            try:
+                if stream:
+                    response_iter = self._client.models.generate_content_stream(
+                        model=model_name,
+                        contents=contents,
+                        config=generate_content_config,
+                    )
+                    for chunk in response_iter:
+                        for part in chunk.parts:
+                            if part.inline_data is not None:
+                                img_data = BytesIO(part.inline_data.data)
+                                generated_img = Image.open(img_data)
+                                final_mime = part.inline_data.mime_type
+                                break
+                else:
+                    response = self._client.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=generate_content_config,
+                    )
+                    for part in response.parts:
                         if part.inline_data is not None:
                             img_data = BytesIO(part.inline_data.data)
                             generated_img = Image.open(img_data)
                             final_mime = part.inline_data.mime_type
                             break
-            else:
-                response = self._client.models.generate_content(
-                    model=model_name,
-                    contents=contents,
-                    config=generate_content_config,
+            except Exception as e:
+                logger.exception(
+                    "Error during API call attempt %d: %s", retry_number, e
                 )
-                for part in response.parts:
-                    if part.inline_data is not None:
-                        img_data = BytesIO(part.inline_data.data)
-                        generated_img = Image.open(img_data)
-                        final_mime = part.inline_data.mime_type
-                        break
-        except Exception as e:
-            logger.exception("Error during API call: %s", e)
 
+            # If successful, exit the retry loop immediately
+            if generated_img is not None:
+                break
+
+            # If failed and we have retries left, wait before trying again
+            if retry_number < max_retries:
+                # Use provided delay or exponential backoff maxing at 30 seconds
+                delay: float = (
+                    delay_override
+                    if delay_override is not None
+                    else min(2**retry_number, 30)
+                )
+                logger.warning(
+                    "Retry %s/%s for image generation. Waiting %s seconds...",
+                    retry_number,
+                    max_retries,
+                    delay,
+                )
+                time.sleep(delay)
+
+        # Retries exhausted. Check if we still don't have an image.
         if generated_img is None:
             gen_img_flag = False
             logger.debug(
-                "Failed to generate image for prompt: '%s'. Creating placeholder.",
+                "Failed to generate image for prompt: '%s' after %d retries. "
+                "Creating placeholder.",
                 prompt,
+                max_retries,
             )
             fallback_img = self._create_placeholder_image(
                 prompt=prompt, output_dir=output_dir, save=False
@@ -215,6 +268,8 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             if isinstance(fallback_img, Image.Image):
                 generated_img = fallback_img
             final_mime = "image/png"
+        else:
+            gen_img_flag = True
 
         # Map supported Google Gemini MIME types to extensions
         mime_to_ext = {
@@ -293,6 +348,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             stream=stream,
             seed=seed,
             input_image_path=None,
+            **kwargs,
         )
 
     def edit_image(
@@ -360,6 +416,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             seed=seed,
             default_mime_type=mime_type,
             input_image_path=image_path,
+            **kwargs,
         )
 
     def submit_image_batch(
