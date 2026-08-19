@@ -230,3 +230,85 @@ def test_tabular_explainer_run_valid_delegation(
 
     # Assert the return value matches what explain returned
     assert result == mock_explain.return_value
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_impute_when_some_distances_valid(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Cover the branch where at least one scaled distance is finite."""
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=3,
+        num_distribution_samples=5,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+    )
+
+    # Force some non-finite distances inside the loop
+    # by making calculate_distance return mixed values
+    mock_calc_dist.side_effect = [0.5, 0.5, np.inf, 0.5, 1.5, 1.5] * 10
+
+    mock_trainer.compute_weights.return_value = np.ones(3)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    instance = np.array([0.1, -0.2])
+    result = explainer.explain(instance)
+
+    distances = result.raw_data["distances"]
+    # At least one entry must have been imputed with max+1000
+    assert np.any(distances > 1000.0)
+    assert np.all(np.isfinite(distances))
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_impute_when_all_distances_non_finite(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Cover the branch where every scaled distance is non-finite."""
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=2,
+        num_distribution_samples=3,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+    )
+
+    mock_calc_dist.return_value = np.inf
+
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    instance = np.array([0.0, 0.0])
+    result = explainer.explain(instance)
+
+    distances = result.raw_data["distances"]
+    assert np.allclose(distances, 1000.0)
