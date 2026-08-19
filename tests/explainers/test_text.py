@@ -514,3 +514,87 @@ def test_explain_empty_predictions(
     )
 
     assert isinstance(result, TextXWhyResult)
+
+
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+@patch("xwhy.explainers.text.WMDDistance")
+def test_text_explain_impute_when_some_distances_valid(
+    mock_wmd: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Cover the branch where at least one WMD distance is finite."""
+    predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]))
+
+    with (
+        patch("xwhy.explainers.text.EmbeddingFactory"),
+        patch("xwhy.explainers.text.TextPerturbation") as mock_pert,
+    ):
+        mock_pert.return_value.generate.return_value = (
+            ["t1", "t2", "t3"],
+            [[1, 0], [0, 1], [1, 1]],
+        )
+        explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
+
+    mock_wmd.return_value.compute_batch.return_value = [
+        ("t1", 0.5),
+        ("t2", np.inf),
+        ("t3", 1.5),
+    ]
+    mock_trainer.compute_weights.return_value = np.ones(3)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain("hello world")
+
+    distances = result.raw_data["distances"]
+    assert distances[0] == pytest.approx(0.5)
+    assert distances[1] == pytest.approx(1001.5)
+    assert distances[2] == pytest.approx(1.5)
+
+
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+@patch("xwhy.explainers.text.WMDDistance")
+def test_text_explain_impute_when_all_distances_non_finite(
+    mock_wmd: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Cover the branch where every WMD distance is non-finite."""
+    predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7]]))
+
+    with (
+        patch("xwhy.explainers.text.EmbeddingFactory"),
+        patch("xwhy.explainers.text.TextPerturbation") as mock_pert,
+    ):
+        mock_pert.return_value.generate.return_value = (
+            ["t1", "t2"],
+            [[1, 0], [0, 1]],
+        )
+        explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
+
+    mock_wmd.return_value.compute_batch.return_value = [
+        ("t1", np.inf),
+        ("t2", np.nan),
+    ]
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain("hello world")
+
+    distances = result.raw_data["distances"]
+    assert distances[0] == pytest.approx(1000.0)
+    assert distances[1] == pytest.approx(1000.0)

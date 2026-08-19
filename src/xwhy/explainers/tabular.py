@@ -244,6 +244,28 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
 
         scaled_distances = distances * cfg.epsilon
 
+        # ---------------------------------------------------------
+        # Distance Validation & Imputation setup:
+        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # ---------------------------------------------------------
+        logger.info("Validating perturbation distances...")
+        distances_raw = np.array(scaled_distances, dtype=float)
+
+        # Filter out non-finite values to determine the maximum valid distance
+        valid_distances = distances_raw[np.isfinite(distances_raw)]
+
+        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
+        # all failed
+        if len(valid_distances) > 0:
+            max_penalty = np.max(valid_distances) + 1000.0
+        else:
+            max_penalty = 1000.0
+
+        # Impute infinite/NaN values with the dynamically calculated maximum penalty
+        scaled_distances = np.where(
+            np.isfinite(distances_raw), distances_raw, max_penalty
+        )
+
         # 4. Surrogate Training via Framework
         if cfg.use_best_surrogate:
             logger.info("Searching for optimal surrogate model...")
@@ -296,7 +318,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
             "y_target": y_target,
             "y_pred": y_pred,
             "weights": weights,
-            "distances": distances,
+            "distances": scaled_distances,
             "surrogate_method": method,
         }
 

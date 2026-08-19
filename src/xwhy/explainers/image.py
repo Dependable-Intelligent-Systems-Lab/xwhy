@@ -450,6 +450,26 @@ class ImageClassificationExplainer(
         logger.info("Extracting target probabilities for the predicted class...")
         y_target = predictions[:, int(class_to_explain)]
 
+        # ---------------------------------------------------------
+        # Distance Validation & Imputation setup:
+        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # ---------------------------------------------------------
+        logger.info("Validating perturbation distances...")
+        distances_raw = np.array(distances, dtype=float)
+
+        # Filter out non-finite values to determine the maximum valid distance
+        valid_distances = distances_raw[np.isfinite(distances_raw)]
+
+        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
+        # all failed
+        if len(valid_distances) > 0:
+            max_penalty = np.max(valid_distances) + 1000.0
+        else:
+            max_penalty = 1000.0
+
+        # Impute infinite/NaN values with the dynamically calculated maximum penalty
+        distances = np.where(np.isfinite(distances_raw), distances_raw, max_penalty)
+
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info("Searching for the optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
@@ -1378,7 +1398,27 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Weights: Derived from textual distance (WMD/sims).
         # ---------------------------------------------------------
         x_features = np.vstack([np.array(m, dtype=int) for m in binary_masks])
-        y_target = image_distances
+
+        # TODO: Modify this maximum distance imputation strategy later.
+        # Currently using a hardcoded large number (1000.0). Consider updating to
+        # dynamically calculate the max penalty based on valid distances.
+        # DO it for all the explainers.
+
+        # Convert image_distances to a numpy array for vectorized imputation
+        y_target_raw = np.array(image_distances, dtype=float)
+
+        # Filter out infinite values to find the actual maximum valid distance
+        valid_distances = y_target_raw[np.isfinite(y_target_raw)]
+
+        # Calculate max_penalty: max valid distance + 1000, or just 1000 if all failed
+        if len(valid_distances) > 0:
+            max_penalty = np.max(valid_distances) + 1000.0
+        else:
+            max_penalty = 1000.0
+
+        # Impute infinite values with the dynamically calculated maximum penalty
+        y_target = np.where(np.isinf(y_target_raw), max_penalty, y_target_raw)
+
         text_distances_array = np.array([d for _, d in wmd_scores])
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]

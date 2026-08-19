@@ -124,10 +124,13 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         # General Case: Any HuggingFace Diffusers model
         logger.debug(
-            "Attempting to initialize Diffusers pipeline for '%s'...", self.model_name
+            "Attempting to initialize Diffusers pipeline for '%s'...",
+            self.model_name,
         )
         try:
-            from diffusers.pipelines.auto_pipeline import AutoPipelineForText2Image
+            from diffusers.pipelines.auto_pipeline import (
+                AutoPipelineForText2Image,
+            )
 
             pipe = AutoPipelineForText2Image.from_pretrained(  # type: ignore[no-untyped-call]
                 self.model_name,
@@ -140,13 +143,16 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         except Exception as exc:
             logger.debug(
-                "Could not load '%s' as AutoPipelineForText2Image (This is expected"
-                " if it's an LLM). Fallback to DiffusionPipeline. Error: %s",
+                "Could not load '%s' as AutoPipelineForText2Image "
+                "(This is expected if it's an LLM). Fallback to "
+                "DiffusionPipeline. Error: %s",
                 self.model_name,
                 exc,
             )
             try:
-                from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+                from diffusers.pipelines.pipeline_utils import (
+                    DiffusionPipeline,
+                )
 
                 pipe = DiffusionPipeline.from_pretrained(  # type: ignore[assignment]
                     self.model_name,
@@ -174,45 +180,73 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
         model: str,
         max_tokens: int,
         temperature: float,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
-        """Generate text from HuggingFace.
+        """Generate text from HuggingFace with built-in retries.
 
         Args:
             prompt: Input prompt.
             model: HuggingFace model name.
             max_tokens: Maximum output tokens.
             temperature: Sampling temperature.
+            **kwargs: Extra parameters (supports 'max_retries' and 'delay').
 
         Returns:
-            Generated text.
+            Generated text string.
 
         Raises:
-            RuntimeError: If the API returns an empty response or fails.
+            RuntimeError: If the API returns an empty response or fails
+                after all retries.
 
         """
-        try:
-            response = self._client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+        max_retries: int = kwargs.get("max_retries", 7)
+        delay_override: float | None = kwargs.get("delay")
 
-            result_text = str(response.choices[0].message.content).strip()
-
-            if not result_text:
-                error_message = (
-                    "Received an empty response from the HuggingFace API. "
-                    "This could be due to guardrails or network filtering."
+        for retry_number in range(1, max_retries + 1):
+            try:
+                response = self._client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
                 )
-                logger.error(error_message)
-                raise RuntimeError(error_message)
 
-            return result_text
+                result_text = str(response.choices[0].message.content).strip()
 
-        except Exception as exc:
-            logger.error("HuggingFace request failed: %s", exc)
-            raise RuntimeError(f"HuggingFace request failed: {exc}") from exc
+                if not result_text:
+                    error_message = (
+                        "Received an empty response from the HuggingFace API. "
+                        "This could be due to guardrails or network filtering."
+                    )
+                    logger.error(error_message)
+                    raise RuntimeError(error_message)
+
+                return result_text
+
+            except Exception as exc:
+                if retry_number == max_retries:
+                    logger.error(
+                        "HuggingFace request failed after %d retries: %s",
+                        max_retries,
+                        exc,
+                    )
+                    raise RuntimeError(f"HuggingFace request failed: {exc}") from exc
+
+                delay: float = (
+                    delay_override
+                    if delay_override is not None
+                    else min(2**retry_number, 30)
+                )
+                logger.warning(
+                    "Retry %d/%d for HuggingFace text generation. Waiting %s "
+                    "seconds...",
+                    retry_number,
+                    max_retries,
+                    delay,
+                )
+                time.sleep(delay)
+
+        raise RuntimeError("HuggingFace text generation failed after max retries.")
 
     def answer(
         self,
@@ -221,6 +255,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
         model: str = "meta-llama/Meta-Llama-3-8B-Instruct",
         max_tokens: int = 512,
         temperature: float = 0.1,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
         """Generate a natural-language answer.
 
@@ -229,9 +264,10 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             model: HuggingFace model name.
             max_tokens: Maximum output tokens.
             temperature: Sampling temperature.
+            **kwargs: Extra parameters (supports 'max_retries' and 'delay').
 
         Returns:
-            Generated response text.
+            Generated response text string.
 
         """
         return self._generate(
@@ -239,6 +275,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             model=model,
             max_tokens=max_tokens,
             temperature=temperature,
+            **kwargs,
         )
 
     # -------------------------------------------------------------------------
@@ -247,7 +284,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
 
     @property
     def supports_mask(self) -> bool:
-        """Check if the underlying diffusers pipeline supports/requires a mask image."""
+        """Check if underlying diffusers pipeline supports/requires a mask image."""
         if self.pipe is None:
             return False
         pipe_class_name = type(self.pipe).__name__
@@ -263,7 +300,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
         class_names: Sequence[str] | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> tuple[bool, str]:
-        """Execute core image generation or editing logic for HuggingFace pipelines.
+        """Execute core image generation or editing logic with built-in retries.
 
         Args:
             prompt: Text instruction describing the image modification.
@@ -272,21 +309,22 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             segmentation_model: Optional model for generating segmentation masks.
             transform_fn: Preprocessing transform for PIL image.
             class_names: Optional sequence of class names for mask generation.
-            **kwargs: Additional pipeline-specific parameters.
+            **kwargs: Additional pipeline-specific parameters (supports
+                'max_retries' and 'delay').
 
         Returns:
             A tuple containing a boolean success flag and the generated file path.
 
         Raises:
-            RuntimeError: If the pipeline is not initialized.
+            RuntimeError: If the pipeline is not initialized or execution fails.
             ValueError: If an inpainting model is used without a segmentation model.
 
         """
         if self.pipe is None:
             raise RuntimeError("HuggingFace pipeline is not initialized.")
 
-        gen_img_flag = True
-        generated_img: Image.Image | None = None
+        max_retries: int = kwargs.pop("max_retries", 7)
+        delay_override: float | None = kwargs.pop("delay", None)
 
         image: Image.Image | None = None
         if input_image_path is not None:
@@ -313,47 +351,86 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
                     "segmentation_model is required for Inpainting pipelines."
                 )
 
-        try:
-            # Auto-adapt general Text2Image pipeline to Image2Image if editing
-            current_pipe = self.pipe
-            if (
-                input_image_path is not None
-                and not is_pix2pix
-                and not is_inpaint
-                and "Image2Image" not in pipe_class_name
-            ):
-                from diffusers.pipelines.auto_pipeline import AutoPipelineForImage2Image
+        generated_img: Image.Image | None = None
 
-                logger.debug("Converting pipeline to AutoPipelineForImage2Image...")
-                current_pipe = AutoPipelineForImage2Image.from_pipe(self.pipe)  # type: ignore[no-untyped-call]
+        for retry_number in range(1, max_retries + 1):
+            try:
+                # Auto-adapt general Text2Image pipeline to Image2Image if editing
+                current_pipe = self.pipe
+                if (
+                    input_image_path is not None
+                    and not is_pix2pix
+                    and not is_inpaint
+                    and "Image2Image" not in pipe_class_name
+                ):
+                    from diffusers.pipelines.auto_pipeline import (
+                        AutoPipelineForImage2Image,
+                    )
 
-            call_kwargs: dict[str, Any] = {"prompt": prompt}
-            if image is not None:
-                call_kwargs["image"] = image
-            if mask_image is not None and self.supports_mask:
-                call_kwargs["mask_image"] = mask_image
+                    logger.debug("Converting pipeline to AutoPipelineForImage2Image...")
+                    current_pipe = AutoPipelineForImage2Image.from_pipe(self.pipe)  # type: ignore[no-untyped-call]
 
-            if "num_inference_steps" not in kwargs:
-                kwargs["num_inference_steps"] = 50 if is_inpaint else 30
+                call_kwargs: dict[str, Any] = {"prompt": prompt}
+                if image is not None:
+                    call_kwargs["image"] = image
+                if mask_image is not None and self.supports_mask:
+                    call_kwargs["mask_image"] = mask_image
 
-            if is_pix2pix and "image_guidance_scale" not in kwargs:
-                kwargs["image_guidance_scale"] = 1.0
+                if "num_inference_steps" not in kwargs:
+                    kwargs["num_inference_steps"] = 50 if is_inpaint else 30
 
-            call_kwargs.update(kwargs)
+                if is_pix2pix and "image_guidance_scale" not in kwargs:
+                    kwargs["image_guidance_scale"] = 1.0
 
-            output = current_pipe(**call_kwargs)
+                call_kwargs.update(kwargs)
 
-            if hasattr(output, "images") and output.images:
-                generated_img = output.images[0]
-            elif isinstance(output, list) and output:
-                generated_img = output[0]
-            else:
-                raise RuntimeError("No valid images found in pipeline output.")
+                output = current_pipe(**call_kwargs)
 
-        except Exception as exc:
+                if hasattr(output, "images") and output.images:
+                    generated_img = output.images[0]
+                elif isinstance(output, list) and output:
+                    generated_img = output[0]
+                else:
+                    raise RuntimeError("No valid images found in pipeline output.")
+
+                if generated_img is not None:
+                    break
+
+            except Exception as exc:
+                logger.warning(
+                    "Pipeline execution failed on attempt %d/%d for prompt '%s': %s",
+                    retry_number,
+                    max_retries,
+                    prompt,
+                    exc,
+                )
+                if retry_number == max_retries:
+                    logger.exception(
+                        "All HuggingFace image generation retries exhausted."
+                    )
+
+            if generated_img is None and retry_number < max_retries:
+                delay: float = (
+                    delay_override
+                    if delay_override is not None
+                    else min(2**retry_number, 30)
+                )
+                logger.warning(
+                    "Retry %d/%d for image generation. Waiting %s seconds...",
+                    retry_number,
+                    max_retries,
+                    delay,
+                )
+                time.sleep(delay)
+
+        gen_img_flag = True
+        if generated_img is None:
             gen_img_flag = False
-            logger.exception(
-                "Pipeline execution failed for prompt '%s': %s", prompt, exc
+            logger.debug(
+                "Failed to generate image for prompt: '%s' after %d retries. "
+                "Creating placeholder.",
+                prompt,
+                max_retries,
             )
             fallback_img = self._create_placeholder_image(
                 prompt=prompt, output_dir=output_dir, save=False
@@ -387,7 +464,8 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
         Args:
             prompt: Text description of the desired image.
             output_dir: Directory where the image will be stored.
-            **kwargs: Extra parameters for the pipeline.
+            **kwargs: Extra parameters for the pipeline (supports 'max_retries'
+                and 'delay').
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
@@ -420,7 +498,8 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             segmentation_model: Optional model for generating segmentation masks.
             transform_fn: Preprocessing transform for PIL image.
             class_names: Optional sequence of class names for mask generation.
-            **kwargs: Extra parameters for the pipeline.
+            **kwargs: Extra parameters for the pipeline (supports 'max_retries'
+                and 'delay').
 
         Returns:
             A tuple of a boolean success flag and the generated file path.
