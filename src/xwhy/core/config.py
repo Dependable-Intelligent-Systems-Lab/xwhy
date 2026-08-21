@@ -172,3 +172,34 @@ class TextConfig(ExplainerConfig):
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
+
+
+class PointCloudConfig(ExplainerConfig):
+    """Configuration for the Point Cloud explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    engine_type: Literal["custom", "huggingface"] = "custom"
+    custom_model: Any | None = None
+    custom_predict_fn: Callable[..., Any] | None = None
+
+    num_clusters: int = Field(default=8, gt=0)
+    num_top_features: int = Field(default=4, gt=0)
+    num_perturbations: int = Field(default=50, gt=0)
+    removal_probability: float = Field(default=0.3, ge=0.0, le=1.0)
+    kernel_width: float = Field(default=0.5, gt=0.0)
+    epsilon: float = Field(default=0.0, ge=0.0)
+    max_iters: int = Field(default=50, gt=0)
+    seed: int = 42
+    device: str = "cpu"
+
+    clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    distance_mode: Literal["spatial", "latent"] = "spatial"
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True

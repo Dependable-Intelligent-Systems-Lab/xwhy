@@ -17,6 +17,7 @@ class SurrogateTrainer:
         method: SurrogateType,
         distances: np.ndarray,
         kernel_width: float = 0.25,
+        epsilon: float = 0.0,
         normalize_distances: bool = False,
     ) -> np.ndarray:
         """Compute sample weights based on distances and method type.
@@ -25,6 +26,7 @@ class SurrogateTrainer:
             method: The surrogate method determining global or local weighting.
             distances: 1D array of distances between original and perturbed inputs.
             kernel_width: Kernel width for exponential weighting.
+            epsilon: Small constant for numerical stability.
             normalize_distances: Whether to scale distances by their max
                                  value (used in images).
 
@@ -42,7 +44,7 @@ class SurrogateTrainer:
             if max_dist > 0:
                 distances = distances / max_dist
 
-        return np.sqrt(np.exp(-(distances**2) / (kernel_width**2)))
+        return np.sqrt(np.exp(-(distances**2) / (kernel_width**2))) + epsilon
 
     @classmethod
     def fit_and_evaluate(
@@ -54,6 +56,7 @@ class SurrogateTrainer:
         distances: np.ndarray,
         seed: int = 42,
         kernel_width: float = 0.25,
+        epsilon: float = 0.0,
         ridge_alpha: float = 1.0,
         normalize_distances: bool = False,
     ) -> tuple[BaseSurrogate, float]:
@@ -66,6 +69,7 @@ class SurrogateTrainer:
             distances: 1D array of distances between original and perturbed inputs.
             seed: Random seed.
             kernel_width: Kernel width for weighting.
+            epsilon: Small constant for numerical stability.
             ridge_alpha: Ridge regularization strength.
             normalize_distances: Whether to scale distances by their max
                                  value (used in images).
@@ -80,6 +84,7 @@ class SurrogateTrainer:
             method=method,
             distances=distances,
             kernel_width=kernel_width,
+            epsilon=epsilon,
             normalize_distances=normalize_distances,
         )
 
@@ -109,6 +114,7 @@ class SurrogateTrainer:
         distances: np.ndarray,
         seed: int = 42,
         kernel_width: float = 0.25,
+        epsilon: float = 0.0,
         ridge_alpha: float = 1.0,
         normalize_distances: bool = False,
     ) -> tuple[SurrogateType, float]:
@@ -120,6 +126,7 @@ class SurrogateTrainer:
             distances: 1D array of distances between original and perturbed inputs.
             seed: Random seed.
             kernel_width: Kernel width.
+            epsilon: Small constant for numerical stability.
             ridge_alpha: Ridge alpha.
             normalize_distances: Whether to scale distances by their max
                                  value (used in images).
@@ -142,6 +149,7 @@ class SurrogateTrainer:
                     distances=distances,
                     seed=seed,
                     kernel_width=kernel_width,
+                    epsilon=epsilon,
                     ridge_alpha=ridge_alpha,
                     normalize_distances=normalize_distances,
                 )

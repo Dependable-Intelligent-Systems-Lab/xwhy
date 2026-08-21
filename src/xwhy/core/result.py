@@ -240,3 +240,29 @@ class ImageGenerationAndEditingXWhyResult(BaseXWhyResult):
             if self.instance is not None
             else np.array([])
         )
+
+
+@dataclass
+class PointCloudXWhyResult(BaseXWhyResult):
+    """Container for point cloud explanation results.
+
+    Attributes:
+        important_clusters: Array of important cluster indices.
+        sample_points: Original point cloud input tensor/array.
+        cluster_labels: Cluster labels assigned to each point.
+
+    """
+
+    important_clusters: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    sample_points: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    cluster_labels: np.ndarray = field(default_factory=lambda: np.zeros(0))
+
+    @property
+    def feature_names(self) -> Sequence[str]:
+        """Sequence of cluster names corresponding to features."""
+        return [f"Cluster {i}" for i in range(len(self.coefficients))]
+
+    @property
+    def data(self) -> np.ndarray:
+        """The underlying point cloud points array."""
+        return self.sample_points

@@ -242,14 +242,12 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
 
             distances[idx] = dist_total
 
-        scaled_distances = distances * cfg.epsilon
-
         # ---------------------------------------------------------
         # Distance Validation & Imputation setup:
         # Convert distances to numpy array and impute non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
-        distances_raw = np.array(scaled_distances, dtype=float)
+        distances_raw = np.array(distances, dtype=float)
 
         # Filter out non-finite values to determine the maximum valid distance
         valid_distances = distances_raw[np.isfinite(distances_raw)]
@@ -275,6 +273,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
                 distances=scaled_distances,
                 seed=cfg.seed,
                 kernel_width=cfg.kernel_width,
+                epsilon=cfg.epsilon,
                 normalize_distances=False,
             )
             logger.info(
@@ -291,6 +290,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
             method=method,
             distances=scaled_distances,
             kernel_width=cfg.kernel_width,
+            epsilon=cfg.epsilon,
             normalize_distances=False,
         )
 

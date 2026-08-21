@@ -11,8 +11,10 @@ import torch
 
 from xwhy.models.classification.base import BaseClassification
 from xwhy.models.embeddings.base import BaseEmbedding
+from xwhy.models.point_cloud.base import BasePointCloudModel
 from xwhy.models.segmentation.base import BaseSegmentation
 from xwhy.perturbation.image import ImagePerturbation
+from xwhy.perturbation.point_cloud import PointCloudPerturbation
 from xwhy.perturbation.text import TextPerturbation
 from xwhy.providers.base import BaseProvider
 
@@ -168,3 +170,18 @@ class TextState:
         self.predict_fn: Callable[[Sequence[str]], np.ndarray] | None = None
         self.perturbator: TextPerturbation | None = None
         self.embedding_model: BaseEmbedding | None = None
+
+
+class PointCloudState:
+    """Runtime state for the Point Cloud explainer."""
+
+    def __init__(self, device_: torch.device) -> None:
+        """Initialize the runtime state.
+
+        Args:
+            device_: Torch device used for running point cloud models.
+
+        """
+        self.device = device_
+        self.model: BasePointCloudModel | None = None
+        self.perturbation: PointCloudPerturbation | None = None
