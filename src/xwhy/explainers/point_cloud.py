@@ -211,11 +211,13 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
             num_points, dim = points.shape
 
             # 2. Farthest Point Sampling (FPS) for center initialization
-            rng = np.random.default_rng(seed)
+            # Localize the legacy MT19937 generator to maintain baseline
+            # fidelity metrics without mutating the global np.random state.
+            rng = np.random.RandomState(seed)
             centers = np.zeros((num_clusters, dim))
             center_indices = np.zeros(num_clusters, dtype=int)
 
-            center_indices[0] = rng.integers(num_points)
+            center_indices[0] = rng.randint(num_points)
             centers[0] = points[center_indices[0]]
             distances = np.sum((points - centers[0]) ** 2, axis=1)
 
