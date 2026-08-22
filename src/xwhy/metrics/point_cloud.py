@@ -1,6 +1,6 @@
 """Point cloud evaluation metrics for explainability."""
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -52,7 +52,7 @@ def compute_noisy_explanations(
     sample_input: torch.Tensor,
     sample_label: int,
     model: Any,  # noqa: ANN401
-    cluster_labels: np.ndarray,
+    cluster_labels: np.ndarray | None = None,
     num_clusters: int = 32,
     num_perturbations: int = 1000,
     removal_probability: float = 0.5,
@@ -60,6 +60,7 @@ def compute_noisy_explanations(
     num_new_points: int = 30,
     sphere_radius: float = 0.07,
     seed: int = 42,
+    clustering_mode: Literal["kmeans", "precomputed"] = "kmeans",
     **explainer_kwargs: Any,  # noqa: ANN401
 ) -> list[np.ndarray]:
     """Generate noisy point cloud samples and compute their explanations.
@@ -76,6 +77,7 @@ def compute_noisy_explanations(
         num_new_points: Number of noise points to add per iteration.
         sphere_radius: Radius for the noise generation sphere.
         seed: Base random seed for reproducibility.
+        clustering_mode: "kmeans" or "precomputed".
         **explainer_kwargs: Additional configurations for PointCloudExplainer
             (e.g., surrogate_type, use_best_surrogate).
 
@@ -106,6 +108,7 @@ def compute_noisy_explanations(
         num_perturbations=num_perturbations,
         removal_probability=removal_probability,
         seed=seed,
+        clustering_mode=clustering_mode,
         **explainer_kwargs,
     )
 
@@ -128,15 +131,14 @@ def compute_noisy_explanations(
         if combined_tensor.ndim == 2:
             combined_tensor = combined_tensor.unsqueeze(0)
 
-        new_labels = np.full(
-            num_new_points,
-            fill_value=cluster_labels.max() + 1,
-        )
-        combined_labels = np.concatenate([cluster_labels, new_labels])
+        combined_labels: np.ndarray | None = None
+        if clustering_mode == "precomputed":
+            if cluster_labels is None:
+                raise ValueError("cluster_labels required for precomputed mode")
+            new_labels = np.full(num_new_points, fill_value=cluster_labels.max() + 1)
+            combined_labels = np.concatenate([cluster_labels, new_labels])
 
         logger.debug("Sample with Noise: %s", i + 1)
-        logger.debug("Current seed: %s", current_seed)
-        logger.debug("{combined_labels=%s}", combined_labels)
 
         result = explainer.explain(
             instance=combined_tensor,
