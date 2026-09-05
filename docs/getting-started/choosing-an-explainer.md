@@ -8,10 +8,10 @@ description: Select an XWhy explainer by input modality, task, model interface, 
 | Your input, task, or system | Recommended component | Current status | Next page |
 | --- | --- | --- | --- |
 | PyTorch image classification | `ImageClassificationExplainer` | Available | [Image explainer](../explainers/image/index.md) |
-| Image generation or image editing | Image-generation roadmap; current `Pix2PixExplainer` prototype | Under construction | [Image-generation status](../explainers/image-generation/index.md) |
+| Image generation or image editing | `ImageGenerationAndEditingExplainer` | Available | [Image generation & editing](../explainers/image-generation/index.md) |
 | LLM prompt-response behaviour | `LLMExplainer` | Available | [LLM explainer](../explainers/llm/index.md) |
-| Structured tabular prediction | `TabularExplainer` | Under construction | [Tabular status](../explainers/tabular.md) |
-| Conventional text classification | `TextExplainer` | Under construction | [Text status](../explainers/text.md) |
+| Structured tabular prediction | `TabularExplainer` | Available | [Tabular explainer](../explainers/tabular.md) |
+| Conventional text classification | `TextExplainer` | Available | [Text explainer](../explainers/text.md) |
 | 3D point-cloud prediction | `PointCloudExplainer` | Under construction | [Point-cloud status](../explainers/point-cloud.md) |
 | Time-series prediction | Planned | Coming soon | [Time-series roadmap](../explainers/time-series.md) |
 | Cross-modal model | Planned | Coming soon | [Multimodal roadmap](../explainers/multimodal.md) |
@@ -19,4 +19,4 @@ description: Select an XWhy explainer by input modality, task, model interface, 
 | System of interacting AI agents | Planned Multi-Agent AI explainability | Coming soon | [Multi-Agent AI roadmap](../explainers/multi-agent-ai.md) |
 
 !!! tip
-    Choose by **task and implemented capability**, not only by class name. A class exported by the package may still be a development interface. Pix2Pix is one image-editing model family, not the name of the overall image-generation capability. Agentic AI and Multi-Agent AI are currently documented research directions, not exported XWhy explainers.
+    Choose by **task and implemented capability**, not only by class name. `PointCloudExplainer` is currently an exported development interface whose `explain()` method is not implemented. Pix2Pix is one image-to-image model family, not the public explainer name. Agentic AI and Multi-Agent AI are currently documented research directions, not exported XWhy explainers.
