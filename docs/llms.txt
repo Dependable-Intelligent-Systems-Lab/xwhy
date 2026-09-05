@@ -2,7 +2,7 @@
 
 > XWhy is an open-source Python package for model-agnostic local explainability using SMILE.
 
-XWhy explains the local behaviour of machine-learning and generative AI models. Image-classification and LLM explainers are currently available. Image-generation, tabular, text, point-cloud, time-series, multimodal, Agentic AI, and Multi-Agent AI capabilities are documented with their current development status. Agentic AI and Multi-Agent AI are currently research-roadmap capabilities rather than implemented explainers.
+XWhy explains the local behaviour of machine-learning and generative AI models. Image Classification, Image Generation & Editing, LLM, Tabular, and Text explainers are currently available. Point Cloud remains an under-construction public interface. Time Series, Multimodal, Agentic AI, and Multi-Agent AI are documented research-roadmap capabilities rather than implemented explainers.
 
 Package name: `xwhy`
 
@@ -12,7 +12,7 @@ Install with `pip install xwhy`.
 
 - [XWhy documentation](https://dependable-intelligent-systems-lab.github.io/xwhy/): Official documentation and capability overview.
 - [Install XWhy](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/): Installation and optional dependencies.
-- [Quick start](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/quick-start/): First explanation workflow.
+- [Quick start](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/quick-start/): Current executable explanation workflows.
 - [Choose an explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/): Select the correct implemented or planned workflow.
 - [GitHub repository](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy): Source code, issues, and releases.
 - [PyPI package](https://pypi.org/project/xwhy/): Installable Python distribution.
@@ -21,13 +21,13 @@ Install with `pip install xwhy`.
 ## Explainers
 
 - [Explainer overview](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/): Supported and planned explainers.
-- [Image classification](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/): Image-classification explainability.
-- [Image generation](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/): Image-generation explainability roadmap.
-- [Image editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/): Image-editing explainability status.
-- [Pix2Pix models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/): Pix2Pix as an image-editing model example.
-- [LLM explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/): LLM prompt-response explainability.
-- [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/): Tabular explainer development status.
-- [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/): Text explainer development status.
+- [Image classification](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/): Available image-classification explainability.
+- [Image generation and editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/): Available image-generation and image-editing explainability using `ImageGenerationAndEditingExplainer`.
+- [Image editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/): Available instruction-guided image-editing explainability.
+- [Pix2Pix-style models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/): Pix2Pix as a conditional image-to-image model family within the broader generative-image capability.
+- [LLM explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/): Available LLM prompt-response explainability.
+- [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/): Available tabular classification and regression explainability.
+- [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/): Available conventional text-model explainability.
 - [Point cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/): Point-cloud explainer development status.
 - [Time series](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/): Time-series explainability roadmap.
 - [Multimodal](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/): Multimodal explainability roadmap.
