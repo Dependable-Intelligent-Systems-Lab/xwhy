@@ -1,6 +1,6 @@
 ---
 title: "XWhy: eXplain Why"
-description: Use XWhy and SMILE to explain image classifiers and LLM responses, with a scalable roadmap for image generation, text, tabular, point-cloud, time-series, multimodal, agentic AI, and multi-agent AI explainability.
+description: Use XWhy and SMILE to explain image classification, image generation and editing, LLM, tabular, and text models, with a roadmap for point-cloud, time-series, multimodal, agentic AI, and multi-agent AI explainability.
 ---
 
 # XWhy: eXplain Why
@@ -10,7 +10,7 @@ description: Use XWhy and SMILE to explain image classifiers and LLM responses, 
 **XWhy: eXplain Why** is a Python library for model-agnostic local explainability. It uses **SMILE**—Statistical Model-agnostic Interpretability with Local Explanations—to perturb an input, observe changes in model behaviour, fit a local surrogate model, and report feature-level influence together with explanation-quality evidence.
 
 !!! info "Current package maturity"
-    XWhy `v{{ XWHY_VERSION }}` is currently classified as **pre-alpha**. Image Classification and LLM explainers are implemented. Other capabilities are clearly labelled as under construction or coming soon.
+    XWhy `v{{ XWHY_VERSION }}` is currently classified as **pre-alpha**. Image Classification, Image Generation & Editing, LLM, Tabular, and Text explainers are implemented. Point Cloud remains a development interface, while Time Series, Multimodal, Agentic AI, and Multi-Agent AI are planned capabilities.
 
 ## Start here
 
@@ -25,17 +25,17 @@ description: Use XWhy and SMILE to explain image classifiers and LLM responses, 
 | Capability | Public component | Explanation focus | Documentation status | Implementation status |
 | --- | --- | --- | --- | --- |
 | Image classification | `ImageClassificationExplainer` | Local image-region influence on class prediction | Available | Available |
-| Image generation and editing | `Pix2PixExplainer` prototype | Influence of prompts, source images, masks, and conditioning inputs on generated content | Under construction | Interface only |
+| Image generation and editing | `ImageGenerationAndEditingExplainer` | Influence of prompt terms and conditioning inputs on generated or edited images | Available | Available |
 | LLM prompt-response | `LLMExplainer` | Local influence of prompt terms or phrases on response behaviour | Available | Available |
-| Tabular | `TabularExplainer` | Influence of structured features on classification or regression | Under construction | Interface only |
-| Text | `TextExplainer` | Token-, word-, or phrase-level influence on text predictions | Under construction | Interface only |
+| Tabular | `TabularExplainer` | Influence of structured features on classification or regression | Available | Available |
+| Text | `TextExplainer` | Word-level influence on conventional text-model predictions | Available | Available |
 | Point cloud | `PointCloudExplainer` | Influence of 3D points or point groups on model prediction | Under construction | Interface only |
 | Time series | Planned | Influence of observations, windows, and temporal patterns on predictions | Coming soon | Not yet implemented |
 | Multimodal | Planned | Modality-specific and cross-modal contributions and interactions | Coming soon | Not yet implemented |
 | Agentic AI | Planned | Plans, retrieval, memory, tool use, actions, state transitions, and uncertainty or failure propagation within an autonomous agent | Coming soon | Not yet implemented |
 | Multi-Agent AI | Planned | Agent contributions, inter-agent messages, coordination, disagreement, dependencies, and uncertainty or failure propagation across agents | Coming soon | Not yet implemented |
 
-Pix2Pix is documented as one image-editing model family within the broader [image-generation explainability](explainers/image-generation/index.md) section.
+The current generative-image component is `ImageGenerationAndEditingExplainer`. Pix2Pix is retained in the documentation as one conditional image-to-image model family, not as the name of the public XWhy explainer.
 
 ## Explainability of Agentic AI
 
