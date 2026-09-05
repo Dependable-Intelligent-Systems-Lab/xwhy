@@ -1,69 +1,45 @@
 ---
-title: Image Generation and Image Editing
-description: An overview of model-agnostic explanation approaches for image-generation and image-editing models in XWhy.
+title: Pix2Pix-Style Models in XWhy
+description: Position Pix2Pix-style conditional image-to-image models within XWhy's broader image-generation and image-editing explainability workflow.
 ---
 
-# Image Generation and Image Editing
+# Pix2Pix-style models
 
-Generative image models either create new images or transform existing ones. Within XWhy, these tasks are organised into two related categories:
+Pix2Pix-style models are conditional image-to-image systems: they transform a source image into a target image rather than returning a classification score. They are one useful model family for studying image-editing explainability, but they are **not a separate public XWhy explainer**.
 
-- **Image generation**, where a model creates an image from a conditioning input such as text, noise, or another representation.
-- **Image editing**, where a source image is modified according to an instruction, mask, or target condition.
-
-Unlike image classification, these models do not return a single class score. Their explanations must therefore consider the relationship between the input condition, the source image, and the generated output.
+!!! info "Public XWhy component"
+    The current public API is `ImageGenerationAndEditingExplainer`. There is no exported `Pix2PixExplainer` in the current package.
 
 ## Model-agnostic explanation workflow
 
-A local explanation workflow for image-generation and image-editing models may involve:
+For a compatible Pix2Pix-style model, the broader XWhy workflow can be applied by supplying the model through a supported pipeline, engine, or custom generation/editing function. A local explanation can then involve:
 
-1. generating a reference output using the original input;
-2. perturbing the source image, conditioning input, or editing instruction;
-3. generating outputs for the perturbed inputs;
-4. comparing each perturbed output with the reference output;
-5. measuring differences using pixel-space, perceptual, or semantic distances;
-6. fitting a local interpretable surrogate model;
-7. producing feature, region, or word-level attributions.
+1. producing a reference transformation from the original source image and instruction or conditioning input;
+2. perturbing the textual conditioning input;
+3. rerunning the image transformation for each perturbation;
+4. comparing perturbed outputs with the reference output;
+5. measuring image differences in pixel or embedding space;
+6. weighting the local neighbourhood using text similarity or distance; and
+7. fitting an interpretable local surrogate to estimate term contributions.
 
-This approach can be applied without requiring access to the internal architecture or gradients of the generative model.
+## Why Pix2Pix remains useful as an example
 
-## Image-editing example: Pix2Pix
+Pix2Pix-style models provide a comparatively clear source-to-output relationship and are therefore useful for evaluating explanation methods under controlled image-to-image transformations. A reproducible example should document:
 
-Pix2Pix-style models are an example of conditional image-to-image generation. They transform a source image into a target image rather than returning a classification score.
+- the source and target domains;
+- model weights and preprocessing;
+- the conditioning or editing instruction, where applicable;
+- perturbation strategy;
+- output-distance measure;
+- local surrogate configuration;
+- attribution results;
+- fidelity and stability evidence; and
+- known limitations.
 
-!!! danger "Experimental interface — under construction"
-    XWhy currently exports `Pix2PixExplainer`, but its `explain()` method raises `NotImplementedError`. The interface is therefore experimental and should not yet be treated as an executable explanation workflow.
+## Scope
 
-A future Pix2Pix example should document:
+The current `ImageGenerationAndEditingExplainer` primarily attributes changes in output images to perturbations of the textual instruction. A future Pix2Pix-specific study could extend this to source-image region perturbation and direct region-level attribution while using the same local explanation and evaluation principles.
 
-1. the source image and target transformation;
-2. the model, weights, and preprocessing steps;
-3. the source-image regions selected for perturbation;
-4. the output-distance or perceptual-similarity measure;
-5. the local surrogate configuration;
-6. the resulting attribution map;
-7. fidelity, stability, and runtime evidence;
-8. limitations when interpreting generative outputs.
+[Read the image generation and editing overview](index.md)
 
-## Planned examples
-
-Future documentation may include:
-
-- text-to-image generation;
-- instruction-based image editing;
-- mask-based image editing;
-- Pix2Pix-style image translation;
-- perturbation of textual conditioning inputs;
-- comparison of pixel, perceptual, and semantic distances;
-- detection of unintended changes outside the requested edit region.
-
-## Evaluation considerations
-
-Explanations for generative models should be assessed across multiple dimensions, including:
-
-- **fidelity** to the behaviour of the generative model;
-- **stability** under small or semantically irrelevant input changes;
-- **consistency** across repeated generations;
-- **runtime and computational cost**;
-- **localisation** of intended and unintended visual changes.
-
-[View the current `Pix2PixExplainer` API interface](../../reference/xwhy/explainers/pix2pix.md)
+[View the current image explainer API reference](../../reference/xwhy/explainers/image.md)
