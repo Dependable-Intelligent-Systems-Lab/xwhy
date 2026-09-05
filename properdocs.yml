@@ -1,5 +1,5 @@
 site_name: "XWhy: eXplain Why"
-site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, and future multimodal systems.
+site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, multimodal, agentic AI, and multi-agent AI systems.
 site_author: XWhy contributors
 site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
 repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
@@ -47,8 +47,8 @@ plugins:
         XWhy: eXplain Why is a Python library for model-agnostic local
         explainability using SMILE. Image-classification and LLM explainers are
         currently available. Image-generation explainability and additional
-        modalities are being developed and are explicitly labelled in the
-        documentation.
+        modalities are being developed, while Agentic AI and Multi-Agent AI
+        explainability are documented as explicit research-roadmap capabilities.
       full_output: llms-full.txt
       sections:
         Getting Started:
@@ -68,6 +68,8 @@ plugins:
           - explainers/point-cloud.md: Point-cloud explainer development status
           - explainers/time-series.md: Planned time-series explainability
           - explainers/multimodal.md: Planned multimodal explainability
+          - explainers/agentic-ai.md: Planned Agentic AI explainability
+          - explainers/multi-agent-ai.md: Planned Multi-Agent AI explainability
         Tutorials and Examples:
           - tutorials-and-examples/index.md: Directory of available and planned tutorials and examples
           - image_classification_explainer.md: Image-classification tutorial
@@ -130,6 +132,8 @@ nav:
       - Point Cloud: explainers/point-cloud.md
       - Time Series: explainers/time-series.md
       - Multimodal: explainers/multimodal.md
+      - Agentic AI: explainers/agentic-ai.md
+      - Multi-Agent AI: explainers/multi-agent-ai.md
   - Tutorials & Examples:
       - Overview: tutorials-and-examples/index.md
       - Image Classification Tutorial: image_classification_explainer.md
