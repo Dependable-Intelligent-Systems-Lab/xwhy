@@ -1,36 +1,53 @@
 ---
 title: Image Editing Explainability with XWhy
-description: Planned XWhy documentation for explaining instruction-guided edits, inpainting, image-to-image translation, and other image-editing models.
+description: Explain instruction-guided image editing with XWhy by perturbing the edit instruction and measuring changes in edited outputs.
 ---
 
 # Image editing explainability
 
-!!! info "Coming soon"
-    A supported image-editing explanation workflow is not yet implemented in XWhy.
+!!! success "Available"
+    Image editing is supported through `ImageGenerationAndEditingExplainer` when the selected provider, pipeline, or custom engine supports editing.
 
-Image editing differs from image classification because the target model produces a transformed image rather than a class score. An explanation therefore needs to connect changes in the source image, edit instruction, mask, or conditioning input to changes in the generated output.
+Image editing differs from image classification because the model produces a transformed image rather than a class score. XWhy therefore evaluates how changes to the edit instruction affect the resulting image relative to a reference edit.
 
-## Planned questions
+## Basic use
 
-Future image-editing explanations should help users examine:
+```python
+from xwhy import ImageGenerationAndEditingExplainer
 
-- which source-image regions influenced the edited output;
-- which words or phrases in an edit instruction had the strongest effect;
-- how an edit mask constrained or redirected generation;
-- whether unrelated regions were changed unexpectedly;
-- how stable an edit is across seeds or small input changes;
-- whether the explanation remains consistent across output-distance measures.
+explainer = ImageGenerationAndEditingExplainer(
+    engine="openai",
+    model_name="gpt-image-1",
+    num_perturbations=64,
+)
 
-## Planned model families
+result = explainer.explain(
+    "Replace the cloudy sky with a clear blue sky.",
+    input_image_path="scene.png",
+)
+```
 
-The section may include examples for:
+The exact provider and model must support image editing, and provider-specific credentials or arguments may be required.
 
-- Pix2Pix-style conditional image-to-image models;
-- instruction-guided image editors;
-- diffusion-based image-to-image systems;
-- inpainting and outpainting models;
-- domain-transfer and style-transfer systems.
+## What XWhy perturbs
 
-Model-specific pages will be added only after the corresponding integration, tests, and reproducible outputs are available.
+The current implementation focuses on perturbing the **textual editing instruction**. For each perturbation it reruns the editing model, compares the perturbed edited output with the reference edited output, and fits a local surrogate model.
 
-Next: [Pix2Pix model examples](pix2pix-models.md).
+This allows questions such as:
+
+- Which words in the edit instruction had the strongest measured influence on the edited output?
+- Does removing a key object, attribute, or action word substantially change the result?
+- Is the explanation stable when the edit is repeated under controlled settings?
+- Does the local surrogate provide an adequate approximation of the observed edits?
+
+## Current scope and limitations
+
+The present implementation should not be described as direct pixel-level causal attribution to the source image or mask. Its principal explanation units are terms in the textual instruction, with output changes measured in image space or an image-embedding space depending on configuration.
+
+Future extensions can add explicit source-region, mask-region, and cross-modal attribution while retaining the same intervention-based evaluation principles.
+
+Because image-generation and editing models may be stochastic, explanation results can vary across executions. Where the provider supports it, control and report the seed, model version, perturbation count, output-distance measure, and surrogate fidelity.
+
+See the [image generation and editing overview](index.md) and [Pix2Pix-style model examples](pix2pix-models.md).
+
+[View the current image explainer API reference](../../reference/xwhy/explainers/image.md)
