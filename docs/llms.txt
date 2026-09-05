@@ -2,7 +2,7 @@
 
 > XWhy is an open-source Python package for model-agnostic local explainability using SMILE.
 
-XWhy explains the local behaviour of machine-learning and generative AI models. Image-classification and LLM explainers are currently available. Image-generation, tabular, text, point-cloud, time-series, and multimodal capabilities are documented with their current development status.
+XWhy explains the local behaviour of machine-learning and generative AI models. Image-classification and LLM explainers are currently available. Image-generation, tabular, text, point-cloud, time-series, multimodal, Agentic AI, and Multi-Agent AI capabilities are documented with their current development status. Agentic AI and Multi-Agent AI are currently research-roadmap capabilities rather than implemented explainers.
 
 Package name: `xwhy`
 
@@ -13,7 +13,7 @@ Install with `pip install xwhy`.
 - [XWhy documentation](https://dependable-intelligent-systems-lab.github.io/xwhy/): Official documentation and capability overview.
 - [Install XWhy](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/): Installation and optional dependencies.
 - [Quick start](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/quick-start/): First explanation workflow.
-- [Choose an explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/): Select the correct implemented workflow.
+- [Choose an explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/choosing-an-explainer/): Select the correct implemented or planned workflow.
 - [GitHub repository](https://github.com/Dependable-Intelligent-Systems-Lab/xwhy): Source code, issues, and releases.
 - [PyPI package](https://pypi.org/project/xwhy/): Installable Python distribution.
 - [Python API reference](https://dependable-intelligent-systems-lab.github.io/xwhy/reference/xwhy/): Generated package reference.
@@ -31,6 +31,8 @@ Install with `pip install xwhy`.
 - [Point cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/): Point-cloud explainer development status.
 - [Time series](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/): Time-series explainability roadmap.
 - [Multimodal](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/): Multimodal explainability roadmap.
+- [Agentic AI](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/agentic-ai/): Planned explainability for agent trajectories, planning, retrieval, memory, tool use, state transitions, and uncertainty or failure propagation.
+- [Multi-Agent AI](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multi-agent-ai/): Planned explainability for agent contribution, inter-agent communication, coordination, disagreement, dependencies, and uncertainty or failure propagation.
 
 ## Tutorials and examples
 
