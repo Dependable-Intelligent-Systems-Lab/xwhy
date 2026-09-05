@@ -1,5 +1,5 @@
 site_name: "XWhy: eXplain Why"
-site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation, LLMs, text, tabular, point-cloud, multimodal, agentic AI, and multi-agent AI systems.
+site_description: Model-agnostic explainability with XWhy and SMILE for image classification, image generation and editing, LLMs, text, tabular, point-cloud, time-series, multimodal, agentic AI, and multi-agent AI systems.
 site_author: XWhy contributors
 site_url: https://dependable-intelligent-systems-lab.github.io/xwhy/
 repo_url: https://github.com/Dependable-Intelligent-Systems-Lab/xwhy
@@ -45,26 +45,27 @@ plugins:
   - llmstxt:
       markdown_description: >-
         XWhy: eXplain Why is a Python library for model-agnostic local
-        explainability using SMILE. Image-classification and LLM explainers are
-        currently available. Image-generation explainability and additional
-        modalities are being developed, while Agentic AI and Multi-Agent AI
-        explainability are documented as explicit research-roadmap capabilities.
+        explainability using SMILE. Image Classification, Image Generation &
+        Editing, LLM, Tabular, and Text explainers are currently available.
+        Point Cloud remains under construction, while Time Series, Multimodal,
+        Agentic AI, and Multi-Agent AI are documented research-roadmap
+        capabilities.
       full_output: llms-full.txt
       sections:
         Getting Started:
           - index.md: XWhy overview and capability status
           - getting-started/installation.md: Installation and optional dependencies
-          - getting-started/quick-start.md: First explanation workflow
+          - getting-started/quick-start.md: First explanation workflows
           - getting-started/choosing-an-explainer.md: Select the correct explainer
         Explainers:
           - explainers/index.md: Supported and planned explainers
           - explainers/image/index.md: Image-classification explainability
-          - explainers/image-generation/index.md: Planned image-generation explainability
-          - explainers/image-generation/image-editing.md: Planned image-editing explainability
-          - explainers/image-generation/pix2pix-models.md: Pix2Pix as an image-editing model example
+          - explainers/image-generation/index.md: Image-generation and editing explainability
+          - explainers/image-generation/image-editing.md: Image-editing explainability
+          - explainers/image-generation/pix2pix-models.md: Pix2Pix-style models as an image-editing model family
           - explainers/llm/index.md: LLM prompt-response explainability
-          - explainers/tabular.md: Tabular explainer development status
-          - explainers/text.md: Text explainer development status
+          - explainers/tabular.md: Tabular explainability
+          - explainers/text.md: Text explainability
           - explainers/point-cloud.md: Point-cloud explainer development status
           - explainers/time-series.md: Planned time-series explainability
           - explainers/multimodal.md: Planned multimodal explainability
@@ -74,9 +75,9 @@ plugins:
           - tutorials-and-examples/index.md: Directory of available and planned tutorials and examples
           - image_classification_explainer.md: Image-classification tutorial
           - llm_explainer.md: Unified LLM example with setup, executed outputs, and embedding comparison
-          - examples/image.md: Planned image examples
-          - examples/tabular.md: Planned tabular examples
-          - examples/text.md: Planned text examples
+          - examples/image.md: Image example status
+          - examples/tabular.md: Tabular example status
+          - examples/text.md: Text example status
           - examples/point-cloud.md: Planned point-cloud examples
         Concepts:
           - concepts/smile.md: How the SMILE explanation workflow operates
