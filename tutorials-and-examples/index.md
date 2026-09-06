@@ -1,0 +1,19 @@
+# Tutorials and examples
+
+Use this directory to select a complete learning path. Where a worked example is available, it is integrated into a single page so setup, execution, output, and interpretation remain in one place.
+
+| Resource                                                                                                                                          | Modality         | Type               | Status                 | Coverage                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [Image Classification Explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/image_classification_explainer/index.md)               | Image            | Tutorial           | **Available**          | Built-in and custom PyTorch classifiers, segmentation, distances, and image plots.                                                  |
+| [LLM Example](https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/index.md)                                                   | LLM              | Worked example     | **Available**          | Provider setup, prompt perturbation, embeddings, executed outputs, fidelity metrics, plot interpretation, and embedding comparison. |
+| [Image Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/image/index.md)                                               | Image            | Example collection | **Coming soon**        | Reproducible image-classification examples with stored outputs.                                                                     |
+| [Image Editing and Pix2Pix Models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/index.md) | Image generation | Planned example    | **Under construction** | Conditional image-to-image explanation and Pix2Pix-style model analysis.                                                            |
+| [Tabular Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/tabular/index.md)                                           | Tabular          | Example collection | **Under construction** | Classification, regression, mixed features, and stability comparisons.                                                              |
+| [Text Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/text/index.md)                                                 | Text             | Example collection | **Under construction** | Token- and phrase-level explanations for conventional text models.                                                                  |
+| [Point-Cloud Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/examples/point-cloud/index.md)                                   | Point cloud      | Example collection | **Under construction** | Point grouping, perturbation comparison, and 3D attribution.                                                                        |
+
+## Recommended starting points
+
+- New users should begin with the [installation guide](https://dependable-intelligent-systems-lab.github.io/xwhy/getting-started/installation/index.md) and then choose one of the available resources.
+- Users comparing capabilities should first review the [explainer directory](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/index.md).
+- Contributors preparing a new example should include executable code, environment details, representative output, quality metrics, and a limitations section.
