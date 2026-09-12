@@ -46,7 +46,7 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
         device: str = "cpu",
         clustering_mode: Literal["kmeans", "precomputed"] = "kmeans",
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
-        distance_mode: Literal["spatial", "latent"] = "spatial",
+        distance_mode: Literal["mask", "spatial", "latent"] = "mask",
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         **model_kwargs: Any,  # noqa: ANN401
@@ -69,7 +69,7 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
             device: Computation device ("cpu" or "cuda").
             clustering_mode: "kmeans" or "precomputed".
             distance_type: Metric used to compute distance between points.
-            distance_mode: "spatial" or "latent".
+            distance_mode: "mask", "spatial", or "latent".
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate.
             **model_kwargs: Additional parameters for model wrapper.
@@ -294,7 +294,20 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
         # --------------------------------------------------
         distances: list[float] = []
 
-        if self.config.distance_mode == "spatial":  # type: ignore[union-attr]
+        if self.config.distance_mode == "mask":  # type: ignore[union-attr]
+            # Baseline is a full mask of 1s (all clusters present)
+            reference_mask = np.ones(self.config.num_clusters)  # type: ignore[union-attr]
+
+            for mask in cluster_masks:
+                dist = calculate_distance(
+                    metric=self.config.distance_type,  # type: ignore[union-attr]
+                    source=reference_mask,
+                    target=mask,
+                    mode="mask",
+                )
+                distances.append(dist)
+
+        elif self.config.distance_mode == "spatial":  # type: ignore[union-attr]
             original = sample_input.squeeze(0)  # Shape: (N, 3)
 
             for perturbed in perturbed_samples:  # Shape: (M, 3)

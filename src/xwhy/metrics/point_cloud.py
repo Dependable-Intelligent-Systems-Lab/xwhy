@@ -102,16 +102,6 @@ def compute_noisy_explanations(
     min_coords = sample_np.min(axis=0)
     max_coords = sample_np.max(axis=0)
 
-    explainer = PointCloudExplainer(
-        model=model,
-        num_clusters=num_clusters,
-        num_perturbations=num_perturbations,
-        removal_probability=removal_probability,
-        seed=seed,
-        clustering_mode=clustering_mode,
-        **explainer_kwargs,
-    )
-
     for i in range(num_iterations):
         current_seed = seed + i
         rng = np.random.RandomState(current_seed)
@@ -135,10 +125,27 @@ def compute_noisy_explanations(
         if clustering_mode == "precomputed":
             if cluster_labels is None:
                 raise ValueError("cluster_labels required for precomputed mode")
+
             new_labels = np.full(num_new_points, fill_value=cluster_labels.max() + 1)
             combined_labels = np.concatenate([cluster_labels, new_labels])
 
-        logger.debug("Sample with Noise: %s", i + 1)
+            # Dynamically determine the correct number of clusters including noise
+            actual_num_clusters = len(np.unique(combined_labels))
+        else:
+            actual_num_clusters = num_clusters
+
+        logger.debug("Sample with Noise: %d", i + 1)
+
+        # Initialize the explainer inside the loop to capture updated cluster counts
+        explainer = PointCloudExplainer(
+            model=model,
+            num_clusters=actual_num_clusters,
+            num_perturbations=num_perturbations,
+            removal_probability=removal_probability,
+            seed=seed,
+            clustering_mode=clustering_mode,
+            **explainer_kwargs,
+        )
 
         result = explainer.explain(
             instance=combined_tensor,

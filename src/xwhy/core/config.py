@@ -199,6 +199,6 @@ class PointCloudConfig(ExplainerConfig):
 
     clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    distance_mode: Literal["spatial", "latent"] = "spatial"
+    distance_mode: Literal["mask", "spatial", "latent"] = "mask"
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
