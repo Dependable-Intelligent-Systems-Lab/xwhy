@@ -1,11 +1,13 @@
 ---
 title: XWhy Text Explainability Examples
-description: Planned examples for token-level and phrase-level explanations of conventional text models with XWhy.
+description: Example roadmap for conventional text-model explanations with the implemented XWhy TextExplainer.
 ---
 
 # Text examples
 
-!!! warning "Under construction"
-    Examples will be published after `TextExplainer.explain()` is implemented and verified.
+!!! info "Curated examples in preparation"
+    `TextExplainer` is implemented and available. This page tracks additional curated, reproducible examples with stored outputs that are still being prepared.
 
-Planned examples include sentiment classification, topic classification, phrase-level perturbation, and explanation-stability analysis.
+Planned example pages include sentiment classification, topic classification, alternative perturbation studies, and explanation-stability analysis.
+
+Use the [Text explainer guide](../explainers/text.md) and the generated API reference for the current executable interface.

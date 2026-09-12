@@ -10,7 +10,9 @@
     ["Text", "explainers/text/"],
     ["Point Cloud", "explainers/point-cloud/"],
     ["Time Series", "explainers/time-series/"],
-    ["Multimodal", "explainers/multimodal/"]
+    ["Multimodal", "explainers/multimodal/"],
+    ["Agentic AI", "explainers/agentic-ai/"],
+    ["Multi-Agent AI", "explainers/multi-agent-ai/"]
   ];
 
   const tutorialLinks = [

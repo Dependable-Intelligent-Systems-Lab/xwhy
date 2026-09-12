@@ -1,34 +1,45 @@
 ---
-title: Pix2Pix Models in XWhy Image Generation
-description: Planned examples showing how Pix2Pix-style image-to-image models may be explained within the broader XWhy image-generation documentation.
+title: Pix2Pix-Style Models in XWhy
+description: Position Pix2Pix-style conditional image-to-image models within XWhy's broader image-generation and image-editing explainability workflow.
 ---
 
-# Pix2Pix model examples
+# Pix2Pix-style models
 
-!!! danger "Experimental interface — under construction"
-    XWhy currently exports `Pix2PixExplainer`, but its `explain()` method raises `NotImplementedError`. The examples described here are a documentation roadmap, not an executable workflow.
+Pix2Pix-style models are conditional image-to-image systems: they transform a source image into a target image rather than returning a classification score. They are one useful model family for studying image-editing explainability, but they are **not a separate public XWhy explainer**.
 
-Pix2Pix-style models are one example of conditional image-to-image generation. They belong under **Image Generation → Image Editing** because the model transforms a source image into a target image rather than returning a classification score.
+!!! info "Public XWhy component"
+    The current public API is `ImageGenerationAndEditingExplainer`. There is no exported `Pix2PixExplainer` in the current package.
 
-## Planned first example
+## Model-agnostic explanation workflow
 
-A future worked example should document:
+For a compatible Pix2Pix-style model, the broader XWhy workflow can be applied by supplying the model through a supported pipeline, engine, or custom generation/editing function. A local explanation can then involve:
 
-1. the source image and target transformation task;
-2. the Pix2Pix model, weights, and preprocessing;
-3. the source-image regions selected for perturbation;
-4. the output-distance or perceptual-similarity measure;
-5. the local surrogate configuration;
-6. the generated attribution map;
-7. fidelity, stability, and runtime evidence;
-8. limitations of interpreting generative outputs.
+1. producing a reference transformation from the original source image and instruction or conditioning input;
+2. perturbing the textual conditioning input;
+3. rerunning the image transformation for each perturbation;
+4. comparing perturbed outputs with the reference output;
+5. measuring image differences in pixel or embedding space;
+6. weighting the local neighbourhood using text similarity or distance; and
+7. fitting an interpretable local surrogate to estimate term contributions.
 
-## Planned comparison cases
+## Why Pix2Pix remains useful as an example
 
-- removing or masking source-image regions;
-- perturbing the conditioning input;
-- comparing pixel-space and perceptual distances;
-- checking attribution stability across generation seeds;
-- detecting unintended changes outside the target edit region.
+Pix2Pix-style models provide a comparatively clear source-to-output relationship and are therefore useful for evaluating explanation methods under controlled image-to-image transformations. A reproducible example should document:
 
-[View the current `Pix2PixExplainer` API interface](../../reference/xwhy/explainers/pix2pix.md)
+- the source and target domains;
+- model weights and preprocessing;
+- the conditioning or editing instruction, where applicable;
+- perturbation strategy;
+- output-distance measure;
+- local surrogate configuration;
+- attribution results;
+- fidelity and stability evidence; and
+- known limitations.
+
+## Scope
+
+The current `ImageGenerationAndEditingExplainer` primarily attributes changes in output images to perturbations of the textual instruction. A future Pix2Pix-specific study could extend this to source-image region perturbation and direct region-level attribution while using the same local explanation and evaluation principles.
+
+[Read the image generation and editing overview](index.md)
+
+[View the current image explainer API reference](../../reference/xwhy/explainers/image.md)
