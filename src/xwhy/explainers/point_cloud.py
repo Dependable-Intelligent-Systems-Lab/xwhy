@@ -20,7 +20,6 @@ from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
 from xwhy.models.point_cloud.base import BasePointCloudModel
 from xwhy.models.point_cloud.custom import CustomPointCloudModel
-from xwhy.models.point_cloud.huggingface import HuggingFacePointCloudModel
 from xwhy.perturbation.point_cloud import PointCloudPerturbation
 from xwhy.surrogate.factory import SurrogateFactory
 from xwhy.surrogate.trainer import SurrogateTrainer
@@ -34,7 +33,6 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
         self,
         config: PointCloudConfig | None = None,
         model: torch.nn.Module | BasePointCloudModel | Any | None = None,  # noqa: ANN401
-        engine_type: Literal["custom", "huggingface"] = "custom",
         custom_model: Any | None = None,  # noqa: ANN401
         custom_predict_fn: Callable[..., Any] | None = None,
         num_clusters: int = 8,
@@ -57,8 +55,7 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
 
         Args:
             config: Optional explainer configuration instance.
-            model: PyTorch model, HF pipeline, or BasePointCloudModel wrapper.
-            engine_type: Inference engine to use ("custom" or "huggingface").
+            model: PyTorch model, or BasePointCloudModel wrapper.
             custom_model: Custom model fallback if model is not provided.
             custom_predict_fn: Custom prediction function.
             num_clusters: Number of clusters for point cloud segmentation.
@@ -90,21 +87,9 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
                 "for PointCloudExplainer. Must be a numeric distance."
             )
 
-        # 2. Infer dynamic engine_type based on duck-typing
-        resolved_engine_type = engine_type
-        if model is not None:
-            if isinstance(model, BasePointCloudModel):
-                if "HuggingFace" in model.__class__.__name__:
-                    resolved_engine_type = "huggingface"
-            elif hasattr(model, "save_pretrained") or engine_type == "huggingface":
-                resolved_engine_type = "huggingface"
-            else:
-                resolved_engine_type = "custom"
-
-        # 3. Construct or update configuration
+        # 2. Construct or update configuration
         if config is None:
             config = PointCloudConfig(
-                engine_type=resolved_engine_type,
                 custom_model=custom_model,
                 custom_predict_fn=custom_predict_fn,
                 num_clusters=num_clusters,
@@ -122,13 +107,11 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
                 surrogate_type=surrogate_enum,
                 use_best_surrogate=use_best_surrogate,
             )
-        else:
-            config = config.model_copy(update={"engine_type": resolved_engine_type})
 
-        # 4. Bind config to base class pipeline
+        # 3. Bind config to base class pipeline
         super().__init__(config)
 
-        # 5. Initialize runtime state and model wrappers
+        # 4. Initialize runtime state and model wrappers
         self.state = PointCloudState(
             device_=torch.device(self.config.device)  # type: ignore[union-attr]
         )
@@ -137,10 +120,6 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
         if model is not None:
             if isinstance(model, BasePointCloudModel):
                 self.state.model = model
-            elif self.config.engine_type == "huggingface":  # type: ignore[union-attr]
-                self.state.model = HuggingFacePointCloudModel(
-                    hf_pipeline=model, **self._model_kwargs
-                )
             else:
                 self.state.model = CustomPointCloudModel(
                     model=model,
@@ -153,17 +132,13 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
     def _initialize(self) -> None:
         """Initialize model runtime resources if not already provided."""
         if self.state.model is None:
-            engine_type = self.config.engine_type  # type: ignore[union-attr]
-            logger.info("Initializing point cloud model with engine: %s", engine_type)
+            logger.info("Initializing point cloud model")
 
-            if engine_type == "huggingface":
-                self.state.model = HuggingFacePointCloudModel(**self._model_kwargs)
-            else:
-                self.state.model = CustomPointCloudModel(
-                    model=self.config.custom_model,  # type: ignore[union-attr]
-                    predict_fn=self.config.custom_predict_fn,  # type: ignore[union-attr]
-                    **self._model_kwargs,
-                )
+            self.state.model = CustomPointCloudModel(
+                model=self.config.custom_model,  # type: ignore[union-attr]
+                predict_fn=self.config.custom_predict_fn,  # type: ignore[union-attr]
+                **self._model_kwargs,
+            )
 
         # Initialize the perturbation strategy
         self.state.perturbation = PointCloudPerturbation(

@@ -184,7 +184,6 @@ class PointCloudConfig(ExplainerConfig):
         str_strip_whitespace=True,
     )
 
-    engine_type: Literal["custom", "huggingface"] = "custom"
     custom_model: Any | None = None
     custom_predict_fn: Callable[..., Any] | None = None
 

@@ -9,7 +9,6 @@ class PointCloudModelType(StrEnum):
     """Supported point cloud model types."""
 
     CUSTOM = "custom"
-    HUGGINGFACE = "huggingface"
 
     @classmethod
     def from_str(cls, value: str | PointCloudModelType) -> PointCloudModelType:
