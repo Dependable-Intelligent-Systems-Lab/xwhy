@@ -5,6 +5,7 @@ import torch
 from xwhy.core.types import (
     ImageClassificationState,
     ImageGenerationAndEditingState,
+    PointCloudState,
     TabularState,
     TextState,
 )
@@ -69,3 +70,14 @@ def test_text_state_init() -> None:
     assert state.predict_fn is None
     assert state.perturbator is None
     assert state.embedding_model is None
+
+
+def test_point_cloud_state_init() -> None:
+    """Test the initialization of PointCloudState."""
+    expected_device = torch.device("cpu")
+
+    state = PointCloudState(device_=expected_device)
+
+    assert state.device == expected_device
+    assert state.model is None
+    assert state.perturbation is None

@@ -375,7 +375,7 @@ def test_llm_explain_impute_when_some_distances_valid(
     )
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
 
-    # Two finite distances + one non-finite → valid branch is taken.
+    # Two finite distances + one non-finite => valid branch is taken.
     mock_wmd.return_value.compute_batch.return_value = [
         ("res1", 0.5),
         ("res2", np.inf),
@@ -447,7 +447,7 @@ def test_llm_explain_impute_when_all_distances_non_finite(
     )
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
 
-    # All non-finite → else branch (max_penalty = 1000.0)
+    # All non-finite => else branch (max_penalty = 1000.0)
     mock_wmd.return_value.compute_batch.return_value = [
         ("res1", np.inf),
         ("res2", np.nan),

@@ -26,25 +26,38 @@ class MockDistance(BaseNumericDistance):
 
 
 def test_compute_dimensionality_branches() -> None:
-    """Test distance computation across 1D, 3D, and mismatch dimensions."""
+    """Test distance computation across 1D, 2D-spatial, 3D, and mismatch cases."""
     dist = MockDistance()
 
-    # Branch: Shape mismatch
-    assert dist.compute(np.array([1]), np.array([1, 2])) == float("inf")
+    # Branch: 1D shape mismatch => inf
+    assert dist.compute(np.array([1.0]), np.array([1.0, 2.0])) == float("inf")
 
-    # Branch: Ndim == 1
-    assert dist.compute(np.array([1]), np.array([2])) == 1.0
+    # Branch: Ndim == 1 success
+    assert dist.compute(np.array([1.0]), np.array([2.0])) == 1.0
 
-    # Branch: Ndim == 3 (Channels)
-    img1 = np.zeros((10, 10, 3))
-    img2 = np.zeros((10, 10, 3))
-    # Returns 1.0 per channel (3 channels) -> 3.0
+    # Branch: Ndim == 3 success (channel-wise)
+    img1 = np.zeros((10, 10, 3), dtype=np.float64)
+    img2 = np.zeros((10, 10, 3), dtype=np.float64)
     assert dist.compute(img1, img2) == 3.0
 
-    # Branch: Fallback (2D)
-    arr1 = np.zeros((5, 5))
-    arr2 = np.zeros((5, 5))
+    # Branch: Ndim == 3 shape mismatch => inf
+    img3 = np.zeros((8, 8, 3), dtype=np.float64)
+    assert dist.compute(img1, img3) == float("inf")
+
+    # Branch: 2D latent / fallback (default mode)
+    arr1 = np.zeros((5, 5), dtype=np.float64)
+    arr2 = np.zeros((5, 5), dtype=np.float64)
     assert dist.compute(arr1, arr2) == 1.0
+
+    # Branch: 2D spatial mode success (feature dims match)
+    pc1 = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
+    pc2 = np.array([[5.0, 6.0], [7.0, 8.0], [9.0, 10.0]], dtype=np.float64)
+    # 2 axes => _compute_1d called twice => 2.0
+    assert dist.compute(pc1, pc2, mode="spatial") == 2.0
+
+    # Branch: 2D spatial mode feature-dim mismatch => inf
+    pc3 = np.array([[1.0, 2.0, 3.0]], dtype=np.float64)
+    assert dist.compute(pc1, pc3, mode="spatial") == float("inf")
 
 
 def test_compute_with_p_value_branches() -> None:
@@ -133,3 +146,38 @@ def test_base_compute_1d_raises() -> None:
     base = BaseNumericDistance()
     with pytest.raises(NotImplementedError):
         base._compute_1d(np.array([1.0]), np.array([2.0]))
+
+
+def test_compute_tensor_conversion() -> None:
+    """Verify PyTorch-like tensors are converted before dimensionality checks.
+
+    Covers both source-only and target-only conversion branches as well as
+    the combined case.
+    """
+    dist = MockDistance()
+
+    def _make_tensor(arr: np.ndarray) -> MagicMock:
+        """Create a mock that behaves like a torch.Tensor."""
+        tensor = MagicMock()
+        tensor.detach.return_value.cpu.return_value.numpy.return_value = arr
+        return tensor
+
+    src_arr = np.array([1.0, 2.0], dtype=np.float64)
+    tgt_arr = np.array([3.0, 4.0], dtype=np.float64)
+
+    # Source is tensor-like
+    assert dist.compute(_make_tensor(src_arr), tgt_arr) == 1.0
+
+    # Target is tensor-like
+    assert dist.compute(src_arr, _make_tensor(tgt_arr)) == 1.0
+
+    # Both are tensor-like
+    assert dist.compute(_make_tensor(src_arr), _make_tensor(tgt_arr)) == 1.0
+
+
+def test_compute_higher_ndim_fallback() -> None:
+    """Verify N-D arrays (ndim > 3) fall through to the flatten path."""
+    dist = MockDistance()
+    vol1 = np.zeros((2, 3, 4, 5), dtype=np.float64)
+    vol2 = np.zeros((2, 3, 4, 5), dtype=np.float64)
+    assert dist.compute(vol1, vol2) == 1.0
