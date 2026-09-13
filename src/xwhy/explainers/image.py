@@ -19,16 +19,15 @@ from tqdm import tqdm
 
 from xwhy.core.config import ImageClassificationConfig, ImageGenerationAndEditingConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import (
     ImageClassificationXWhyResult,
     ImageGenerationAndEditingXWhyResult,
 )
-from xwhy.core.types import (
-    BaseImageGenerationAndEditing,
+from xwhy.core.states import (
     ImageClassificationState,
     ImageGenerationAndEditingState,
 )
+from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
@@ -64,10 +63,7 @@ from xwhy.utils.image import (
 from xwhy.utils.io import save_data_to_pickle, save_perturbation_data_to_csv
 
 
-class ImageClassificationExplainer(
-    ExplanationPipeline,
-    BaseExplainer,
-):
+class ImageClassificationExplainer(BaseExplainer):
     """Explainer for image classification models.
 
     This explainer loads all required runtime resources only once and can
@@ -343,24 +339,6 @@ class ImageClassificationExplainer(
         final_predictions = np.concatenate(batch_predictions, axis=0)
 
         return final_predictions, np.array(distances)
-
-    def run(self, instance: Any, **kwargs: Any) -> ImageClassificationXWhyResult:  # noqa: ANN401
-        """Run the full explanation pipeline.
-
-        Args:
-            instance: The input image path.
-            **kwargs: Additional pipeline options.
-
-        Returns:
-            ImageClassificationXWhyResult: The explanation outcome.
-
-        Raises:
-            TypeError: If the instance is not a string.
-
-        """
-        if not isinstance(instance, str):
-            raise TypeError("ImageClassification requires a string instance.")
-        return self.explain(instance, **kwargs)
 
     def explain(
         self,

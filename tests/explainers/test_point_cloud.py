@@ -12,7 +12,7 @@ import torch
 
 from xwhy.core.config import PointCloudConfig
 from xwhy.core.result import PointCloudXWhyResult
-from xwhy.core.types import PointCloudState
+from xwhy.core.states import PointCloudState
 from xwhy.distance.types import DistanceType
 from xwhy.explainers.point_cloud import PointCloudExplainer
 from xwhy.models.point_cloud.base import BasePointCloudModel
@@ -217,31 +217,6 @@ def test_initialize_creates_model_when_missing(
         # _initialize was called by constructor
         assert explainer.state.model is custom_instance
         assert explainer.state.perturbation is pert_instance
-
-
-# ---------------------------------------------------------------------------
-# run
-# ---------------------------------------------------------------------------
-
-
-def test_run_rejects_non_tensor(mock_config: MagicMock) -> None:
-    """Run raises TypeError when instance is not a torch.Tensor."""
-    explainer = _make_explainer(mock_config)
-    with pytest.raises(TypeError, match=re.escape("requires instance as torch.Tensor")):
-        explainer.run(instance=np.array([1.0, 2.0, 3.0]))
-
-
-def test_run_delegates_to_explain(
-    mock_config: MagicMock,
-    sample_tensor: torch.Tensor,
-) -> None:
-    """Run forwards a valid tensor to explain and returns its result."""
-    explainer = _make_explainer(mock_config)
-    expected = MagicMock(spec=PointCloudXWhyResult)
-    with patch.object(explainer, "explain", return_value=expected) as mock_explain:
-        result = explainer.run(instance=sample_tensor)
-        mock_explain.assert_called_once_with(sample_input=sample_tensor)
-        assert result is expected
 
 
 # ---------------------------------------------------------------------------

@@ -8,9 +8,8 @@ import numpy as np
 
 from xwhy.core.config import LLMConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TextXWhyResult
-from xwhy.core.types import LLMState
+from xwhy.core.states import LLMState
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
@@ -26,7 +25,7 @@ from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
 
 
-class LLMExplainer(ExplanationPipeline, BaseExplainer):
+class LLMExplainer(BaseExplainer):
     """Explainer for LLM tasks integrating the full GSMILE pipeline.
 
     This explainer loads all required runtime resources only once and can
@@ -150,24 +149,6 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         self.state.perturbator = TextPerturbation(
             seed=self.config.seed  # type: ignore[union-attr]
         )
-
-    def run(self, instance: Any, **kwargs: Any) -> TextXWhyResult:  # noqa: ANN401
-        """Run the full explanation pipeline (ExplanationPipeline implementation).
-
-        Args:
-            instance: The input prompt string.
-            **kwargs: Additional pipeline options.
-
-        Returns:
-            TextXWhyResult: The explanation outcome.
-
-        Raises:
-            TypeError: If the instance is not a string.
-
-        """
-        if not isinstance(instance, str):
-            raise TypeError("LLMExplainer requires a string instance.")
-        return self.explain(instance, **kwargs)
 
     def explain(
         self,

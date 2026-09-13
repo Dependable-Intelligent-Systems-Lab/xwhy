@@ -8,7 +8,7 @@ import numpy as np
 from xwhy.core.config import ExplainerConfig, TextConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.result import TextXWhyResult
-from xwhy.core.types import TextState
+from xwhy.core.states import TextState
 from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics

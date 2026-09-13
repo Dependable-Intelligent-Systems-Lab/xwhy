@@ -11,9 +11,8 @@ from sklearn.cluster import KMeans
 
 from xwhy.core.config import PointCloudConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import PointCloudXWhyResult
-from xwhy.core.types import PointCloudState
+from xwhy.core.states import PointCloudState
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
@@ -26,7 +25,7 @@ from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
 
 
-class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
+class PointCloudExplainer(BaseExplainer):
     """Explainer for Point Cloud classification tasks."""
 
     def __init__(
@@ -145,21 +144,6 @@ class PointCloudExplainer(ExplanationPipeline, BaseExplainer):
             removal_probability=self.config.removal_probability,  # type: ignore[union-attr]
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-
-    def run(self, instance: Any, **kwargs: Any) -> PointCloudXWhyResult:  # noqa: ANN401
-        """Run explanation pipeline (ExplanationPipeline implementation).
-
-        Args:
-            instance: Input point cloud tensor.
-            **kwargs: Extra parameters.
-
-        Returns:
-            PointCloudXWhyResult: Explanation result container.
-
-        """
-        if not isinstance(instance, torch.Tensor):
-            raise TypeError("PointCloudExplainer requires instance as torch.Tensor.")
-        return self.explain(sample_input=instance, **kwargs)
 
     def _cluster_points(
         self,

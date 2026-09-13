@@ -2,7 +2,7 @@
 
 import torch
 
-from xwhy.core.types import (
+from xwhy.core.states import (
     ImageClassificationState,
     ImageGenerationAndEditingState,
     PointCloudState,

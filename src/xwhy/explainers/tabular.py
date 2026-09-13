@@ -9,9 +9,8 @@ import numpy as np
 
 from xwhy.core.config import TabularConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TabularXWhyResult
-from xwhy.core.types import TabularState
+from xwhy.core.states import TabularState
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
@@ -22,7 +21,7 @@ from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
 
 
-class TabularExplainer(ExplanationPipeline, BaseExplainer):
+class TabularExplainer(BaseExplainer):
     """Explainer for Tabular models utilizing the SMILE algorithm.
 
     This explainer preserves exact Wasserstein LIME mechanics while
@@ -133,34 +132,6 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         for i in range(num_features):
             distribution[:, i] = instance[i] + self._rng.normal(0, noise, samples)
         return distribution
-
-    def run(
-        self,
-        instance: np.ndarray | Sequence[Any],
-        **kwargs: Any,  # noqa: ANN401
-    ) -> TabularXWhyResult:
-        """Execute the full explanation pipeline for a tabular instance.
-
-        Args:
-            instance: Target instance array of shape [n_features].
-            **kwargs: Additional pipeline options passed to the explain method.
-
-        Returns:
-            TabularXWhyResult: The structured explanation outcome.
-
-        Raises:
-            TypeError: If the instance is a string or not array-like.
-
-        """
-        if isinstance(instance, str) or not isinstance(
-            instance, (np.ndarray, Sequence)
-        ):
-            raise TypeError(
-                "TabularExplainer requires an array-like instance (e.g., numpy "
-                "array or list)."
-            )
-
-        return self.explain(instance=instance, **kwargs)
 
     def explain(
         self,

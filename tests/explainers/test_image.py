@@ -421,15 +421,8 @@ def test_image_classification_linear_surrogate_no_warning(
 
 
 # ---------------------------------------------------------------------------
-# run / explain type & runtime checks
+# explain type & runtime checks
 # ---------------------------------------------------------------------------
-
-
-def test_run_type_error() -> None:
-    """Raise TypeError when run receives a non-string instance."""
-    explainer = MagicMock(spec=ImageClassificationExplainer)
-    with pytest.raises(TypeError, match=re.escape("requires a string instance")):
-        ImageClassificationExplainer.run(explainer, 123)
 
 
 def test_explain_type_error() -> None:
@@ -458,15 +451,6 @@ def test_explain_runtime_error_no_model() -> None:
         pytest.raises(AttributeError),
     ):
         ImageClassificationExplainer.explain(explainer, "test.jpg")
-
-
-def test_run_delegates_to_explain() -> None:
-    """Verify run() calls explain() for a valid string path."""
-    explainer = MagicMock(spec=ImageClassificationExplainer)
-    explainer.explain.return_value = MagicMock()
-    result = ImageClassificationExplainer.run(explainer, "img.jpg", foo=1)
-    explainer.explain.assert_called_once_with("img.jpg", foo=1)
-    assert result is explainer.explain.return_value
 
 
 # ---------------------------------------------------------------------------
