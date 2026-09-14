@@ -669,6 +669,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Core Explainability Settings
         output_dir: str = "outputs",
         device: str = "cpu",  # or "cuda",
+        normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
@@ -699,6 +700,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             segmentation_type: Type of segmentation model to utilize.
             output_dir: Directory to save intermediate and final outputs.
             device: Device to run local models on ('cpu' or 'cuda').
+            normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of text perturbations to generate.
             distance_type: Metric used to compute distance between images.
             surrogate_type: Type of surrogate model to train for explanation.
@@ -840,6 +842,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 segmentation_type=segmentation_type,
                 output_dir=output_dir,
                 device=resolved_device,
+                normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
@@ -1279,7 +1282,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         instance: str,
         input_image_path: Any | None = None,  # noqa: ANN401
         output_dir: str | None = None,
-        normalization_mode: Literal["linear", "inverse"] = "linear",
+        normalization_method: Literal["linear", "inverse"] | None = None,
         seed: int | None = 42,
         display_perturbation_images: bool = False,
         fidelity_plot: bool = False,
@@ -1291,7 +1294,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             instance: Text description for image generation or editing.
             input_image_path: The input object to explain.
             output_dir: Custom directory to save outputs.
-            normalization_mode: Method used to normalize text similarities.
+            normalization_method : Method used to normalize text similarities.
             seed: Random seed for reproducibility.
             display_perturbation_images: Whether to show the generated perturbation
                 images.
@@ -1319,6 +1322,12 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         )
         kwargs["delay"] = (
             self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
+
+        normalization_method = (
+            self.config.normalization_method  # type: ignore[union-attr]
+            if normalization_method is None
+            else normalization_method
         )
 
         # Extract batch flag from kwargs if provided, defaulting to False
@@ -1418,7 +1427,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         )
 
         logger.info("Normalizing similarities...")
-        sims = DistanceNormalizer.min_max(scores=wmd_scores)
+        sims = DistanceNormalizer.min_max(
+            scores=wmd_scores,
+            mode=normalization_method,
+        )
 
         # masks_as_arrays: list[np.ndarray] = [
         #     np.array(m, dtype=int) for m in binary_masks
@@ -1517,7 +1529,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             image_distances=image_distances,
             wmd_scores=wmd_scores,
             sims=sims,
-            mode=normalization_mode,
+            normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
             num_perturb=self.config.num_perturbations,  # type: ignore[union-attr]
             seed=seed,

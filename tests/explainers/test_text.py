@@ -216,6 +216,7 @@ def test_init_creates_default_config() -> None:
             embedding_type="word2vec",
             surrogate_type="lime_ridge",
             use_best_surrogate=False,
+            sanitize_distances=True,
         )
         assert explainer.config is mock_config
 

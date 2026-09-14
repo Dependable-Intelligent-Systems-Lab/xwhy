@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
@@ -45,10 +45,12 @@ class LLMExplainer(BaseExplainer):
         epsilon: float = 0.0,
         kernel_width: float = 0.5,
         ridge_alpha: float = 1.0,
+        normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        sanitize_distances: bool = False,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the LLM explainer.
@@ -68,11 +70,14 @@ class LLMExplainer(BaseExplainer):
             epsilon: Numerical stability constant.
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
+            normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of perturbed samples to generate.
             embedding_type: Embedding method for WMD.
             surrogate_type: The default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model
                 automatically.
+            sanitize_distances: If True, applies sanitize_distances to clean non-finite
+                values.
             **provider_kwargs: Additional provider-specific options.
 
         Raises:
@@ -124,10 +129,12 @@ class LLMExplainer(BaseExplainer):
                 epsilon=epsilon,
                 kernel_width=kernel_width,
                 ridge_alpha=ridge_alpha,
+                normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                sanitize_distances=sanitize_distances,
             )
 
         super().__init__(config)
@@ -169,6 +176,7 @@ class LLMExplainer(BaseExplainer):
     def explain(
         self,
         instance: str,
+        normalization_method: Literal["linear", "inverse"] | None = None,
         fidelity_plot: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> TextXWhyResult:
@@ -176,6 +184,7 @@ class LLMExplainer(BaseExplainer):
 
         Args:
             instance: The input prompt to explain.
+            normalization_method : Method used to normalize text similarities.
             fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional explainer-specific options.
 
@@ -198,6 +207,12 @@ class LLMExplainer(BaseExplainer):
         )
         kwargs["delay"] = (
             self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
+
+        normalization_method = (
+            self.config.normalization_method  # type: ignore[union-attr]
+            if normalization_method is None
+            else normalization_method
         )
 
         if (
@@ -230,6 +245,7 @@ class LLMExplainer(BaseExplainer):
             model=self.state.embedding_model,
             original=original_output,
             perturbed_texts=perturbed_texts,
+            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
         )
 
         # ---------------------------------------------------------
@@ -261,7 +277,10 @@ class LLMExplainer(BaseExplainer):
         ]
 
         logger.info("Normalizing similarities...")
-        sims = DistanceNormalizer.min_max(scores=wmd_scores)
+        sims = DistanceNormalizer.min_max(
+            scores=wmd_scores,
+            mode=normalization_method,
+        )
 
         masks_as_arrays: list[np.ndarray] = [
             np.array(m, dtype=int) for m in binary_masks

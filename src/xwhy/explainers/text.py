@@ -36,6 +36,7 @@ class TextExplainer(BaseExplainer):
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        sanitize_distances: bool = True,
     ) -> None:
         """Initialize the text explainer.
 
@@ -51,6 +52,8 @@ class TextExplainer(BaseExplainer):
             embedding_type: Embedding method used for Word Mover's Distance.
             surrogate_type: Default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model.
+            sanitize_distances: If True, applies sanitize_distances to clean non-finite
+                values.
 
         Raises:
             ValueError: If the embedding type is invalid for text explanation.
@@ -80,6 +83,7 @@ class TextExplainer(BaseExplainer):
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                sanitize_distances=sanitize_distances,
             )
 
         if (
@@ -251,7 +255,7 @@ class TextExplainer(BaseExplainer):
             model=self.state.embedding_model,
             original=instance,
             perturbed_texts=perturbed_texts,
-            sanitize=True,
+            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
         )
 
         # ---------------------------------------------------------

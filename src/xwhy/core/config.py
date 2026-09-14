@@ -40,10 +40,12 @@ class LLMConfig(ExplainerConfig):
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     max_retries: int = Field(default=7, ge=0)
     delay: float | None = Field(default=None, ge=0.0)
+    normalization_method: Literal["linear", "inverse"] = "linear"
     num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
+    sanitize_distances: bool = False
 
 
 class ImageClassificationConfig(ExplainerConfig):
@@ -147,6 +149,7 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     # Core Explainability Settings
     output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
+    normalization_method: Literal["linear", "inverse"] = "linear"
     num_perturbations: int = Field(default=64, gt=0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
@@ -173,6 +176,7 @@ class TextConfig(ExplainerConfig):
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
+    sanitize_distances: bool = True
 
 
 class PointCloudConfig(ExplainerConfig):
