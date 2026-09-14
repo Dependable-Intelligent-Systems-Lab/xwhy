@@ -18,6 +18,7 @@ class ConcreteProvider(BaseProvider):
         model: str,
         max_tokens: int,
         temperature: float,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
         """Return dummy answer."""
         return "test response"

@@ -38,6 +38,8 @@ class LLMConfig(ExplainerConfig):
     model_name: str = "gpt-3.5-turbo-instruct"
     max_tokens: int = Field(default=200, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
+    max_retries: int = Field(default=7, ge=0)
+    delay: float | None = Field(default=None, ge=0.0)
     num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
@@ -120,6 +122,8 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     provider_type: ProviderType | str | None = Field(default=ProviderType.OPENAI)
     engine_type: Literal["provider", "custom", "pipeline"] = "provider"
     model_name: str = "dall-e-3"
+    max_retries: int = Field(default=7, ge=0)
+    delay: float | None = Field(default=None, ge=0.0)
 
     # Custom Model Injection
     custom_model: Any = None

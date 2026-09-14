@@ -39,6 +39,8 @@ class LLMExplainer(BaseExplainer):
         model_name: str = "gpt-3.5-turbo-instruct",
         max_tokens: int = 200,
         temperature: float = 0.0,
+        max_retries: int = 7,
+        delay: float | None = None,
         seed: int = 42,
         epsilon: float = 0.0,
         kernel_width: float = 0.5,
@@ -59,6 +61,9 @@ class LLMExplainer(BaseExplainer):
             model_name: The LLM model name.
             max_tokens: Max tokens for generation.
             temperature: Sampling temperature.
+            max_retries : Maximum number of retry attempts if the LLM/VLM request
+                fails.
+            delay : Seconds to wait between consecutive retries.
             seed: Random seed for reproducibility.
             epsilon: Numerical stability constant.
             kernel_width: Kernel width for similarity weights.
@@ -113,6 +118,8 @@ class LLMExplainer(BaseExplainer):
                 model_name=model_name,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                max_retries=max_retries,
+                delay=delay,
                 seed=seed,
                 epsilon=epsilon,
                 kernel_width=kernel_width,
@@ -184,6 +191,15 @@ class LLMExplainer(BaseExplainer):
         if not isinstance(instance, str):
             raise TypeError("LLMExplainer requires the input prompt as a string.")
 
+        kwargs["max_retries"] = (
+            self.config.max_retries  # type: ignore[union-attr]
+            if kwargs.get("max_retries") is None
+            else kwargs["max_retries"]
+        )
+        kwargs["delay"] = (
+            self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
+
         if (
             self.state.provider is None
             or self.state.embedding_model is None
@@ -199,6 +215,7 @@ class LLMExplainer(BaseExplainer):
             model=self.config.model_name,  # type: ignore[union-attr]
             max_tokens=self.config.max_tokens,  # type: ignore[union-attr]
             temperature=self.config.temperature,  # type: ignore[union-attr]
+            **kwargs,
         )
 
         logger.info("Generating perturbations...")

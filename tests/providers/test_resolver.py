@@ -1,6 +1,7 @@
 """Unit tests for provider resolver."""
 
 from collections.abc import Iterator
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -20,6 +21,7 @@ class MockProvider(BaseProvider):
         model: str = "gpt-3.5",
         max_tokens: int = 10,
         temperature: float = 0.0,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
         """Return a dummy response for testing purposes."""
         return "mock_response"

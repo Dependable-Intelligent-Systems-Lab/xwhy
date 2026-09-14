@@ -632,6 +632,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         ) = None,
         model_name: str = "dall-e-3",
         pipe: Any | None = None,  # noqa: ANN401
+        max_retries: int = 7,
+        delay: float | None = None,
         # Custom Model Injection
         custom_model: Any = None,  # noqa: ANN401
         custom_generate_fn: Callable[..., Any] | None = None,
@@ -665,6 +667,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             engine: The primary model provider, custom class, or string identifier.
             model_name: Name of the underlying model to use.
             pipe: HuggingFace pipeline or custom pipeline object.
+            max_retries : Maximum number of retry attempts if the LLM/VLM request
+                fails.
+            delay : Seconds to wait between consecutive retries.
             custom_model: Custom model instance for generation/editing.
             custom_generate_fn: Callable function for custom model generation.
             temperature: Temperature parameter for the model.
@@ -804,6 +809,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 provider_type=provider_type,
                 engine_type=engine_type,
                 model_name=model_name,
+                max_retries=max_retries,
+                delay=delay,
                 custom_model=custom_model,
                 custom_generate_fn=custom_generate_fn,
                 temperature=temperature,
@@ -1286,6 +1293,15 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         prompt = instance
         output_dir = output_dir if output_dir is not None else self.config.output_dir  # type: ignore[union-attr]
         seed = seed if seed is not None else self.config.seed  # type: ignore[union-attr]
+
+        kwargs["max_retries"] = (
+            self.config.max_retries  # type: ignore[union-attr]
+            if kwargs.get("max_retries") is None
+            else kwargs["max_retries"]
+        )
+        kwargs["delay"] = (
+            self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
 
         # Extract batch flag from kwargs if provided, defaulting to False
         batch = kwargs.pop("batch", False)
