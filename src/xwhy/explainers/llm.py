@@ -40,6 +40,9 @@ class LLMExplainer(BaseExplainer):
         max_tokens: int = 200,
         temperature: float = 0.0,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
@@ -57,6 +60,9 @@ class LLMExplainer(BaseExplainer):
             max_tokens: Max tokens for generation.
             temperature: Sampling temperature.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             num_perturbations: Number of perturbed samples to generate.
             embedding_type: Embedding method for WMD.
             surrogate_type: The default surrogate method to use if search is disabled.
@@ -108,6 +114,9 @@ class LLMExplainer(BaseExplainer):
                 max_tokens=max_tokens,
                 temperature=temperature,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
@@ -254,6 +263,10 @@ class LLMExplainer(BaseExplainer):
                 y=y_target,
                 distances=distances_array,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
+                normalize_distances=False,
             )
             logger.info(
                 "Optimization complete. Selected surrogate model:"
@@ -268,7 +281,13 @@ class LLMExplainer(BaseExplainer):
                 method.value,
             )
 
-        weights = SurrogateTrainer.compute_weights(method, distances_array)
+        weights = SurrogateTrainer.compute_weights(
+            method=method,
+            distances=distances_array,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
+        )
 
         surrogate = SurrogateFactory.create(
             method=method,

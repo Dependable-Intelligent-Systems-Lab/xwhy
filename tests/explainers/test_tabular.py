@@ -25,7 +25,7 @@ def test_tabular_explainer_init_invalid_mode(mock_model: MagicMock) -> None:
     with pytest.raises(
         ValueError, match=re.escape("mode must be 'classification' or 'regression'.")
     ):
-        TabularExplainer(model=mock_model, mode="invalid_mode")
+        TabularExplainer(model=mock_model, mode="invalid_mode")  # type: ignore[arg-type]
 
 
 def test_tabular_explainer_init_with_custom_config(

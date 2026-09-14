@@ -38,10 +38,11 @@ class PointCloudExplainer(BaseExplainer):
         num_top_features: int = 4,
         num_perturbations: int = 50,
         removal_probability: float = 0.3,
-        kernel_width: float = 0.5,
-        epsilon: float = 0.0,
-        max_iters: int = 50,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
+        max_iters: int = 50,
         device: str = "cpu",
         clustering_mode: Literal["kmeans", "precomputed"] = "kmeans",
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
@@ -61,10 +62,11 @@ class PointCloudExplainer(BaseExplainer):
             num_top_features: Number of top feature clusters to extract.
             num_perturbations: Number of perturbed samples.
             removal_probability: Probability of removing a cluster.
-            kernel_width: Kernel width for similarity weights.
+            seed: Random seed for reproducibility.
             epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             max_iters: Maximum iterations for clustering.
-            seed: Random seed.
             device: Computation device ("cpu" or "cuda").
             clustering_mode: "kmeans" or "precomputed".
             distance_type: Metric used to compute distance between points.
@@ -95,10 +97,11 @@ class PointCloudExplainer(BaseExplainer):
                 num_top_features=num_top_features,
                 num_perturbations=num_perturbations,
                 removal_probability=removal_probability,
-                kernel_width=kernel_width,
-                epsilon=epsilon,
-                max_iters=max_iters,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
+                max_iters=max_iters,
                 device=device,
                 clustering_mode=clustering_mode,
                 distance_type=dist_enum,
@@ -379,6 +382,7 @@ class PointCloudExplainer(BaseExplainer):
                 seed=cfg.seed,  # type: ignore[union-attr]
                 kernel_width=cfg.kernel_width,  # type: ignore[union-attr]
                 epsilon=cfg.epsilon,  # type: ignore[union-attr]
+                ridge_alpha=cfg.ridge_alpha,  # type: ignore[union-attr]
                 normalize_distances=False,
             )
             logger.info(

@@ -18,7 +18,10 @@ from xwhy.surrogate.types import SurrogateType
 class ExplainerConfig(BaseModel):
     """Explainer config."""
 
-    pass
+    seed: int = 42
+    epsilon: float = Field(default=0.01, ge=0.0)
+    kernel_width: float = Field(default=0.5, gt=0.0)
+    ridge_alpha: float = Field(default=1.0, ge=0.0)
 
 
 class LLMConfig(ExplainerConfig):
@@ -35,7 +38,6 @@ class LLMConfig(ExplainerConfig):
     model_name: str = "gpt-3.5-turbo-instruct"
     max_tokens: int = Field(default=200, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    seed: int = 42
     num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
@@ -68,8 +70,6 @@ class ImageClassificationConfig(ExplainerConfig):
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
-    seed: int = 42
-
     kernel_size: int = Field(default=4, ge=1)
     max_dist: int = Field(default=200, gt=0)
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
@@ -95,15 +95,12 @@ class TabularConfig(ExplainerConfig):
 
     mode: Literal["classification", "regression"] = "classification"
     num_perturbations: int = Field(default=500, gt=0)
-    kernel_width: float = Field(default=0.2, gt=0.0)
     num_distribution_samples: int = Field(default=100, gt=0)
     local_noise: float = Field(default=0.05, ge=0.0)
     perturbation_noise: float = Field(default=0.4, ge=0.0)
-    epsilon: float = Field(default=0.01, gt=0.0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
-    seed: int = 42
     device: str = "cpu"
     validate_normalization: bool = True
 
@@ -130,7 +127,6 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
 
     # Core Shared Generation Parameters
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    seed: int = 42
 
     # Explainer Components
     use_image_embedding_model: bool = False
@@ -150,8 +146,6 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
 
     # Surrogate & Perturbation Fine-tuning Parameters
     normalization_mode: Literal["linear", "inverse"] = "linear"
-    kernel_width: float = Field(default=0.25, gt=0.0)
-    ridge_alpha: float = Field(default=1.0, ge=0.0)
 
 
 class TextConfig(ExplainerConfig):
@@ -167,7 +161,6 @@ class TextConfig(ExplainerConfig):
 
     model: Any = None
     predict_fn: Callable[..., Any] | None = None
-    seed: int = 42
     num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
     surrogate_type: SurrogateType | str = SurrogateType.LIME
@@ -191,10 +184,7 @@ class PointCloudConfig(ExplainerConfig):
     num_top_features: int = Field(default=4, gt=0)
     num_perturbations: int = Field(default=50, gt=0)
     removal_probability: float = Field(default=0.3, ge=0.0, le=1.0)
-    kernel_width: float = Field(default=0.5, gt=0.0)
-    epsilon: float = Field(default=0.0, ge=0.0)
     max_iters: int = Field(default=50, gt=0)
-    seed: int = 42
     device: str = "cpu"
 
     clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"

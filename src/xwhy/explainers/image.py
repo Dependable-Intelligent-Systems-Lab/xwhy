@@ -85,6 +85,9 @@ class ImageClassificationExplainer(BaseExplainer):
         | SegmentationType = SegmentationType.DEEPLABV3_RESNET101,
         device: str = "cpu",
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
@@ -113,7 +116,10 @@ class ImageClassificationExplainer(BaseExplainer):
             use_segmentation_model: Whether an image segmentation model should be used.
             segmentation_type: Segmentation method for extracting object masks.
             device: Device type name.
-            seed: Random seed used throughout the explanation pipeline.
+            seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             kernel_size: Kernel size used during superpixel generation.
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
@@ -151,6 +157,9 @@ class ImageClassificationExplainer(BaseExplainer):
                 segmentation_type=segmentation_type,
                 device=device,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 kernel_size=kernel_size,
                 max_dist=max_dist,
                 ratio=ratio,
@@ -455,6 +464,9 @@ class ImageClassificationExplainer(BaseExplainer):
                 y=y_target,
                 distances=distances,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
                 normalize_distances=True,
             )
             logger.info(
@@ -470,6 +482,8 @@ class ImageClassificationExplainer(BaseExplainer):
         weights = SurrogateTrainer.compute_weights(
             method=method,
             distances=distances,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=True,
         )
 
@@ -624,6 +638,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Core Shared Generation Parameters
         temperature: float = 0.0,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.25,
+        ridge_alpha: float = 1.0,
         # Explainer Components
         use_image_embedding_model: bool = False,
         image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2,
@@ -652,6 +669,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             custom_generate_fn: Callable function for custom model generation.
             temperature: Temperature parameter for the model.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             use_image_embedding_model: Flag to enable image embedding.
             image_embedding_type: Type of image embedding to utilize.
             text_embedding_type: Type of text embedding to utilize.
@@ -788,6 +808,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 custom_generate_fn=custom_generate_fn,
                 temperature=temperature,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 use_image_embedding_model=use_image_embedding_model,
                 image_embedding_type=image_embedding_type,
                 text_embedding_type=text_embedding_type,
@@ -1260,9 +1283,6 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             RuntimeError: If base image generation fails.
 
         """
-        kernel_width = getattr(self.config, "kernel_width", 0.25)
-        ridge_alpha = getattr(self.config, "ridge_alpha", 1.0)
-
         prompt = instance
         output_dir = output_dir if output_dir is not None else self.config.output_dir  # type: ignore[union-attr]
         seed = seed if seed is not None else self.config.seed  # type: ignore[union-attr]
@@ -1409,8 +1429,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 y=y_target,
                 distances=text_distances_array,
                 seed=seed,
-                kernel_width=kernel_width,
-                ridge_alpha=ridge_alpha,
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
             )
             logger.info(
                 "Optimization complete. Selected surrogate model: "
@@ -1428,7 +1449,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         weights = SurrogateTrainer.compute_weights(
             method=method,
             distances=text_distances_array,
-            kernel_width=kernel_width,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
         )
 
         surrogate = SurrogateFactory.create(

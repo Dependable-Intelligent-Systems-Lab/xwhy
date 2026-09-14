@@ -39,6 +39,7 @@ def mock_config() -> MagicMock:
     cfg.num_perturbations = 5
     cfg.removal_probability = 0.3
     cfg.kernel_width = 0.5
+    cfg.ridge_alpha = 1.0
     cfg.epsilon = 0.0
     cfg.max_iters = 10
     cfg.seed = 42

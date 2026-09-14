@@ -29,6 +29,9 @@ class TextExplainer(BaseExplainer):
         predict_fn: Callable[..., Any] | None = None,
         config: ExplainerConfig | None = None,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
@@ -41,6 +44,9 @@ class TextExplainer(BaseExplainer):
             predict_fn: Optional direct prediction function accepting list of texts.
             config: Optional configuration object for the explainer.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             num_perturbations: Default number of perturbed text samples to generate.
             embedding_type: Embedding method used for Word Mover's Distance.
             surrogate_type: Default surrogate method to use if search is disabled.
@@ -67,6 +73,9 @@ class TextExplainer(BaseExplainer):
                 model=model,
                 predict_fn=predict_fn,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
@@ -288,6 +297,10 @@ class TextExplainer(BaseExplainer):
                 y=y_target,
                 distances=distances_array,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
+                normalize_distances=False,
             )
             logger.info(
                 "Optimization complete. Selected surrogate model:"
@@ -302,7 +315,13 @@ class TextExplainer(BaseExplainer):
                 method.value,
             )
 
-        weights = SurrogateTrainer.compute_weights(method, distances_array)
+        weights = SurrogateTrainer.compute_weights(
+            method=method,
+            distances=distances_array,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
+        )
 
         surrogate = SurrogateFactory.create(
             method=method,
