@@ -68,6 +68,8 @@ class ImageClassificationConfig(ExplainerConfig):
     custom_preprocess: Callable[..., Any] | None = None
     categories: Any = None
 
+    class_of_interest: int = 1
+
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
@@ -76,6 +78,8 @@ class ImageClassificationConfig(ExplainerConfig):
     max_dist: int = Field(default=200, gt=0)
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
     num_perturb: int = Field(default=150, gt=0)
+
+    keep_probability: float = Field(default=0.5, gt=0.0, le=1.0)
 
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     surrogate_type: SurrogateType | str = SurrogateType.LIME

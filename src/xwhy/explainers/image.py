@@ -76,6 +76,7 @@ class ImageClassificationExplainer(BaseExplainer):
         custom_model: Any = None,  # noqa: ANN401
         custom_preprocess: Any = None,  # noqa: ANN401
         categories: Any = None,  # noqa: ANN401
+        class_of_interest: int = 1,
         classification_type: str | ClassificationType = ClassificationType.INCEPTION_V3,
         use_model_preprocess: bool = True,
         use_embedding_model: bool = False,
@@ -92,6 +93,7 @@ class ImageClassificationExplainer(BaseExplainer):
         max_dist: int = 200,
         ratio: float = 0.2,
         num_perturb: int = 150,
+        keep_probability: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
@@ -108,6 +110,7 @@ class ImageClassificationExplainer(BaseExplainer):
                                the custom model.
             categories: Optional list of human-readable class names corresponding
                         to model outputs.
+            class_of_interest: The label ID of the object to evaluate.
             classification_type: Type of the classification model to explain.
             use_model_preprocess: Whether to use the classfication model's official
                                   preprocessing.
@@ -124,6 +127,7 @@ class ImageClassificationExplainer(BaseExplainer):
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
             num_perturb: Number of perturbed samples.
+            keep_probability: Probability of keeping a superpixel (value = 1).
             distance_type: Distance metric name.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
@@ -149,6 +153,7 @@ class ImageClassificationExplainer(BaseExplainer):
                 custom_model=custom_model,
                 custom_preprocess=custom_preprocess,
                 categories=categories,
+                class_of_interest=class_of_interest,
                 classification_type=classification_type,
                 use_model_preprocess=use_model_preprocess,
                 use_embedding_model=use_embedding_model,
@@ -164,6 +169,7 @@ class ImageClassificationExplainer(BaseExplainer):
                 max_dist=max_dist,
                 ratio=ratio,
                 num_perturb=num_perturb,
+                keep_probability=keep_probability,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
@@ -354,6 +360,7 @@ class ImageClassificationExplainer(BaseExplainer):
         instance: str,
         fidelity_plot: bool = False,
         ground_truth_mask: Any = None,  # noqa: ANN401
+        class_of_interest: int | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> ImageClassificationXWhyResult:
         """Generate an explanation for an input image.
@@ -362,6 +369,7 @@ class ImageClassificationExplainer(BaseExplainer):
             instance: Path to the image that should be explained.
             fidelity_plot: Rendering fidelity scatter plot.
             ground_truth_mask: Provided ground-truth mask for evaluation.
+            class_of_interest: The label ID of the object to evaluate.
             **kwargs: Additional explainer-specific options.
 
         Returns:
@@ -377,6 +385,11 @@ class ImageClassificationExplainer(BaseExplainer):
             )
 
         image_path = instance
+        class_of_interest = (
+            class_of_interest
+            if class_of_interest is not None
+            else self.config.class_of_interest  # type: ignore[union-attr]
+        )
         transform_fn = self.state.transform_fn
         mean = self.state.classification_model.preprocess_fn.mean  # type: ignore[union-attr]
         std = self.state.classification_model.preprocess_fn.std  # type: ignore[union-attr]
@@ -424,6 +437,7 @@ class ImageClassificationExplainer(BaseExplainer):
         x_matrix = self.state.perturbator.generate(  # type: ignore[union-attr]
             num_superpixels=num_superpixels,
             num_perturbations=self.config.num_perturb,  # type: ignore[union-attr]
+            keep_probability=self.config.keep_probability,  # type: ignore[union-attr]
         )
 
         # Run Main SMILE Loop (Inference & Distance)
@@ -564,6 +578,7 @@ class ImageClassificationExplainer(BaseExplainer):
             cov, w_cov = ImageCoverageMetrics.evaluate_all(
                 explanation_image=explanation_image,
                 semantic_mask=sem_mask,
+                class_of_interest=class_of_interest,
             )
 
             logger.info("--- Evaluation Metrics ---")
@@ -1266,6 +1281,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         output_dir: str | None = None,
         normalization_mode: Literal["linear", "inverse"] = "linear",
         seed: int | None = 42,
+        display_perturbation_images: bool = False,
         fidelity_plot: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> ImageGenerationAndEditingXWhyResult:
@@ -1277,6 +1293,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             output_dir: Custom directory to save outputs.
             normalization_mode: Method used to normalize text similarities.
             seed: Random seed for reproducibility.
+            display_perturbation_images: Whether to show the generated perturbation
+                images.
             fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional generation options (e.g., batch, size, extra_body).
 
@@ -1387,6 +1405,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             input_image_path=base_image_path,
             generated_images=generated_images,
             prompts=perturbed_texts,
+            display_image=display_perturbation_images,
             output_dir=output_dir,
         )
 
