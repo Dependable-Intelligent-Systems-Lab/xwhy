@@ -421,15 +421,8 @@ def test_image_classification_linear_surrogate_no_warning(
 
 
 # ---------------------------------------------------------------------------
-# run / explain type & runtime checks
+# explain type & runtime checks
 # ---------------------------------------------------------------------------
-
-
-def test_run_type_error() -> None:
-    """Raise TypeError when run receives a non-string instance."""
-    explainer = MagicMock(spec=ImageClassificationExplainer)
-    with pytest.raises(TypeError, match=re.escape("requires a string instance")):
-        ImageClassificationExplainer.run(explainer, 123)
 
 
 def test_explain_type_error() -> None:
@@ -458,15 +451,6 @@ def test_explain_runtime_error_no_model() -> None:
         pytest.raises(AttributeError),
     ):
         ImageClassificationExplainer.explain(explainer, "test.jpg")
-
-
-def test_run_delegates_to_explain() -> None:
-    """Verify run() calls explain() for a valid string path."""
-    explainer = MagicMock(spec=ImageClassificationExplainer)
-    explainer.explain.return_value = MagicMock()
-    result = ImageClassificationExplainer.run(explainer, "img.jpg", foo=1)
-    explainer.explain.assert_called_once_with("img.jpg", foo=1)
-    assert result is explainer.explain.return_value
 
 
 # ---------------------------------------------------------------------------
@@ -2239,7 +2223,7 @@ def test_init_base_provider_assigns_state_engine(
 def test_init_unrecognized_engine_with_existing_custom_model(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 766→777 false branch: custom_model already set, skip overwrite."""
+    """Hit 766=>777 false branch: custom_model already set, skip overwrite."""
     exp = ImageGenerationAndEditingExplainer(
         engine="unrecognized_str",
         custom_model="already_set",
@@ -2253,7 +2237,7 @@ def test_init_unrecognized_engine_with_existing_custom_model(
 def test_init_provider_path_huggingface_with_pipe(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit full provider branch 839→876 including HuggingFace + custom_model pipe."""
+    """Hit full provider branch 839=>876 including HuggingFace + custom_model pipe."""
     dummy_pipe = MagicMock()
     dummy_pipe._name_or_path = "hf-model-xyz"
 
@@ -2304,7 +2288,7 @@ def test_init_invalid_segmentation_type_raises(
 def test_generate_images_seg_model_present_but_not_in_signature(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 1038→1044 false path: segmentation_model exists but not in edit_image sig."""
+    """Hit false path: segmentation_model exists but not in edit_image sig."""
     exp = ImageGenerationAndEditingExplainer(engine=DummyEngine())
     exp.state.segmentation_model = MagicMock()
 
@@ -2325,7 +2309,7 @@ def test_compute_distances_empty_input_path_skips_edit_action(
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 1149→1153 false path: input_image_path is falsy, _action stays generate."""
+    """Hit 1149=>1153 false path: input_image_path is falsy, _action stays generate."""
     mock_load.return_value = (None, np.zeros(3))
     exp = ImageGenerationAndEditingExplainer(use_image_embedding_model=False)
     assert exp._action == "generate"
@@ -2333,7 +2317,7 @@ def test_compute_distances_empty_input_path_skips_edit_action(
     p1 = tmp_path / "b.png"
     Image.new("RGB", (4, 4)).save(p1)
 
-    # Empty string is falsy → skip `self._action = "edit"`
+    # Empty string is falsy => skip `self._action = "edit"`
     _ = exp._compute_perturbation_distances(
         input_image_path="",
         generated_images=[(True, str(p1))],
@@ -2359,7 +2343,7 @@ def test_explain_seed_equals_config_skips_set_seed(
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 1275→1279 false path: seed == config.seed, do not call set_seed."""
+    """Hit 1275=>1279 false path: seed == config.seed, do not call set_seed."""
     exp = ImageGenerationAndEditingExplainer(seed=42)
     p1 = tmp_path / "valid.png"
     Image.new("RGB", (10, 10), color="blue").save(p1)
@@ -2394,7 +2378,7 @@ def test_explain_seed_equals_config_skips_set_seed(
 def test_initialize_unknown_engine_type_falls_through(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 839→876 false branch: engine_type is neither custom/pipeline nor provider.
+    """Hit 839=>876 false branch: engine_type is neither custom/pipeline nor provider.
 
     When state.engine is None and engine_type has an unexpected value the
     if/elif block is skipped and execution continues at the embedding load.
@@ -2427,7 +2411,7 @@ def test_initialize_unknown_engine_type_falls_through(
 def test_generate_images_no_segmentation_model(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Hit 1038→1044 false branch: segmentation_model is None.
+    """Hit 1038=>1044 false branch: segmentation_model is None.
 
     The outer if is skipped and control goes straight to the Gemini/batch check.
     """

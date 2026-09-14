@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
 from xwhy.core.config import TabularConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TabularXWhyResult
-from xwhy.core.types import TabularState
+from xwhy.core.states import TabularState
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
@@ -22,7 +21,7 @@ from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
 
 
-class TabularExplainer(ExplanationPipeline, BaseExplainer):
+class TabularExplainer(BaseExplainer):
     """Explainer for Tabular models utilizing the SMILE algorithm.
 
     This explainer preserves exact Wasserstein LIME mechanics while
@@ -33,17 +32,18 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         self,
         model: Any,  # noqa: ANN401
         config: TabularConfig | None = None,
-        mode: str = "classification",
+        mode: Literal["classification", "regression"] = "classification",
         num_perturbations: int = 500,
-        kernel_width: float = 0.2,
         num_distribution_samples: int = 100,
         local_noise: float = 0.05,
         perturbation_noise: float = 0.4,
+        seed: int = 42,
         epsilon: float = 1.0,
+        kernel_width: float = 0.2,
+        ridge_alpha: float = 1.0,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        seed: int = 42,
         device: str = "cpu",
         validate_normalization: bool = True,
     ) -> None:
@@ -54,11 +54,13 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
             config: Optional configuration object.
             mode: Task type ("classification" or "regression").
             num_perturbations: Number of LIME samples generated.
-            kernel_width: Kernel width used for weighting.
             num_distribution_samples: Samples per feature distribution.
             local_noise: Noise scale for the local instance neighborhood.
             perturbation_noise: Noise scale for perturbation distributions.
-            epsilon: Scaling factor applied to the Wasserstein distance.
+            seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             distance_type: Distance metric definition.
             surrogate_type: Default surrogate method name.
             use_best_surrogate: Automatically search for the best surrogate.
@@ -79,17 +81,18 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
 
         if config is None:
             config = TabularConfig(
-                mode=mode,  # type: ignore[arg-type]
+                mode=mode,
                 num_perturbations=num_perturbations,
-                kernel_width=kernel_width,
                 num_distribution_samples=num_distribution_samples,
                 local_noise=local_noise,
                 perturbation_noise=perturbation_noise,
+                seed=seed,
                 epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
-                seed=seed,
                 device=device,
                 validate_normalization=validate_normalization,
             )
@@ -133,34 +136,6 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
         for i in range(num_features):
             distribution[:, i] = instance[i] + self._rng.normal(0, noise, samples)
         return distribution
-
-    def run(
-        self,
-        instance: np.ndarray | Sequence[Any],
-        **kwargs: Any,  # noqa: ANN401
-    ) -> TabularXWhyResult:
-        """Execute the full explanation pipeline for a tabular instance.
-
-        Args:
-            instance: Target instance array of shape [n_features].
-            **kwargs: Additional pipeline options passed to the explain method.
-
-        Returns:
-            TabularXWhyResult: The structured explanation outcome.
-
-        Raises:
-            TypeError: If the instance is a string or not array-like.
-
-        """
-        if isinstance(instance, str) or not isinstance(
-            instance, (np.ndarray, Sequence)
-        ):
-            raise TypeError(
-                "TabularExplainer requires an array-like instance (e.g., numpy "
-                "array or list)."
-            )
-
-        return self.explain(instance=instance, **kwargs)
 
     def explain(
         self,
@@ -242,14 +217,12 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
 
             distances[idx] = dist_total
 
-        scaled_distances = distances * cfg.epsilon
-
         # ---------------------------------------------------------
         # Distance Validation & Imputation setup:
         # Convert distances to numpy array and impute non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
-        distances_raw = np.array(scaled_distances, dtype=float)
+        distances_raw = np.array(distances, dtype=float)
 
         # Filter out non-finite values to determine the maximum valid distance
         valid_distances = distances_raw[np.isfinite(distances_raw)]
@@ -275,6 +248,8 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
                 distances=scaled_distances,
                 seed=cfg.seed,
                 kernel_width=cfg.kernel_width,
+                epsilon=cfg.epsilon,
+                ridge_alpha=cfg.ridge_alpha,
                 normalize_distances=False,
             )
             logger.info(
@@ -291,6 +266,7 @@ class TabularExplainer(ExplanationPipeline, BaseExplainer):
             method=method,
             distances=scaled_distances,
             kernel_width=cfg.kernel_width,
+            epsilon=cfg.epsilon,
             normalize_distances=False,
         )
 

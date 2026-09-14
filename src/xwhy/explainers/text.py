@@ -8,7 +8,7 @@ import numpy as np
 from xwhy.core.config import ExplainerConfig, TextConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.result import TextXWhyResult
-from xwhy.core.types import TextState
+from xwhy.core.states import TextState
 from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
@@ -29,10 +29,14 @@ class TextExplainer(BaseExplainer):
         predict_fn: Callable[..., Any] | None = None,
         config: ExplainerConfig | None = None,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        sanitize_distances: bool = True,
     ) -> None:
         """Initialize the text explainer.
 
@@ -41,10 +45,15 @@ class TextExplainer(BaseExplainer):
             predict_fn: Optional direct prediction function accepting list of texts.
             config: Optional configuration object for the explainer.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             num_perturbations: Default number of perturbed text samples to generate.
             embedding_type: Embedding method used for Word Mover's Distance.
             surrogate_type: Default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model.
+            sanitize_distances: If True, applies sanitize_distances to clean non-finite
+                values.
 
         Raises:
             ValueError: If the embedding type is invalid for text explanation.
@@ -67,10 +76,14 @@ class TextExplainer(BaseExplainer):
                 model=model,
                 predict_fn=predict_fn,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                sanitize_distances=sanitize_distances,
             )
 
         if (
@@ -242,7 +255,7 @@ class TextExplainer(BaseExplainer):
             model=self.state.embedding_model,
             original=instance,
             perturbed_texts=perturbed_texts,
-            sanitize=True,
+            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
         )
 
         # ---------------------------------------------------------
@@ -288,6 +301,10 @@ class TextExplainer(BaseExplainer):
                 y=y_target,
                 distances=distances_array,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
+                normalize_distances=False,
             )
             logger.info(
                 "Optimization complete. Selected surrogate model:"
@@ -296,13 +313,19 @@ class TextExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
             )
 
-        weights = SurrogateTrainer.compute_weights(method, distances_array)
+        weights = SurrogateTrainer.compute_weights(
+            method=method,
+            distances=distances_array,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
+        )
 
         surrogate = SurrogateFactory.create(
             method=method,

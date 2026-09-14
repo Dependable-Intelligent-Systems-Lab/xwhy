@@ -10,7 +10,7 @@ from xwhy.explainers.image import (
     ImageGenerationAndEditingExplainer,
 )
 from xwhy.explainers.llm import LLMExplainer
-from xwhy.explainers.pointcloud import PointCloudExplainer
+from xwhy.explainers.point_cloud import PointCloudExplainer
 from xwhy.explainers.tabular import TabularExplainer
 from xwhy.explainers.text import TextExplainer
 

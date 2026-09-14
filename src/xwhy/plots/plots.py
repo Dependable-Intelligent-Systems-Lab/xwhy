@@ -28,6 +28,7 @@ from xwhy.logger import logger
 from xwhy.plots import visualisation as viz
 from xwhy.plots.factory import TextPlotterFactory
 from xwhy.plots.image import image_heatmap, plot_image  # noqa: F401
+from xwhy.plots.point_cloud import plot_point_cloud  # noqa: F401
 from xwhy.plots.tabular import (
     plot_dataset,  # noqa: F401
     plot_explanation_waterfall,  # noqa: F401

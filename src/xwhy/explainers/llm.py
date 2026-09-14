@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 
 from xwhy.core.config import LLMConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import TextXWhyResult
-from xwhy.core.types import LLMState
+from xwhy.core.states import LLMState
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
@@ -26,7 +25,7 @@ from xwhy.surrogate.trainer import SurrogateTrainer
 from xwhy.surrogate.types import SurrogateType
 
 
-class LLMExplainer(ExplanationPipeline, BaseExplainer):
+class LLMExplainer(BaseExplainer):
     """Explainer for LLM tasks integrating the full GSMILE pipeline.
 
     This explainer loads all required runtime resources only once and can
@@ -40,11 +39,18 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         model_name: str = "gpt-3.5-turbo-instruct",
         max_tokens: int = 200,
         temperature: float = 0.0,
+        max_retries: int = 7,
+        delay: float | None = None,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
+        normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        sanitize_distances: bool = False,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the LLM explainer.
@@ -57,12 +63,21 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             model_name: The LLM model name.
             max_tokens: Max tokens for generation.
             temperature: Sampling temperature.
+            max_retries : Maximum number of retry attempts if the LLM/VLM request
+                fails.
+            delay : Seconds to wait between consecutive retries.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
+            normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of perturbed samples to generate.
             embedding_type: Embedding method for WMD.
             surrogate_type: The default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model
                 automatically.
+            sanitize_distances: If True, applies sanitize_distances to clean non-finite
+                values.
             **provider_kwargs: Additional provider-specific options.
 
         Raises:
@@ -108,11 +123,18 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 model_name=model_name,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                max_retries=max_retries,
+                delay=delay,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
+                normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                sanitize_distances=sanitize_distances,
             )
 
         super().__init__(config)
@@ -151,27 +173,10 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             seed=self.config.seed  # type: ignore[union-attr]
         )
 
-    def run(self, instance: Any, **kwargs: Any) -> TextXWhyResult:  # noqa: ANN401
-        """Run the full explanation pipeline (ExplanationPipeline implementation).
-
-        Args:
-            instance: The input prompt string.
-            **kwargs: Additional pipeline options.
-
-        Returns:
-            TextXWhyResult: The explanation outcome.
-
-        Raises:
-            TypeError: If the instance is not a string.
-
-        """
-        if not isinstance(instance, str):
-            raise TypeError("LLMExplainer requires a string instance.")
-        return self.explain(instance, **kwargs)
-
     def explain(
         self,
         instance: str,
+        normalization_method: Literal["linear", "inverse"] | None = None,
         fidelity_plot: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> TextXWhyResult:
@@ -179,6 +184,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
 
         Args:
             instance: The input prompt to explain.
+            normalization_method : Method used to normalize text similarities.
             fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional explainer-specific options.
 
@@ -193,6 +199,21 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         """
         if not isinstance(instance, str):
             raise TypeError("LLMExplainer requires the input prompt as a string.")
+
+        kwargs["max_retries"] = (
+            self.config.max_retries  # type: ignore[union-attr]
+            if kwargs.get("max_retries") is None
+            else kwargs["max_retries"]
+        )
+        kwargs["delay"] = (
+            self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
+
+        normalization_method = (
+            self.config.normalization_method  # type: ignore[union-attr]
+            if normalization_method is None
+            else normalization_method
+        )
 
         if (
             self.state.provider is None
@@ -209,6 +230,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             model=self.config.model_name,  # type: ignore[union-attr]
             max_tokens=self.config.max_tokens,  # type: ignore[union-attr]
             temperature=self.config.temperature,  # type: ignore[union-attr]
+            **kwargs,
         )
 
         logger.info("Generating perturbations...")
@@ -223,6 +245,7 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
             model=self.state.embedding_model,
             original=original_output,
             perturbed_texts=perturbed_texts,
+            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
         )
 
         # ---------------------------------------------------------
@@ -254,7 +277,10 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
         ]
 
         logger.info("Normalizing similarities...")
-        sims = DistanceNormalizer.min_max(scores=wmd_scores)
+        sims = DistanceNormalizer.min_max(
+            scores=wmd_scores,
+            mode=normalization_method,
+        )
 
         masks_as_arrays: list[np.ndarray] = [
             np.array(m, dtype=int) for m in binary_masks
@@ -273,6 +299,10 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 y=y_target,
                 distances=distances_array,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
+                normalize_distances=False,
             )
             logger.info(
                 "Optimization complete. Selected surrogate model:"
@@ -281,13 +311,19 @@ class LLMExplainer(ExplanationPipeline, BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
             )
 
-        weights = SurrogateTrainer.compute_weights(method, distances_array)
+        weights = SurrogateTrainer.compute_weights(
+            method=method,
+            distances=distances_array,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
+        )
 
         surrogate = SurrogateFactory.create(
             method=method,

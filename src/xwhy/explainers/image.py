@@ -19,16 +19,15 @@ from tqdm import tqdm
 
 from xwhy.core.config import ImageClassificationConfig, ImageGenerationAndEditingConfig
 from xwhy.core.explainer import BaseExplainer
-from xwhy.core.pipeline import ExplanationPipeline
 from xwhy.core.result import (
     ImageClassificationXWhyResult,
     ImageGenerationAndEditingXWhyResult,
 )
-from xwhy.core.types import (
-    BaseImageGenerationAndEditing,
+from xwhy.core.states import (
     ImageClassificationState,
     ImageGenerationAndEditingState,
 )
+from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
@@ -64,10 +63,7 @@ from xwhy.utils.image import (
 from xwhy.utils.io import save_data_to_pickle, save_perturbation_data_to_csv
 
 
-class ImageClassificationExplainer(
-    ExplanationPipeline,
-    BaseExplainer,
-):
+class ImageClassificationExplainer(BaseExplainer):
     """Explainer for image classification models.
 
     This explainer loads all required runtime resources only once and can
@@ -80,6 +76,7 @@ class ImageClassificationExplainer(
         custom_model: Any = None,  # noqa: ANN401
         custom_preprocess: Any = None,  # noqa: ANN401
         categories: Any = None,  # noqa: ANN401
+        class_of_interest: int = 1,
         classification_type: str | ClassificationType = ClassificationType.INCEPTION_V3,
         use_model_preprocess: bool = True,
         use_embedding_model: bool = False,
@@ -89,10 +86,14 @@ class ImageClassificationExplainer(
         | SegmentationType = SegmentationType.DEEPLABV3_RESNET101,
         device: str = "cpu",
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.5,
+        ridge_alpha: float = 1.0,
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
-        num_perturb: int = 150,
+        num_perturbations: int = 150,
+        keep_probability: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
@@ -109,6 +110,7 @@ class ImageClassificationExplainer(
                                the custom model.
             categories: Optional list of human-readable class names corresponding
                         to model outputs.
+            class_of_interest: The label ID of the object to evaluate.
             classification_type: Type of the classification model to explain.
             use_model_preprocess: Whether to use the classfication model's official
                                   preprocessing.
@@ -117,11 +119,15 @@ class ImageClassificationExplainer(
             use_segmentation_model: Whether an image segmentation model should be used.
             segmentation_type: Segmentation method for extracting object masks.
             device: Device type name.
-            seed: Random seed used throughout the explanation pipeline.
+            seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             kernel_size: Kernel size used during superpixel generation.
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
-            num_perturb: Number of perturbed samples.
+            num_perturbations: Number of perturbed samples.
+            keep_probability: Probability of keeping a superpixel (value = 1).
             distance_type: Distance metric name.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
@@ -147,6 +153,7 @@ class ImageClassificationExplainer(
                 custom_model=custom_model,
                 custom_preprocess=custom_preprocess,
                 categories=categories,
+                class_of_interest=class_of_interest,
                 classification_type=classification_type,
                 use_model_preprocess=use_model_preprocess,
                 use_embedding_model=use_embedding_model,
@@ -155,10 +162,14 @@ class ImageClassificationExplainer(
                 segmentation_type=segmentation_type,
                 device=device,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 kernel_size=kernel_size,
                 max_dist=max_dist,
                 ratio=ratio,
-                num_perturb=num_perturb,
+                num_perturbations=num_perturbations,
+                keep_probability=keep_probability,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
@@ -344,29 +355,12 @@ class ImageClassificationExplainer(
 
         return final_predictions, np.array(distances)
 
-    def run(self, instance: Any, **kwargs: Any) -> ImageClassificationXWhyResult:  # noqa: ANN401
-        """Run the full explanation pipeline.
-
-        Args:
-            instance: The input image path.
-            **kwargs: Additional pipeline options.
-
-        Returns:
-            ImageClassificationXWhyResult: The explanation outcome.
-
-        Raises:
-            TypeError: If the instance is not a string.
-
-        """
-        if not isinstance(instance, str):
-            raise TypeError("ImageClassification requires a string instance.")
-        return self.explain(instance, **kwargs)
-
     def explain(
         self,
         instance: str,
         fidelity_plot: bool = False,
         ground_truth_mask: Any = None,  # noqa: ANN401
+        class_of_interest: int | None = None,
         **kwargs: Any,  # noqa: ANN401
     ) -> ImageClassificationXWhyResult:
         """Generate an explanation for an input image.
@@ -375,6 +369,7 @@ class ImageClassificationExplainer(
             instance: Path to the image that should be explained.
             fidelity_plot: Rendering fidelity scatter plot.
             ground_truth_mask: Provided ground-truth mask for evaluation.
+            class_of_interest: The label ID of the object to evaluate.
             **kwargs: Additional explainer-specific options.
 
         Returns:
@@ -390,6 +385,11 @@ class ImageClassificationExplainer(
             )
 
         image_path = instance
+        class_of_interest = (
+            class_of_interest
+            if class_of_interest is not None
+            else self.config.class_of_interest  # type: ignore[union-attr]
+        )
         transform_fn = self.state.transform_fn
         mean = self.state.classification_model.preprocess_fn.mean  # type: ignore[union-attr]
         std = self.state.classification_model.preprocess_fn.std  # type: ignore[union-attr]
@@ -436,7 +436,8 @@ class ImageClassificationExplainer(
         )
         x_matrix = self.state.perturbator.generate(  # type: ignore[union-attr]
             num_superpixels=num_superpixels,
-            num_perturbations=self.config.num_perturb,  # type: ignore[union-attr]
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+            keep_probability=self.config.keep_probability,  # type: ignore[union-attr]
         )
 
         # Run Main SMILE Loop (Inference & Distance)
@@ -477,6 +478,9 @@ class ImageClassificationExplainer(
                 y=y_target,
                 distances=distances,
                 seed=self.config.seed,  # type: ignore[union-attr]
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
                 normalize_distances=True,
             )
             logger.info(
@@ -486,12 +490,14 @@ class ImageClassificationExplainer(
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info("Skipping surrogate search. Using default: '%s'", method.value)
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
             distances=distances,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=True,
         )
 
@@ -572,6 +578,7 @@ class ImageClassificationExplainer(
             cov, w_cov = ImageCoverageMetrics.evaluate_all(
                 explanation_image=explanation_image,
                 semantic_mask=sem_mask,
+                class_of_interest=class_of_interest,
             )
 
             logger.info("--- Evaluation Metrics ---")
@@ -640,12 +647,17 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         ) = None,
         model_name: str = "dall-e-3",
         pipe: Any | None = None,  # noqa: ANN401
+        max_retries: int = 7,
+        delay: float | None = None,
         # Custom Model Injection
         custom_model: Any = None,  # noqa: ANN401
         custom_generate_fn: Callable[..., Any] | None = None,
         # Core Shared Generation Parameters
         temperature: float = 0.0,
         seed: int = 42,
+        epsilon: float = 0.0,
+        kernel_width: float = 0.25,
+        ridge_alpha: float = 1.0,
         # Explainer Components
         use_image_embedding_model: bool = False,
         image_embedding_type: EmbeddingType | str = EmbeddingType.DINOV2,
@@ -657,6 +669,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Core Explainability Settings
         output_dir: str = "outputs",
         device: str = "cpu",  # or "cuda",
+        normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
@@ -670,10 +683,16 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             engine: The primary model provider, custom class, or string identifier.
             model_name: Name of the underlying model to use.
             pipe: HuggingFace pipeline or custom pipeline object.
+            max_retries : Maximum number of retry attempts if the LLM/VLM request
+                fails.
+            delay : Seconds to wait between consecutive retries.
             custom_model: Custom model instance for generation/editing.
             custom_generate_fn: Callable function for custom model generation.
             temperature: Temperature parameter for the model.
             seed: Random seed for reproducibility.
+            epsilon: Numerical stability constant.
+            kernel_width: Kernel width for similarity weights.
+            ridge_alpha: Ridge regularization strength.
             use_image_embedding_model: Flag to enable image embedding.
             image_embedding_type: Type of image embedding to utilize.
             text_embedding_type: Type of text embedding to utilize.
@@ -681,6 +700,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             segmentation_type: Type of segmentation model to utilize.
             output_dir: Directory to save intermediate and final outputs.
             device: Device to run local models on ('cpu' or 'cuda').
+            normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of text perturbations to generate.
             distance_type: Metric used to compute distance between images.
             surrogate_type: Type of surrogate model to train for explanation.
@@ -806,10 +826,15 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 provider_type=provider_type,
                 engine_type=engine_type,
                 model_name=model_name,
+                max_retries=max_retries,
+                delay=delay,
                 custom_model=custom_model,
                 custom_generate_fn=custom_generate_fn,
                 temperature=temperature,
                 seed=seed,
+                epsilon=epsilon,
+                kernel_width=kernel_width,
+                ridge_alpha=ridge_alpha,
                 use_image_embedding_model=use_image_embedding_model,
                 image_embedding_type=image_embedding_type,
                 text_embedding_type=text_embedding_type,
@@ -817,6 +842,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 segmentation_type=segmentation_type,
                 output_dir=output_dir,
                 device=resolved_device,
+                normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
@@ -1256,8 +1282,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         instance: str,
         input_image_path: Any | None = None,  # noqa: ANN401
         output_dir: str | None = None,
-        normalization_mode: Literal["linear", "inverse"] = "linear",
+        normalization_method: Literal["linear", "inverse"] | None = None,
         seed: int | None = 42,
+        display_perturbation_images: bool = False,
         fidelity_plot: bool = False,
         **kwargs: Any,  # noqa: ANN401
     ) -> ImageGenerationAndEditingXWhyResult:
@@ -1267,8 +1294,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             instance: Text description for image generation or editing.
             input_image_path: The input object to explain.
             output_dir: Custom directory to save outputs.
-            normalization_mode: Method used to normalize text similarities.
+            normalization_method : Method used to normalize text similarities.
             seed: Random seed for reproducibility.
+            display_perturbation_images: Whether to show the generated perturbation
+                images.
             fidelity_plot: Rendering fidelity scatter plot.
             **kwargs: Additional generation options (e.g., batch, size, extra_body).
 
@@ -1282,12 +1311,24 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             RuntimeError: If base image generation fails.
 
         """
-        kernel_width = getattr(self.config, "kernel_width", 0.25)
-        ridge_alpha = getattr(self.config, "ridge_alpha", 1.0)
-
         prompt = instance
         output_dir = output_dir if output_dir is not None else self.config.output_dir  # type: ignore[union-attr]
         seed = seed if seed is not None else self.config.seed  # type: ignore[union-attr]
+
+        kwargs["max_retries"] = (
+            self.config.max_retries  # type: ignore[union-attr]
+            if kwargs.get("max_retries") is None
+            else kwargs["max_retries"]
+        )
+        kwargs["delay"] = (
+            self.config.delay if kwargs.get("delay") is None else kwargs["delay"]  # type: ignore[union-attr]
+        )
+
+        normalization_method = (
+            self.config.normalization_method  # type: ignore[union-attr]
+            if normalization_method is None
+            else normalization_method
+        )
 
         # Extract batch flag from kwargs if provided, defaulting to False
         batch = kwargs.pop("batch", False)
@@ -1373,6 +1414,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             input_image_path=base_image_path,
             generated_images=generated_images,
             prompts=perturbed_texts,
+            display_image=display_perturbation_images,
             output_dir=output_dir,
         )
 
@@ -1385,7 +1427,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         )
 
         logger.info("Normalizing similarities...")
-        sims = DistanceNormalizer.min_max(scores=wmd_scores)
+        sims = DistanceNormalizer.min_max(
+            scores=wmd_scores,
+            mode=normalization_method,
+        )
 
         # masks_as_arrays: list[np.ndarray] = [
         #     np.array(m, dtype=int) for m in binary_masks
@@ -1431,8 +1476,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 y=y_target,
                 distances=text_distances_array,
                 seed=seed,
-                kernel_width=kernel_width,
-                ridge_alpha=ridge_alpha,
+                epsilon=self.config.epsilon,  # type: ignore[union-attr]
+                kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+                ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
             )
             logger.info(
                 "Optimization complete. Selected surrogate model: "
@@ -1441,7 +1487,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
@@ -1450,7 +1496,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         weights = SurrogateTrainer.compute_weights(
             method=method,
             distances=text_distances_array,
-            kernel_width=kernel_width,
+            kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
+            epsilon=self.config.epsilon,  # type: ignore[union-attr]
+            normalize_distances=False,
         )
 
         surrogate = SurrogateFactory.create(
@@ -1481,9 +1529,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             image_distances=image_distances,
             wmd_scores=wmd_scores,
             sims=sims,
-            mode=normalization_mode,
+            normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
-            num_perturb=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
             seed=seed,
         )
 

@@ -11,6 +11,7 @@ from xwhy.core.result import (
     BaseXWhyResult,
     ImageClassificationXWhyResult,
     ImageGenerationAndEditingXWhyResult,
+    PointCloudXWhyResult,
     TabularXWhyResult,
     TextXWhyResult,
 )
@@ -443,3 +444,201 @@ def test_image_result_with_none_instance(mock_metrics: RegressionMetricResult) -
     )
     assert list(result.feature_names) == []
     np.testing.assert_array_equal(result.data, np.array([]))
+
+
+def test_point_cloud_result_initialization(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify PointCloudXWhyResult initializes with provided attributes.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.array([0.4, -0.2, 0.7], dtype=np.float64)
+    important_clusters = np.array([0, 2], dtype=np.int64)
+    sample_points = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float64)
+    cluster_labels = np.array([0, 1, 0, 2], dtype=np.int64)
+
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        important_clusters=important_clusters,
+        sample_points=sample_points,
+        cluster_labels=cluster_labels,
+    )
+
+    np.testing.assert_array_equal(result.coefficients, coeffs)
+    assert result.metrics == mock_metrics
+    np.testing.assert_array_equal(result.important_clusters, important_clusters)
+    np.testing.assert_array_equal(result.sample_points, sample_points)
+    np.testing.assert_array_equal(result.cluster_labels, cluster_labels)
+    assert result.raw_data == {}
+    assert result.base_values == 0.0
+
+
+def test_point_cloud_result_defaults(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify PointCloudXWhyResult uses correct default empty arrays.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.array([0.1], dtype=np.float64)
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+    )
+
+    empty_f64 = np.zeros(0, dtype=np.float64)
+    np.testing.assert_array_equal(result.coefficients, coeffs)
+    assert result.metrics == mock_metrics
+    np.testing.assert_array_equal(result.important_clusters, empty_f64)
+    np.testing.assert_array_equal(result.sample_points, empty_f64)
+    np.testing.assert_array_equal(result.cluster_labels, empty_f64)
+
+
+def test_point_cloud_feature_names(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify feature_names generates Cluster labels from coefficients length.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.array([0.5, -0.3, 0.8, 0.1], dtype=np.float64)
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+    )
+
+    expected_names = ["Cluster 0", "Cluster 1", "Cluster 2", "Cluster 3"]
+    assert result.feature_names == expected_names
+
+
+def test_point_cloud_feature_names_empty(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify feature_names returns empty list when coefficients are empty.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.empty(0, dtype=np.float64)
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+    )
+
+    assert result.feature_names == []
+
+
+def test_point_cloud_data_property(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify data property returns the sample_points array.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    sample_points = np.array(
+        [
+            [0.1, 0.2, 0.3],
+            [0.4, 0.5, 0.6],
+            [0.7, 0.8, 0.9],
+        ],
+        dtype=np.float64,
+    )
+    result = PointCloudXWhyResult(
+        coefficients=np.array([0.1, 0.2], dtype=np.float64),
+        metrics=mock_metrics,
+        sample_points=sample_points,
+    )
+
+    np.testing.assert_array_equal(result.data, sample_points)
+
+
+def test_point_cloud_data_property_default(
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify data property returns empty array when sample_points is default.
+
+    Args:
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    result = PointCloudXWhyResult(
+        coefficients=np.array([0.1], dtype=np.float64),
+        metrics=mock_metrics,
+    )
+
+    np.testing.assert_array_equal(result.data, np.zeros(0, dtype=np.float64))
+
+
+@patch("xwhy.core.result.Explanation")
+def test_point_cloud_to_explanation(
+    mock_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_explanation builds Explanation with correct arguments.
+
+    Args:
+        mock_explanation: Mocked Explanation constructor.
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.array([0.3, -0.1], dtype=np.float64)
+    sample_points = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        sample_points=sample_points,
+        base_values=1.5,
+    )
+
+    out_obj = result.to_explanation()
+
+    mock_explanation.assert_called_once()
+    called_kwargs = mock_explanation.call_args.kwargs
+
+    np.testing.assert_array_equal(called_kwargs["values"], coeffs)
+    assert called_kwargs["base_values"] == 1.5
+    np.testing.assert_array_equal(called_kwargs["data"], sample_points)
+    assert list(called_kwargs["feature_names"]) == ["Cluster 0", "Cluster 1"]
+    assert out_obj == mock_explanation.return_value
+
+
+@patch("xwhy.core.result.Explanation")
+def test_point_cloud_to_shap(
+    mock_explanation: MagicMock,
+    mock_metrics: RegressionMetricResult,
+) -> None:
+    """Verify to_shap is a working alias of to_explanation.
+
+    Args:
+        mock_explanation: Mocked Explanation constructor.
+        mock_metrics: Fixture providing a dummy RegressionMetricResult.
+
+    """
+    coeffs = np.array([0.9], dtype=np.float64)
+    sample_points = np.array([[0.0, 1.0, 2.0]], dtype=np.float64)
+    result = PointCloudXWhyResult(
+        coefficients=coeffs,
+        metrics=mock_metrics,
+        sample_points=sample_points,
+    )
+
+    out_obj = result.to_shap()
+
+    mock_explanation.assert_called_once()
+    called_kwargs = mock_explanation.call_args.kwargs
+
+    np.testing.assert_array_equal(called_kwargs["values"], coeffs)
+    np.testing.assert_array_equal(called_kwargs["data"], sample_points)
+    assert list(called_kwargs["feature_names"]) == ["Cluster 0"]
+    assert out_obj == mock_explanation.return_value

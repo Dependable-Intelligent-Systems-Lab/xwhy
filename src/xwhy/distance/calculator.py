@@ -43,6 +43,12 @@ def calculate_distance(
     """
     metric_type = DistanceType.from_str(metric)
 
+    # Convert PyTorch Tensors to NumPy arrays automatically if passed
+    if hasattr(source, "detach"):
+        source = source.detach().cpu().numpy()
+    if hasattr(target, "detach"):
+        target = target.detach().cpu().numpy()
+
     # Type verification
     is_source_text = isinstance(source, str)
     is_source_numeric = isinstance(source, np.ndarray)

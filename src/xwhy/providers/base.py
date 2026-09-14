@@ -37,6 +37,7 @@ class BaseProvider(ABC):
         model: str,
         max_tokens: int,
         temperature: float,
+        **kwargs: Any,  # noqa: ANN401
     ) -> str:
         """Generate a natural-language response.
 
@@ -45,6 +46,7 @@ class BaseProvider(ABC):
             model: Provider model identifier.
             max_tokens: Maximum number of generated tokens.
             temperature: Sampling temperature.
+            **kwargs: Additional parameters specific to the underlying model/API.
 
         Returns:
             Generated text.

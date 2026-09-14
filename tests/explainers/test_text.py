@@ -209,10 +209,14 @@ def test_init_creates_default_config() -> None:
             model=None,
             predict_fn=dummy_predict_fn,
             seed=123,
+            epsilon=0.0,
+            kernel_width=0.5,
+            ridge_alpha=1.0,
             num_perturbations=32,
             embedding_type="word2vec",
             surrogate_type="lime_ridge",
             use_best_surrogate=False,
+            sanitize_distances=True,
         )
         assert explainer.config is mock_config
 

@@ -18,7 +18,14 @@ from xwhy.surrogate.types import SurrogateType
 class ExplainerConfig(BaseModel):
     """Explainer config."""
 
-    pass
+    seed: int = 42
+    epsilon: float = Field(default=0.01, ge=0.0)
+    kernel_width: float = Field(default=0.5, gt=0.0)
+    ridge_alpha: float = Field(default=1.0, ge=0.0)
+
+    num_perturbations: int = Field(default=50, gt=0)
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True
 
 
 class LLMConfig(ExplainerConfig):
@@ -35,11 +42,11 @@ class LLMConfig(ExplainerConfig):
     model_name: str = "gpt-3.5-turbo-instruct"
     max_tokens: int = Field(default=200, gt=0)
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    seed: int = 42
-    num_perturbations: int = Field(default=64, gt=0)
+    max_retries: int = Field(default=7, ge=0)
+    delay: float | None = Field(default=None, ge=0.0)
+    normalization_method: Literal["linear", "inverse"] = "linear"
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
+    sanitize_distances: bool = False
 
 
 class ImageClassificationConfig(ExplainerConfig):
@@ -64,20 +71,19 @@ class ImageClassificationConfig(ExplainerConfig):
     custom_preprocess: Callable[..., Any] | None = None
     categories: Any = None
 
+    class_of_interest: int = 1
+
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
-    seed: int = 42
-
     kernel_size: int = Field(default=4, ge=1)
     max_dist: int = Field(default=200, gt=0)
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
-    num_perturb: int = Field(default=150, gt=0)
+
+    keep_probability: float = Field(default=0.5, gt=0.0, le=1.0)
 
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
 
     num_top_features: int = Field(default=4, gt=0)
     num_top_predictions: int = Field(default=5, gt=0)
@@ -94,16 +100,10 @@ class TabularConfig(ExplainerConfig):
     )
 
     mode: Literal["classification", "regression"] = "classification"
-    num_perturbations: int = Field(default=500, gt=0)
-    kernel_width: float = Field(default=0.2, gt=0.0)
     num_distribution_samples: int = Field(default=100, gt=0)
     local_noise: float = Field(default=0.05, ge=0.0)
     perturbation_noise: float = Field(default=0.4, ge=0.0)
-    epsilon: float = Field(default=0.01, gt=0.0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
-    seed: int = 42
     device: str = "cpu"
     validate_normalization: bool = True
 
@@ -123,6 +123,8 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     provider_type: ProviderType | str | None = Field(default=ProviderType.OPENAI)
     engine_type: Literal["provider", "custom", "pipeline"] = "provider"
     model_name: str = "dall-e-3"
+    max_retries: int = Field(default=7, ge=0)
+    delay: float | None = Field(default=None, ge=0.0)
 
     # Custom Model Injection
     custom_model: Any = None
@@ -130,7 +132,6 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
 
     # Core Shared Generation Parameters
     temperature: float = Field(default=0.0, ge=0.0, le=2.0)
-    seed: int = 42
 
     # Explainer Components
     use_image_embedding_model: bool = False
@@ -143,15 +144,11 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     # Core Explainability Settings
     output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
-    num_perturbations: int = Field(default=64, gt=0)
+    normalization_method: Literal["linear", "inverse"] = "linear"
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
 
     # Surrogate & Perturbation Fine-tuning Parameters
     normalization_mode: Literal["linear", "inverse"] = "linear"
-    kernel_width: float = Field(default=0.25, gt=0.0)
-    ridge_alpha: float = Field(default=1.0, ge=0.0)
 
 
 class TextConfig(ExplainerConfig):
@@ -167,8 +164,29 @@ class TextConfig(ExplainerConfig):
 
     model: Any = None
     predict_fn: Callable[..., Any] | None = None
-    seed: int = 42
-    num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
+    sanitize_distances: bool = True
+
+
+class PointCloudConfig(ExplainerConfig):
+    """Configuration for the Point Cloud explainer."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_assignment=True,
+        str_strip_whitespace=True,
+    )
+
+    custom_model: Any | None = None
+    custom_predict_fn: Callable[..., Any] | None = None
+
+    num_clusters: int = Field(default=8, gt=0)
+    num_top_features: int = Field(default=4, gt=0)
+    removal_probability: float = Field(default=0.3, ge=0.0, le=1.0)
+    max_iters: int = Field(default=50, gt=0)
+    device: str = "cpu"
+
+    clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    distance_mode: Literal["mask", "spatial", "latent"] = "mask"

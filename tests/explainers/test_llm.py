@@ -1,6 +1,5 @@
 """Tests for the LLM explainer module."""
 
-import re
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -150,28 +149,8 @@ def test_init_with_explicit_config(
 
 
 # ==========================================
-# Run & Pipeline Execution Tests
+# Pipeline Execution Tests
 # ==========================================
-
-
-def test_run_raises_type_error_for_non_string_instance(explainer: LLMExplainer) -> None:
-    """Test that run method raises TypeError when instance is not a string."""
-    invalid_inputs = [123, ["prompt"], None, {"text": "hello"}]
-    for invalid_input in invalid_inputs:
-        with pytest.raises(
-            TypeError, match=re.escape("LLMExplainer requires a string instance.")
-        ):
-            explainer.run(invalid_input)
-
-
-def test_run_calls_explain_for_string_instance(explainer: LLMExplainer) -> None:
-    """Test that run method delegates to explain correctly with valid string."""
-    mock_result = MagicMock(spec=TextXWhyResult)
-    with patch.object(explainer, "explain", return_value=mock_result) as mock_explain:
-        instance = "test prompt"
-        result = explainer.run(instance, extra_param=1)
-        mock_explain.assert_called_once_with(instance, extra_param=1)
-        assert result == mock_result
 
 
 def test_explain_raises_type_error_for_non_string(explainer: LLMExplainer) -> None:
@@ -375,7 +354,7 @@ def test_llm_explain_impute_when_some_distances_valid(
     )
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
 
-    # Two finite distances + one non-finite → valid branch is taken.
+    # Two finite distances + one non-finite => valid branch is taken.
     mock_wmd.return_value.compute_batch.return_value = [
         ("res1", 0.5),
         ("res2", np.inf),
@@ -447,7 +426,7 @@ def test_llm_explain_impute_when_all_distances_non_finite(
     )
     mock_embedding_factory.create.return_value.load.return_value = MagicMock()
 
-    # All non-finite → else branch (max_penalty = 1000.0)
+    # All non-finite => else branch (max_penalty = 1000.0)
     mock_wmd.return_value.compute_batch.return_value = [
         ("res1", np.inf),
         ("res2", np.nan),

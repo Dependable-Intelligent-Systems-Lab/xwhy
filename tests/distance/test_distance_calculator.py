@@ -13,7 +13,7 @@ def test_calculate_distance_unsupported_data_type() -> None:
     """Verify TypeError when input is neither string nor ndarray (e.g., list)."""
     with pytest.raises(
         TypeError,
-        match=re.escape("Source data must be either a string or a numpy array"),
+        match=re.escape("Source data must be either a string or a numpy array."),
     ):
         calculate_distance("cosine", [1, 2], [1, 2])
 
@@ -22,14 +22,19 @@ def test_calculate_distance_target_mismatch() -> None:
     """Verify TypeError when source and target types do not match."""
     with pytest.raises(
         TypeError,
-        match=re.escape("Source and target must be of the exact same data type"),
+        match=re.escape("Source and target must be of the exact same data type."),
     ):
         calculate_distance("cosine", np.array([1, 2]), "hello")
 
 
 def test_calculate_distance_invalid_text_metric() -> None:
     """Ensure text data throws error when paired with numeric metric."""
-    with pytest.raises(ValueError, match="Text data requires a text-based metric"):
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Text data requires a text-based metric like WMD. Received: cosine"
+        ),
+    ):
         calculate_distance("cosine", "hello", "world")
 
 
@@ -70,3 +75,83 @@ def test_calculate_distance_text_success(mock_compute: MagicMock) -> None:
     mock_compute.assert_called_once_with(
         source="hello", target="world", model="mock_model"
     )
+
+
+def _make_tensor_mock(array: np.ndarray) -> MagicMock:
+    """Create a mock that behaves like a PyTorch tensor.
+
+    Args:
+        array: The numpy array that ``.numpy()`` should return.
+
+    Returns:
+        MagicMock: A mock with ``detach().cpu().numpy()`` chain.
+
+    """
+    tensor = MagicMock()
+    tensor.detach.return_value.cpu.return_value.numpy.return_value = array
+    # Ensure hasattr(tensor, "detach") is True
+    return tensor
+
+
+@patch("xwhy.distance.distances.CosineDistance.compute")
+def test_calculate_distance_source_tensor_conversion(
+    mock_compute: MagicMock,
+) -> None:
+    """Verify source PyTorch-like tensor is converted to ndarray before dispatch.
+
+    Args:
+        mock_compute: Mocked CosineDistance.compute method.
+
+    """
+    mock_compute.return_value = 0.42
+    source_arr = np.array([1.0, 2.0, 3.0])
+    target_arr = np.array([1.0, 2.0, 3.0])
+    source_tensor = _make_tensor_mock(source_arr)
+
+    result = calculate_distance("cosine", source_tensor, target_arr)
+
+    assert result == 0.42
+    mock_compute.assert_called_once_with(source=source_arr, target=target_arr)
+
+
+@patch("xwhy.distance.distances.CosineDistance.compute")
+def test_calculate_distance_target_tensor_conversion(
+    mock_compute: MagicMock,
+) -> None:
+    """Verify target PyTorch-like tensor is converted to ndarray before dispatch.
+
+    Args:
+        mock_compute: Mocked CosineDistance.compute method.
+
+    """
+    mock_compute.return_value = 0.55
+    source_arr = np.array([4.0, 5.0, 6.0])
+    target_arr = np.array([4.0, 5.0, 6.0])
+    target_tensor = _make_tensor_mock(target_arr)
+
+    result = calculate_distance("cosine", source_arr, target_tensor)
+
+    assert result == 0.55
+    mock_compute.assert_called_once_with(source=source_arr, target=target_arr)
+
+
+@patch("xwhy.distance.distances.CosineDistance.compute")
+def test_calculate_distance_both_tensors_conversion(
+    mock_compute: MagicMock,
+) -> None:
+    """Verify both source and target tensors are converted to ndarrays.
+
+    Args:
+        mock_compute: Mocked CosineDistance.compute method.
+
+    """
+    mock_compute.return_value = 0.99
+    source_arr = np.array([7.0, 8.0])
+    target_arr = np.array([9.0, 10.0])
+    source_tensor = _make_tensor_mock(source_arr)
+    target_tensor = _make_tensor_mock(target_arr)
+
+    result = calculate_distance("cosine", source_tensor, target_tensor)
+
+    assert result == 0.99
+    mock_compute.assert_called_once_with(source=source_arr, target=target_arr)

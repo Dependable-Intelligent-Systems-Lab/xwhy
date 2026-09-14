@@ -15,8 +15,9 @@ from xwhy.logger import logger
 class BaseNumericDistance(BaseDistance):
     """Base class for handling dimensionality of numerical distances.
 
-    Automatically handles 1D arrays (Tabular/Embeddings) and 3D arrays (Images)
-    by computing channel-wise distances and aggregating them.
+    Automatically handles 1D arrays (Tabular/Embeddings), 2D arrays (Point
+    Clouds/Matrices), and 3D arrays (Images) with support for spatial (axis-wise)
+    and latent (flattened) modes.
     """
 
     def _prepare_ecdf_data(
@@ -56,19 +57,46 @@ class BaseNumericDistance(BaseDistance):
         self,
         source: np.ndarray,
         target: np.ndarray,
+        mode: str = "latent",
         **kwargs: Any,  # noqa: ANN401
     ) -> float:
         """Compute distance robustly regardless of array dimensionality."""
-        if source.shape != target.shape:
-            logger.warning(f"Shape mismatch: {source.shape} vs {target.shape}")
-            return float("inf")
+        # Convert PyTorch tensors if passed directly
+        if hasattr(source, "detach"):
+            source = source.detach().cpu().numpy()
+        if hasattr(target, "detach"):
+            target = target.detach().cpu().numpy()
 
         # Case 1: 1D Array (Tabular Data or Embedding Vector)
         if source.ndim == 1:
+            if source.shape != target.shape:
+                logger.warning(f"Shape mismatch: {source.shape} vs {target.shape}")
+                return float("inf")
             return self._compute_1d(source, target)
 
-        # Case 2: 3D Image (H, W, C) - Channel-wise computation
-        elif source.ndim == 3:
+        # Case 2: 2D Point Cloud in Spatial Mode (N, D) vs (M, D)
+        # Allows varying point counts (N != M) while ensuring coordinate
+        # dimensions match
+        if source.ndim == 2 and mode == "spatial":
+            if source.shape[1] != target.shape[1]:
+                logger.warning(
+                    f"Feature dimension mismatch: {source.shape[1]} vs "
+                    f"{target.shape[1]}"
+                )
+                return float("inf")
+
+            dist_total = 0.0
+            num_axes = source.shape[1]
+            for col in range(num_axes):
+                dist_total += self._compute_1d(source[:, col], target[:, col])
+            return dist_total
+
+        # Case 3: 3D Image (H, W, C) - Channel-wise computation
+        if source.ndim == 3:
+            if source.shape != target.shape:
+                logger.warning(f"Shape mismatch: {source.shape} vs {target.shape}")
+                return float("inf")
+
             dist_total = 0.0
             channels = source.shape[2]
             for i in range(channels):
@@ -77,9 +105,8 @@ class BaseNumericDistance(BaseDistance):
                 dist_total += self._compute_1d(hist1, hist2)
             return dist_total
 
-        # Case 3: 2D or General N-D Fallback (Flatten all)
-        else:
-            return self._compute_1d(source.flatten(), target.flatten())
+        # Case 4: Latent mode or general N-D Fallback (Flatten all)
+        return self._compute_1d(source.flatten(), target.flatten())
 
     def compute_with_p_value(
         self, source: np.ndarray, target: np.ndarray, n_bootstrap: int = 1000
