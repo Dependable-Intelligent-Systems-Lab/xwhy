@@ -23,6 +23,10 @@ class ExplainerConfig(BaseModel):
     kernel_width: float = Field(default=0.5, gt=0.0)
     ridge_alpha: float = Field(default=1.0, ge=0.0)
 
+    num_perturbations: int = Field(default=50, gt=0)
+    surrogate_type: SurrogateType | str = SurrogateType.LIME
+    use_best_surrogate: bool = True
+
 
 class LLMConfig(ExplainerConfig):
     """Configuration for the LLM explainer."""
@@ -41,10 +45,7 @@ class LLMConfig(ExplainerConfig):
     max_retries: int = Field(default=7, ge=0)
     delay: float | None = Field(default=None, ge=0.0)
     normalization_method: Literal["linear", "inverse"] = "linear"
-    num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
     sanitize_distances: bool = False
 
 
@@ -79,13 +80,10 @@ class ImageClassificationConfig(ExplainerConfig):
     kernel_size: int = Field(default=4, ge=1)
     max_dist: int = Field(default=200, gt=0)
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
-    num_perturb: int = Field(default=150, gt=0)
 
     keep_probability: float = Field(default=0.5, gt=0.0, le=1.0)
 
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
 
     num_top_features: int = Field(default=4, gt=0)
     num_top_predictions: int = Field(default=5, gt=0)
@@ -102,13 +100,10 @@ class TabularConfig(ExplainerConfig):
     )
 
     mode: Literal["classification", "regression"] = "classification"
-    num_perturbations: int = Field(default=500, gt=0)
     num_distribution_samples: int = Field(default=100, gt=0)
     local_noise: float = Field(default=0.05, ge=0.0)
     perturbation_noise: float = Field(default=0.4, ge=0.0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
     device: str = "cpu"
     validate_normalization: bool = True
 
@@ -150,10 +145,7 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
     normalization_method: Literal["linear", "inverse"] = "linear"
-    num_perturbations: int = Field(default=64, gt=0)
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
 
     # Surrogate & Perturbation Fine-tuning Parameters
     normalization_mode: Literal["linear", "inverse"] = "linear"
@@ -172,10 +164,7 @@ class TextConfig(ExplainerConfig):
 
     model: Any = None
     predict_fn: Callable[..., Any] | None = None
-    num_perturbations: int = Field(default=64, gt=0)
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True
     sanitize_distances: bool = True
 
 
@@ -194,7 +183,6 @@ class PointCloudConfig(ExplainerConfig):
 
     num_clusters: int = Field(default=8, gt=0)
     num_top_features: int = Field(default=4, gt=0)
-    num_perturbations: int = Field(default=50, gt=0)
     removal_probability: float = Field(default=0.3, ge=0.0, le=1.0)
     max_iters: int = Field(default=50, gt=0)
     device: str = "cpu"
@@ -202,5 +190,3 @@ class PointCloudConfig(ExplainerConfig):
     clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     distance_mode: Literal["mask", "spatial", "latent"] = "mask"
-    surrogate_type: SurrogateType | str = SurrogateType.LIME
-    use_best_surrogate: bool = True

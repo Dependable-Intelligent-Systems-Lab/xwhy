@@ -92,7 +92,7 @@ class ImageClassificationExplainer(BaseExplainer):
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
-        num_perturb: int = 150,
+        num_perturbations: int = 150,
         keep_probability: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
@@ -126,7 +126,7 @@ class ImageClassificationExplainer(BaseExplainer):
             kernel_size: Kernel size used during superpixel generation.
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
-            num_perturb: Number of perturbed samples.
+            num_perturbations: Number of perturbed samples.
             keep_probability: Probability of keeping a superpixel (value = 1).
             distance_type: Distance metric name.
             surrogate_type: Surrogate model name.
@@ -168,7 +168,7 @@ class ImageClassificationExplainer(BaseExplainer):
                 kernel_size=kernel_size,
                 max_dist=max_dist,
                 ratio=ratio,
-                num_perturb=num_perturb,
+                num_perturbations=num_perturbations,
                 keep_probability=keep_probability,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
@@ -436,7 +436,7 @@ class ImageClassificationExplainer(BaseExplainer):
         )
         x_matrix = self.state.perturbator.generate(  # type: ignore[union-attr]
             num_superpixels=num_superpixels,
-            num_perturbations=self.config.num_perturb,  # type: ignore[union-attr]
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
             keep_probability=self.config.keep_probability,  # type: ignore[union-attr]
         )
 
@@ -490,7 +490,7 @@ class ImageClassificationExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info("Skipping surrogate search. Using default: '%s'", method.value)
 
         weights = SurrogateTrainer.compute_weights(
@@ -1487,7 +1487,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
@@ -1531,7 +1531,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             sims=sims,
             normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
-            num_perturb=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
             seed=seed,
         )
 

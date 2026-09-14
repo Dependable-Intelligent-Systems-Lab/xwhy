@@ -392,7 +392,7 @@ class PointCloudExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = cfg.surrogate_type  # type: ignore[union-attr]
+            method = cfg.surrogate_type  # type: ignore[assignment, union-attr]
             method_name = method.value if hasattr(method, "value") else method
             logger.info("Skipping surrogate search. Using default: '%s'", method_name)
 

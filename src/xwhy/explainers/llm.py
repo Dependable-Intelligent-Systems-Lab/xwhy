@@ -311,7 +311,7 @@ class LLMExplainer(BaseExplainer):
                 score,
             )
         else:
-            method = self.config.surrogate_type  # type: ignore[union-attr]
+            method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
             logger.info(
                 "Skipping surrogate search. Using configured default: '%s'",
                 method.value,
