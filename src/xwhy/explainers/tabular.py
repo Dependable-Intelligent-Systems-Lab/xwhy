@@ -41,6 +41,7 @@ class TabularExplainer(BaseExplainer):
         epsilon: float = 1.0,
         kernel_width: float = 0.2,
         ridge_alpha: float = 1.0,
+        min_valid_ratio: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
@@ -61,6 +62,8 @@ class TabularExplainer(BaseExplainer):
             epsilon: Numerical stability constant.
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             distance_type: Distance metric definition.
             surrogate_type: Default surrogate method name.
             use_best_surrogate: Automatically search for the best surrogate.
@@ -90,6 +93,7 @@ class TabularExplainer(BaseExplainer):
                 epsilon=epsilon,
                 kernel_width=kernel_width,
                 ridge_alpha=ridge_alpha,
+                min_valid_ratio=min_valid_ratio,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
@@ -218,34 +222,50 @@ class TabularExplainer(BaseExplainer):
             distances[idx] = dist_total
 
         # ---------------------------------------------------------
-        # Distance Validation & Imputation setup:
-        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # Distance Validation & Filtering setup:
+        # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
         distances_raw = np.array(distances, dtype=float)
 
-        # Filter out non-finite values to determine the maximum valid distance
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
-        # all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = cfg.min_valid_ratio
 
-        # Impute infinite/NaN values with the dynamically calculated maximum penalty
-        scaled_distances = np.where(
-            np.isfinite(distances_raw), distances_raw, max_penalty
-        )
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
 
-        # 4. Surrogate Training via Framework
+        # Filter arrays to drop failed evaluations cleanly
+        x_valid = x_matrix[valid_mask]
+        y_valid = y_target[valid_mask]
+        distances_valid = distances_raw[valid_mask]
+
+        # Surrogate Training via Framework
         if cfg.use_best_surrogate:
             logger.info("Searching for optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=scaled_distances,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=cfg.seed,
                 kernel_width=cfg.kernel_width,
                 epsilon=cfg.epsilon,
@@ -264,37 +284,37 @@ class TabularExplainer(BaseExplainer):
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=scaled_distances,
+            distances=distances_valid,
             kernel_width=cfg.kernel_width,
             epsilon=cfg.epsilon,
             normalize_distances=False,
         )
 
-        logger.info(f"Training surrogate model ({method.value})...")
+        logger.info("Training surrogate model (%s)...", method.value)
         surrogate = SurrogateFactory.create(method=method, seed=cfg.seed)
-        surrogate.fit(x_matrix, y_target, weights)
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
 
         if cfg.mode == "classification":
-            y_pred = (y_pred < 0.5).astype(int).flatten()
+            y_pred_valid = (y_pred_valid < 0.5).astype(int).flatten()
         else:
-            y_pred = y_pred.flatten()
+            y_pred_valid = y_pred_valid.flatten()
 
         raw_data = {
-            "x_matrix": x_matrix,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "x_matrix": x_valid,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
             "weights": weights,
-            "distances": scaled_distances,
+            "distances": distances_valid,
             "surrogate_method": method,
         }
 

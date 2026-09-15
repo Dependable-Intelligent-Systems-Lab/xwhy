@@ -97,6 +97,11 @@ def base_explainer() -> TextExplainer:
         mock_config.seed = 42
         mock_config.num_perturbations = 64
         mock_config.use_best_surrogate = True
+        mock_config.min_valid_ratio = 0.5
+        mock_config.epsilon = 0.0
+        mock_config.kernel_width = 0.5
+        mock_config.ridge_alpha = 1.0
+        mock_config.sanitize_distances = True
         mock_config_cls.return_value = mock_config
 
         return TextExplainer(predict_fn=dummy_predict_fn)
@@ -500,16 +505,18 @@ def test_explain_empty_predictions(
     mock_wmd_instance.compute_batch.return_value = [("test", 0.0)]
 
     mock_surr_trainer.find_best.return_value = (MagicMock(), 0.0)
-    mock_surr_trainer.compute_weights.return_value = np.array([])
+    mock_surr_trainer.compute_weights.return_value = np.array([1.0])
 
     mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([])
-    mock_surrogate.predict.return_value = np.array([])
+    mock_surrogate.coefficients.return_value = np.array([0.0])
+    mock_surrogate.predict.return_value = np.array([0.0])
     mock_surr_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
 
     def mock_predict_empty(texts: Sequence[str]) -> np.ndarray:
-        return np.array([])
+        # Length must match perturbation count so y_target aligns with
+        # the finite-distance validity mask after filtering.
+        return np.zeros(len(texts))
 
     result = base_explainer.explain(
         instance="test",
@@ -524,19 +531,35 @@ def test_explain_empty_predictions(
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
 @patch("xwhy.explainers.text.WMDDistance")
-def test_text_explain_impute_when_some_distances_valid(
+def test_text_explain_filters_non_finite_distances(
     mock_wmd: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Cover the branch where at least one WMD distance is finite."""
+    """Filter non-finite WMD distances and train only on valid rows."""
     predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]))
 
     with (
         patch("xwhy.explainers.text.EmbeddingFactory"),
         patch("xwhy.explainers.text.TextPerturbation") as mock_pert,
+        patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
     ):
+        mock_config = MagicMock()
+        mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.surrogate_type = SurrogateType.LIME
+        mock_config.seed = 42
+        mock_config.num_perturbations = 3
+        mock_config.use_best_surrogate = False
+        mock_config.min_valid_ratio = 0.5
+        mock_config.epsilon = 0.0
+        mock_config.kernel_width = 0.5
+        mock_config.ridge_alpha = 1.0
+        mock_config.sanitize_distances = True
+        mock_config.model = None
+        mock_config.predict_fn = predict_fn
+        mock_config_cls.return_value = mock_config
+
         mock_pert.return_value.generate.return_value = (
             ["t1", "t2", "t3"],
             [[1, 0], [0, 1], [1, 1]],
@@ -548,38 +571,56 @@ def test_text_explain_impute_when_some_distances_valid(
         ("t2", np.inf),
         ("t3", 1.5),
     ]
-    mock_trainer.compute_weights.return_value = np.ones(3)
+    mock_trainer.compute_weights.return_value = np.ones(2)
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
     mock_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
 
     result = explainer.explain("hello world")
 
     distances = result.raw_data["distances"]
+    assert len(distances) == 2
     assert distances[0] == pytest.approx(0.5)
-    assert distances[1] == pytest.approx(1001.5)
-    assert distances[2] == pytest.approx(1.5)
+    assert distances[1] == pytest.approx(1.5)
+    y_target = result.raw_data["y_target"]
+    assert len(y_target) == 2
 
 
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
 @patch("xwhy.explainers.text.WMDDistance")
-def test_text_explain_impute_when_all_distances_non_finite(
+def test_text_explain_raises_when_all_distances_non_finite(
     mock_wmd: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Cover the branch where every WMD distance is non-finite."""
+    """Raise ValueError when every WMD distance is non-finite."""
     predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7]]))
 
     with (
         patch("xwhy.explainers.text.EmbeddingFactory"),
         patch("xwhy.explainers.text.TextPerturbation") as mock_pert,
+        patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
     ):
+        mock_config = MagicMock()
+        mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.surrogate_type = SurrogateType.LIME
+        mock_config.seed = 42
+        mock_config.num_perturbations = 2
+        mock_config.use_best_surrogate = False
+        mock_config.min_valid_ratio = 0.5
+        mock_config.epsilon = 0.0
+        mock_config.kernel_width = 0.5
+        mock_config.ridge_alpha = 1.0
+        mock_config.sanitize_distances = True
+        mock_config.model = None
+        mock_config.predict_fn = predict_fn
+        mock_config_cls.return_value = mock_config
+
         mock_pert.return_value.generate.return_value = (
             ["t1", "t2"],
             [[1, 0], [0, 1]],
@@ -590,15 +631,71 @@ def test_text_explain_impute_when_all_distances_non_finite(
         ("t1", np.inf),
         ("t2", np.nan),
     ]
-    mock_trainer.compute_weights.return_value = np.ones(2)
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape("All perturbations failed (0 valid distances)"),
+    ):
+        explainer.explain("hello world")
+
+
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.logger")
+def test_text_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_wmd: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Log a warning when valid WMD ratio is below ``min_valid_ratio``."""
+    predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]))
+
+    with (
+        patch("xwhy.explainers.text.EmbeddingFactory"),
+        patch("xwhy.explainers.text.TextPerturbation") as mock_pert,
+        patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
+    ):
+        mock_config = MagicMock()
+        mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.surrogate_type = SurrogateType.LIME
+        mock_config.seed = 42
+        mock_config.num_perturbations = 3
+        mock_config.use_best_surrogate = False
+        mock_config.min_valid_ratio = 0.5
+        mock_config.epsilon = 0.0
+        mock_config.kernel_width = 0.5
+        mock_config.ridge_alpha = 1.0
+        mock_config.sanitize_distances = True
+        mock_config.model = None
+        mock_config.predict_fn = predict_fn
+        mock_config_cls.return_value = mock_config
+
+        mock_pert.return_value.generate.return_value = (
+            ["t1", "t2", "t3"],
+            [[1, 0], [0, 1], [1, 1]],
+        )
+        explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
+
+    # 1 valid of 3 -> ratio ~0.33 < 0.5
+    mock_wmd.return_value.compute_batch.return_value = [
+        ("t1", 0.5),
+        ("t2", np.inf),
+        ("t3", np.nan),
+    ]
+    mock_trainer.compute_weights.return_value = np.ones(1)
     mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.1])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5])
     mock_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
 
     result = explainer.explain("hello world")
+    assert result is not None
+    assert len(result.raw_data["y_target"]) == 1
 
-    distances = result.raw_data["distances"]
-    assert distances[0] == pytest.approx(1000.0)
-    assert distances[1] == pytest.approx(1000.0)
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)

@@ -42,6 +42,7 @@ def mock_config() -> MagicMock:
     cfg.ridge_alpha = 1.0
     cfg.epsilon = 0.0
     cfg.max_iters = 10
+    cfg.min_valid_ratio = 0.5
     cfg.seed = 42
     cfg.device = "cpu"
     cfg.clustering_mode = "kmeans"
@@ -315,7 +316,7 @@ def _prepare_explain_mocks(
     explainer: PointCloudExplainer,
     num_clusters: int = 4,
     num_perturbations: int = 5,
-) -> tuple[MagicMock, list[np.ndarray], list[torch.Tensor]]:
+) -> tuple[MagicMock, np.ndarray, list[torch.Tensor]]:
     """Wire common mocks for a successful explain call.
 
     Args:
@@ -327,7 +328,7 @@ def _prepare_explain_mocks(
         tuple: (perturbation_mock, masks, perturbed_samples)
 
     """
-    masks = [np.ones(num_clusters) for _ in range(num_perturbations)]
+    masks = np.ones((num_perturbations, num_clusters), dtype=float)
     masks[0] = np.array([1, 0, 1, 0], dtype=float)  # at least one variation
 
     pert = MagicMock()
@@ -552,7 +553,7 @@ def test_explain_fidelity_plot(
 
 
 # ---------------------------------------------------------------------------
-# explain - ndim handling & infinite-distance imputation
+# explain - ndim handling & distance validation
 # ---------------------------------------------------------------------------
 
 
@@ -560,7 +561,7 @@ def test_explain_fidelity_plot(
 @patch("xwhy.explainers.point_cloud.SurrogateTrainer")
 @patch("xwhy.explainers.point_cloud.SurrogateFactory")
 @patch("xwhy.explainers.point_cloud.RegressionMetrics")
-def test_explain_handles_2d_input_and_inf_distances(
+def test_explain_filters_non_finite_distances(
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
@@ -569,32 +570,38 @@ def test_explain_handles_2d_input_and_inf_distances(
     mock_model: MagicMock,
     sample_tensor: torch.Tensor,
 ) -> None:
-    """2-D input is unsqueezed and non-finite distances are imputed."""
+    """Filter non-finite distances and train only on valid rows.
+
+    2-D input is still unsqueezed; failed perturbations are dropped before
+    surrogate fitting.
+    """
     mock_config.distance_mode = "mask"
     mock_config.use_best_surrogate = False
+    mock_config.min_valid_ratio = 0.5
     explainer = _make_explainer(mock_config, model=mock_model)
     _prepare_explain_mocks(explainer)
 
-    # Mix finite and infinite distances
+    # Mix finite and infinite distances -> 3 valid of 5 (ratio 0.6 >= 0.5)
     mock_dist.side_effect = [0.1, float("inf"), 0.3, float("nan"), 0.5]
-    mock_trainer.compute_weights.return_value = np.ones(5)
+    mock_trainer.compute_weights.return_value = np.ones(3)
 
     with patch.object(
         explainer, "_cluster_points", return_value=np.zeros(20, dtype=int)
     ):
         surrogate = MagicMock()
         surrogate.coefficients.return_value = np.array([0.1, 0.2, 0.3, 0.4])
-        surrogate.predict.return_value = np.array([0.5] * 5)
+        surrogate.predict.return_value = np.array([0.5, 0.5, 0.5])
         mock_factory.create.return_value = surrogate
         mock_metrics.calculate.return_value = MagicMock()
 
-        # Pass pure 2-D tensor (no batch dim)
         result = explainer.explain(instance=sample_tensor)
 
     assert isinstance(result, PointCloudXWhyResult)
-    # scaled_distances must contain only finite values
-    scaled = result.raw_data["distances"]
-    assert np.all(np.isfinite(scaled))
+    distances = result.raw_data["distances"]
+    assert len(distances) == 3
+    assert np.all(np.isfinite(distances))
+    y_target = result.raw_data["y_target"]
+    assert len(y_target) == 3
 
 
 @patch("xwhy.explainers.point_cloud.calculate_distance", return_value=0.15)
@@ -672,7 +679,7 @@ def test_initialize_model_none_branch(mock_config: MagicMock) -> None:
 @patch("xwhy.explainers.point_cloud.SurrogateTrainer")
 @patch("xwhy.explainers.point_cloud.SurrogateFactory")
 @patch("xwhy.explainers.point_cloud.RegressionMetrics")
-def test_explain_all_distances_non_finite(
+def test_explain_raises_when_all_distances_non_finite(
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
@@ -681,31 +688,76 @@ def test_explain_all_distances_non_finite(
     mock_model: MagicMock,
     sample_tensor: torch.Tensor,
 ) -> None:
-    """When every distance is inf/nan the else branch sets max_penalty=1000.0."""
+    """Raise ValueError when every perturbation distance is non-finite."""
     mock_config.distance_mode = "mask"
     mock_config.use_best_surrogate = False
+    mock_config.min_valid_ratio = 0.5
     explainer = _make_explainer(mock_config, model=mock_model)
     _prepare_explain_mocks(explainer)
 
-    # All non-finite => len(valid_distances) == 0
     mock_dist.side_effect = [float("inf")] * 5
-    mock_trainer.compute_weights.return_value = np.ones(5)
+
+    with (
+        patch.object(
+            explainer, "_cluster_points", return_value=np.zeros(20, dtype=int)
+        ),
+        pytest.raises(
+            ValueError,
+            match=re.escape("All perturbations failed (0 valid distances)"),
+        ),
+    ):
+        explainer.explain(instance=sample_tensor)
+
+
+@patch("xwhy.explainers.point_cloud.calculate_distance")
+@patch("xwhy.explainers.point_cloud.SurrogateTrainer")
+@patch("xwhy.explainers.point_cloud.SurrogateFactory")
+@patch("xwhy.explainers.point_cloud.RegressionMetrics")
+@patch("xwhy.explainers.point_cloud.logger")
+def test_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_dist: MagicMock,
+    mock_config: MagicMock,
+    mock_model: MagicMock,
+    sample_tensor: torch.Tensor,
+) -> None:
+    """Log a warning when valid_ratio is below ``min_valid_ratio``."""
+    mock_config.distance_mode = "mask"
+    mock_config.use_best_surrogate = False
+    mock_config.min_valid_ratio = 0.5
+    explainer = _make_explainer(mock_config, model=mock_model)
+    _prepare_explain_mocks(explainer)
+
+    # 2 valid of 5 -> ratio 0.4 < 0.5
+    mock_dist.side_effect = [
+        0.1,
+        float("inf"),
+        float("nan"),
+        float("inf"),
+        0.5,
+    ]
+    mock_trainer.compute_weights.return_value = np.ones(2)
 
     with patch.object(
         explainer, "_cluster_points", return_value=np.zeros(20, dtype=int)
     ):
         surrogate = MagicMock()
         surrogate.coefficients.return_value = np.array([0.1, 0.2, 0.3, 0.4])
-        surrogate.predict.return_value = np.array([0.5] * 5)
+        surrogate.predict.return_value = np.array([0.5, 0.5])
         mock_factory.create.return_value = surrogate
         mock_metrics.calculate.return_value = MagicMock()
 
         result = explainer.explain(instance=sample_tensor)
 
-    scaled = result.raw_data["distances"]
-    assert np.all(np.isfinite(scaled))
-    # Every entry must have been replaced by the constant 1000.0
-    np.testing.assert_allclose(scaled, np.full(5, 1000.0))
+    assert isinstance(result, PointCloudXWhyResult)
+    assert len(result.raw_data["y_target"]) == 2
+    assert len(result.raw_data["distances"]) == 2
+
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)
 
 
 @patch("xwhy.explainers.point_cloud.calculate_distance", return_value=0.25)

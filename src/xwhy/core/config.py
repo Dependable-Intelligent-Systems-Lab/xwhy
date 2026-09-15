@@ -24,6 +24,7 @@ class ExplainerConfig(BaseModel):
     ridge_alpha: float = Field(default=1.0, ge=0.0)
 
     num_perturbations: int = Field(default=50, gt=0)
+    min_valid_ratio: float = Field(default=0.5, gt=0.0, le=1.0)
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
 

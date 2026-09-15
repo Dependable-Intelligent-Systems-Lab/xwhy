@@ -43,6 +43,7 @@ class PointCloudExplainer(BaseExplainer):
         kernel_width: float = 0.5,
         ridge_alpha: float = 1.0,
         max_iters: int = 50,
+        min_valid_ratio: float = 0.5,
         device: str = "cpu",
         clustering_mode: Literal["kmeans", "precomputed"] = "kmeans",
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
@@ -67,6 +68,8 @@ class PointCloudExplainer(BaseExplainer):
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
             max_iters: Maximum iterations for clustering.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             device: Computation device ("cpu" or "cuda").
             clustering_mode: "kmeans" or "precomputed".
             distance_type: Metric used to compute distance between points.
@@ -102,6 +105,7 @@ class PointCloudExplainer(BaseExplainer):
                 kernel_width=kernel_width,
                 ridge_alpha=ridge_alpha,
                 max_iters=max_iters,
+                min_valid_ratio=min_valid_ratio,
                 device=device,
                 clustering_mode=clustering_mode,
                 distance_type=dist_enum,
@@ -345,21 +349,37 @@ class PointCloudExplainer(BaseExplainer):
         # --------------------------------------------------
         cfg = self.config
 
-        # 1. Scale and validate distances with infinity/NaN imputation
+        # Validate distances and filter out non-finite (inf/NaN) values
         logger.info("Validating perturbation distances...")
         distances_raw = np.array(distances, dtype=float)
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
 
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        scaled_distances = np.where(
-            np.isfinite(distances_raw), distances_raw, max_penalty
-        )
+        min_valid_ratio = cfg.min_valid_ratio  # type: ignore[union-attr]
 
-        # 2. Retrieve perturbation predictions for target class
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
+
+        distances_valid = distances_raw[valid_mask]
+
+        # Retrieve perturbation predictions for target class
         output_probs = self.state.model.get_output_probabilities(
             samples=perturbed_samples,
             device=self.state.device,
@@ -369,16 +389,20 @@ class PointCloudExplainer(BaseExplainer):
         else:
             output_np = np.asarray(output_probs)
 
-        y_target = output_np[:, pred]
-        x_matrix = cluster_masks  # Shape: (num_perturbations, num_clusters)
+        y_target_raw = output_np[:, pred]
+        x_matrix_raw = cluster_masks  # Shape: (num_perturbations, num_clusters)
 
-        # 3. Surrogate selection and weight calculation
+        # Filter features and targets cleanly using the validity mask
+        x_valid = x_matrix_raw[valid_mask]
+        y_valid = y_target_raw[valid_mask]
+
+        # Surrogate selection and weight calculation
         if cfg.use_best_surrogate:  # type: ignore[union-attr]
             logger.info("Searching for optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=scaled_distances,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=cfg.seed,  # type: ignore[union-attr]
                 kernel_width=cfg.kernel_width,  # type: ignore[union-attr]
                 epsilon=cfg.epsilon,  # type: ignore[union-attr]
@@ -398,25 +422,25 @@ class PointCloudExplainer(BaseExplainer):
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=scaled_distances,
+            distances=distances_valid,
             kernel_width=cfg.kernel_width,  # type: ignore[union-attr]
             epsilon=cfg.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
         )
 
-        # 4. Fit surrogate model
+        # Fit surrogate model
         method_name = method.value if hasattr(method, "value") else method
         logger.info("Training surrogate model (%s)...", method_name)
         surrogate = SurrogateFactory.create(method=method, seed=cfg.seed)  # type: ignore[union-attr]
-        surrogate.fit(x_matrix, y_target, weights)
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
-        # 5. Compute regression fidelity metrics
+        # Compute regression fidelity metrics
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -425,11 +449,11 @@ class PointCloudExplainer(BaseExplainer):
         top_features = np.argsort(coeffs)[-top_k:]
 
         raw_data = {
-            "x_matrix": x_matrix,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "x_matrix": x_valid,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
             "weights": weights,
-            "distances": scaled_distances,
+            "distances": distances_valid,
             "surrogate_method": method,
             "top_classes": top_classes,
         }

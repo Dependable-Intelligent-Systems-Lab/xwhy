@@ -94,6 +94,7 @@ class ImageClassificationExplainer(BaseExplainer):
         ratio: float = 0.2,
         num_perturbations: int = 150,
         keep_probability: float = 0.5,
+        min_valid_ratio: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
@@ -129,6 +130,8 @@ class ImageClassificationExplainer(BaseExplainer):
             num_perturbations: Number of perturbed samples.
             keep_probability: Probability of keeping a superpixel (value = 1).
             distance_type: Distance metric name.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
             num_top_features: Number of important regions to highlight.
@@ -170,6 +173,7 @@ class ImageClassificationExplainer(BaseExplainer):
                 ratio=ratio,
                 num_perturbations=num_perturbations,
                 keep_probability=keep_probability,
+                min_valid_ratio=min_valid_ratio,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
@@ -452,31 +456,49 @@ class ImageClassificationExplainer(BaseExplainer):
         y_target = predictions[:, int(class_to_explain)]
 
         # ---------------------------------------------------------
-        # Distance Validation & Imputation setup:
-        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # Distance Validation & Filtering setup:
+        # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
         distances_raw = np.array(distances, dtype=float)
 
-        # Filter out non-finite values to determine the maximum valid distance
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
-        # all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite/NaN values with the dynamically calculated maximum penalty
-        distances = np.where(np.isfinite(distances_raw), distances_raw, max_penalty)
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
+
+        # Filter arrays to drop failed evaluations cleanly
+        x_valid = x_matrix[valid_mask]
+        y_valid = y_target[valid_mask]
+        distances_valid = distances_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info("Searching for the optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=distances,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=self.config.seed,  # type: ignore[union-attr]
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -484,37 +506,43 @@ class ImageClassificationExplainer(BaseExplainer):
                 normalize_distances=True,
             )
             logger.info(
-                "Optimization complete. Selected surrogate model:"
-                " '%s' (Best Score: %.4f)",
+                "Optimization complete. Selected surrogate model: "
+                "'%s' (Best Score: %.4f)",
                 method.value,
                 score,
             )
         else:
             method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
-            logger.info("Skipping surrogate search. Using default: '%s'", method.value)
+            logger.info(
+                "Skipping surrogate search. Using default: '%s'",
+                method.value,
+            )
 
+        # Compute weights using ONLY the valid distances
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=distances,
+            distances=distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=True,
         )
 
-        logger.info(f"Training surrogate model ({method.value})...")
+        logger.info("Training surrogate model (%s)...", method.value)
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_matrix, y_target, weights)
+
+        # Fit the surrogate using strictly valid data
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -591,9 +619,9 @@ class ImageClassificationExplainer(BaseExplainer):
             "predictions": predictions,
             "distances": distances,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
-            "x_matrix": x_matrix,
+            "x_matrix": x_valid,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
         }
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
@@ -671,6 +699,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         device: str = "cpu",  # or "cuda",
         normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
+        min_valid_ratio: float = 0.5,
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
@@ -702,6 +731,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             device: Device to run local models on ('cpu' or 'cuda').
             normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of text perturbations to generate.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             distance_type: Metric used to compute distance between images.
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate model.
@@ -844,6 +875,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 device=resolved_device,
                 normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
+                min_valid_ratio=min_valid_ratio,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
@@ -1432,10 +1464,6 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             mode=normalization_method,
         )
 
-        # masks_as_arrays: list[np.ndarray] = [
-        #     np.array(m, dtype=int) for m in binary_masks
-        # ]
-
         # ---------------------------------------------------------
         # Surrogate Model Training Inputs & Targets setup:
         # X: Matrix indicating word presence/absence in perturbations.
@@ -1443,28 +1471,39 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Weights: Derived from textual distance (WMD/sims).
         # ---------------------------------------------------------
         x_features = np.vstack([np.array(m, dtype=int) for m in binary_masks])
-
-        # TODO: Modify this maximum distance imputation strategy later.
-        # Currently using a hardcoded large number (1000.0). Consider updating to
-        # dynamically calculate the max penalty based on valid distances.
-        # DO it for all the explainers.
-
-        # Convert image_distances to a numpy array for vectorized imputation
         y_target_raw = np.array(image_distances, dtype=float)
+        text_distances_raw = np.array([d for _, d in wmd_scores])
 
-        # Filter out infinite values to find the actual maximum valid distance
-        valid_distances = y_target_raw[np.isfinite(y_target_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(y_target_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(y_target_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or just 1000 if all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite values with the dynamically calculated maximum penalty
-        y_target = np.where(np.isinf(y_target_raw), max_penalty, y_target_raw)
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid images). Cannot fit the surrogate "
+                "model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
 
-        text_distances_array = np.array([d for _, d in wmd_scores])
+        # Filter all arrays to drop failed evaluations cleanly
+        x_valid = x_features[valid_mask]
+        y_valid = y_target_raw[valid_mask]
+        text_distances_valid = text_distances_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info(
@@ -1472,9 +1511,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 "candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                x=x_features,
-                y=y_target,
-                distances=text_distances_array,
+                x=x_valid,
+                y=y_valid,
+                distances=text_distances_valid,
                 seed=seed,
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -1493,9 +1532,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 method.value,
             )
 
+        # Compute weights using ONLY the valid text distances
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=text_distances_array,
+            distances=text_distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
@@ -1505,15 +1545,17 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_features, y_target, weights)
+
+        # Fit the surrogate using strictly valid data
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_features)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -1550,8 +1592,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "wmd_scores": wmd_scores,
             "similarities": sims,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
         }
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]

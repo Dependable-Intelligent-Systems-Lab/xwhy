@@ -259,47 +259,62 @@ class TextExplainer(BaseExplainer):
         )
 
         # ---------------------------------------------------------
-        # Distance Validation & Imputation setup:
-        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # Distance Validation & Filtering setup:
+        # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
         distances_raw = np.array([d for _, d in raw_wmd_scores], dtype=float)
 
-        # Filter out non-finite values to determine the maximum valid distance
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
-        # all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite/NaN values with the dynamically calculated maximum penalty
-        distances_array = np.where(
-            np.isfinite(distances_raw), distances_raw, max_penalty
-        )
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
 
-        # Reconstruct wmd_scores with imputed values for downstream consistency
-        wmd_scores = [
-            (text, float(dist))
-            for (text, _), dist in zip(raw_wmd_scores, distances_array, strict=False)
-        ]
+        # Filter arrays and lists to drop failed evaluations cleanly
+        valid_indices = np.where(valid_mask)[0]
+        distances_valid = distances_raw[valid_mask]
 
         masks_as_arrays: list[np.ndarray] = [
-            np.array(m, dtype=int) for m in binary_masks
+            np.array(binary_masks[i], dtype=int) for i in valid_indices
         ]
-        x_matrix = np.vstack(masks_as_arrays)
+        x_valid = np.vstack(masks_as_arrays)
+        y_valid = (
+            y_target[valid_mask]
+            if isinstance(y_target, np.ndarray)
+            else np.array(y_target)[valid_mask]
+        )
 
+        # Surrogate selection and weight calculation
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info(
-                "Searching for the optimal surrogate model among available"
-                " candidates..."
+                "Searching for the optimal surrogate model among available "
+                "candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=distances_array,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=self.config.seed,  # type: ignore[union-attr]
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -307,8 +322,8 @@ class TextExplainer(BaseExplainer):
                 normalize_distances=False,
             )
             logger.info(
-                "Optimization complete. Selected surrogate model:"
-                " '%s' (Best Score: %.4f)",
+                "Optimization complete. Selected surrogate model: "
+                "'%s' (Best Score: %.4f)",
                 method.value,
                 score,
             )
@@ -321,25 +336,26 @@ class TextExplainer(BaseExplainer):
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=distances_array,
+            distances=distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
         )
 
+        # Fit surrogate model
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_matrix, y_target, weights)
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -348,11 +364,11 @@ class TextExplainer(BaseExplainer):
             "instance": instance,
             "perturbed_texts": perturbed_texts,
             "binary_masks": binary_masks,
-            "wmd_scores": wmd_scores,
-            "distances": distances_array,
+            "wmd_scores": raw_wmd_scores,
+            "distances": distances_valid,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
             "class_index": class_index,
         }
 
