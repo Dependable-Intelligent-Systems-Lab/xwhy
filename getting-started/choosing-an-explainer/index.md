@@ -1,0 +1,18 @@
+# Choose an explainer
+
+| Your input, task, or system                                                     | Recommended component                 | Current status     | Next page                                                                                                                    |
+| ------------------------------------------------------------------------------- | ------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| PyTorch image classification                                                    | `ImageClassificationExplainer`        | Available          | [Image explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/index.md)                       |
+| Image generation or image editing                                               | `ImageGenerationAndEditingExplainer`  | Available          | [Image generation & editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/index.md) |
+| LLM prompt-response behaviour                                                   | `LLMExplainer`                        | Available          | [LLM explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/index.md)                           |
+| Structured tabular prediction                                                   | `TabularExplainer`                    | Available          | [Tabular explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/index.md)                   |
+| Conventional text classification                                                | `TextExplainer`                       | Available          | [Text explainer](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/index.md)                         |
+| 3D point-cloud prediction                                                       | `PointCloudExplainer`                 | Under construction | [Point-cloud status](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/index.md)              |
+| Time-series prediction                                                          | Planned                               | Coming soon        | [Time-series roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/index.md)             |
+| Cross-modal model                                                               | Planned                               | Coming soon        | [Multimodal roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/index.md)               |
+| Autonomous agent using planning, retrieval, memory, tools, or iterative actions | Planned Agentic AI explainability     | Coming soon        | [Agentic AI roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/agentic-ai/index.md)               |
+| System of interacting AI agents                                                 | Planned Multi-Agent AI explainability | Coming soon        | [Multi-Agent AI roadmap](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multi-agent-ai/index.md)       |
+
+Tip
+
+Choose by **task and implemented capability**, not only by class name. `PointCloudExplainer` is currently an exported development interface whose `explain()` method is not implemented. Pix2Pix is one image-to-image model family, not the public explainer name. Agentic AI and Multi-Agent AI are currently documented research directions, not exported XWhy explainers.
