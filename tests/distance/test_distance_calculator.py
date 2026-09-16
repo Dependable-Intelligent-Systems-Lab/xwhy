@@ -155,3 +155,32 @@ def test_calculate_distance_both_tensors_conversion(
 
     assert result == 0.99
     mock_compute.assert_called_once_with(source=source_arr, target=target_arr)
+
+
+@patch("xwhy.distance.distances.CosineDistance.compute_with_p_value")
+def test_calculate_distance_return_p_value(
+    mock_compute_p: MagicMock,
+) -> None:
+    """Dispatch to compute_with_p_value when return_p_value is True.
+
+    Args:
+        mock_compute_p: Mocked CosineDistance.compute_with_p_value method.
+
+    """
+    mock_compute_p.return_value = (0.03, 0.85)
+    arr = np.array([1.0, 2.0, 3.0])
+
+    result = calculate_distance(
+        "cosine",
+        arr,
+        arr,
+        return_p_value=True,
+        n_bootstrap=50,
+    )
+
+    assert result == (0.03, 0.85)
+    mock_compute_p.assert_called_once_with(
+        source=arr,
+        target=arr,
+        n_bootstrap=50,
+    )

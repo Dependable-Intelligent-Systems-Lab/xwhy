@@ -47,6 +47,8 @@ class TabularExplainer(BaseExplainer):
         use_best_surrogate: bool = True,
         device: str = "cpu",
         validate_normalization: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
     ) -> None:
         """Initialize the Tabular explainer.
 
@@ -71,9 +73,12 @@ class TabularExplainer(BaseExplainer):
             device: Device type name.
             validate_normalization: Whether to warn if the input appears not
                 to be normalized.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
 
         Raises:
-            ValueError: If the distance type is not valid.
+            ValueError: If mode is invalid or distance configuration fails.
 
         """
         distance_type = DistanceType.from_str(distance_type)
@@ -99,6 +104,8 @@ class TabularExplainer(BaseExplainer):
                 use_best_surrogate=use_best_surrogate,
                 device=device,
                 validate_normalization=validate_normalization,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         if (
@@ -189,7 +196,16 @@ class TabularExplainer(BaseExplainer):
         y_target = np.zeros((cfg.num_perturbations,))
         distances = np.zeros((cfg.num_perturbations,))
 
-        logger.info(f"Computing distances for {cfg.num_perturbations} perturbations...")
+        return_p_val = getattr(cfg, "return_p_value", False)
+        n_bootstrap = getattr(cfg, "n_bootstrap", 1000)
+
+        p_values_matrix = (
+            np.zeros((cfg.num_perturbations, num_features)) if return_p_val else None
+        )
+
+        logger.info(
+            "Computing distances for %d perturbations...", cfg.num_perturbations
+        )
 
         # 3. Main Loop
         for idx, sample in enumerate(x_matrix):
@@ -212,12 +228,22 @@ class TabularExplainer(BaseExplainer):
             # ==============================
             dist_total = 0.0
             for j in range(num_features):
-                dist = calculate_distance(
+                res = calculate_distance(
                     metric=cfg.distance_type,
                     source=instance_dist[:, j],
                     target=sample_dist[:, j],
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
                 )
-                dist_total += dist
+
+                if isinstance(res, tuple):
+                    p_val, dist_val = res
+                    if p_values_matrix is not None:
+                        p_values_matrix[idx, j] = p_val
+                else:
+                    dist_val = res
+
+                dist_total += dist_val
 
             distances[idx] = dist_total
 
@@ -309,7 +335,7 @@ class TabularExplainer(BaseExplainer):
         else:
             y_pred_valid = y_pred_valid.flatten()
 
-        raw_data = {
+        raw_data: dict[str, Any] = {
             "x_matrix": x_valid,
             "y_target": y_valid,
             "y_pred": y_pred_valid,
@@ -317,6 +343,9 @@ class TabularExplainer(BaseExplainer):
             "distances": distances_valid,
             "surrogate_method": method,
         }
+
+        if p_values_matrix is not None:
+            raw_data["p_values"] = p_values_matrix[valid_mask]
 
         result = TabularXWhyResult(
             coefficients=coeffs,

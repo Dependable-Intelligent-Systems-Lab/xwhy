@@ -89,6 +89,9 @@ class ImageClassificationConfig(ExplainerConfig):
     num_top_features: int = Field(default=4, gt=0)
     num_top_predictions: int = Field(default=5, gt=0)
 
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
+
 
 class TabularConfig(ExplainerConfig):
     """Configuration for the Tabular explainer."""
@@ -107,6 +110,8 @@ class TabularConfig(ExplainerConfig):
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     device: str = "cpu"
     validate_normalization: bool = True
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class ImageGenerationAndEditingConfig(ExplainerConfig):
@@ -151,6 +156,9 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     # Surrogate & Perturbation Fine-tuning Parameters
     normalization_mode: Literal["linear", "inverse"] = "linear"
 
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
+
 
 class TextConfig(ExplainerConfig):
     """Configuration for the Text explainer."""
@@ -191,3 +199,6 @@ class PointCloudConfig(ExplainerConfig):
     clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     distance_mode: Literal["mask", "spatial", "latent"] = "mask"
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)

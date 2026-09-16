@@ -100,6 +100,8 @@ class ImageClassificationExplainer(BaseExplainer):
         use_best_surrogate: bool = True,
         num_top_features: int = 4,
         num_top_predictions: int = 5,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
     ) -> None:
         """Initialize the Image Classification explainer.
 
@@ -136,6 +138,9 @@ class ImageClassificationExplainer(BaseExplainer):
             use_best_surrogate: Find best surrogate model dynamically.
             num_top_features: Number of important regions to highlight.
             num_top_predictions: Number of predictions to explain.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
 
         """
         distance_type = DistanceType.from_str(distance_type)
@@ -179,6 +184,8 @@ class ImageClassificationExplainer(BaseExplainer):
                 use_best_surrogate=use_best_surrogate,
                 num_top_features=num_top_features,
                 num_top_predictions=num_top_predictions,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         if config.device is None:
@@ -288,7 +295,7 @@ class ImageClassificationExplainer(BaseExplainer):
         original_image: np.ndarray,
         superpixels: np.ndarray,
         perturbation_masks: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, list[float]]:
         """Iterate perturbations, compute model predictions, and calculate distances.
 
         Args:
@@ -298,17 +305,21 @@ class ImageClassificationExplainer(BaseExplainer):
                 superpixels for each perturbation.
 
         Returns:
-            tuple[np.ndarray, np.ndarray]:
+            tuple[np.ndarray, np.ndarray, list[float]]:
                 - predictions: Model output probabilities for each perturbation.
                 - distances: Calculated distances for each perturbation.
+                - p_values: Computed p-values if return_p_value is True, else empty.
 
         """
         batch_predictions = []
         distances = []
+        p_values = []
 
         device = self.state.device
         use_embedding = self.config.use_embedding_model  # type: ignore[union-attr]
         dist_type = self.config.distance_type  # type: ignore[union-attr]
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
 
         # 1. Pre-calculate original representation (Optimization: do this once)
         base_representation = original_image
@@ -348,16 +359,23 @@ class ImageClassificationExplainer(BaseExplainer):
                 )
                 current_representation = np.asarray(perturbed_embedding)
 
-            dist = calculate_distance(
+            res = calculate_distance(
                 metric=dist_type,
                 source=base_representation,
                 target=current_representation,
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
             )
-            distances.append(dist)
+            if isinstance(res, tuple):
+                p_val, dist = res
+                p_values.append(p_val)
+                distances.append(dist)
+            else:
+                distances.append(res)
 
         final_predictions = np.concatenate(batch_predictions, axis=0)
 
-        return final_predictions, np.array(distances)
+        return final_predictions, np.array(distances), p_values
 
     def explain(
         self,
@@ -445,7 +463,7 @@ class ImageClassificationExplainer(BaseExplainer):
         )
 
         # Run Main SMILE Loop (Inference & Distance)
-        predictions, distances = self._run_perturbation_loop(
+        predictions, distances, p_values = self._run_perturbation_loop(
             original_image=base_image_numpy,
             superpixels=superpixels,
             perturbation_masks=x_matrix,
@@ -624,6 +642,11 @@ class ImageClassificationExplainer(BaseExplainer):
             "y_pred": y_pred_valid,
         }
 
+        return_p_val = getattr(self.config, "return_p_value", False)
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
+
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method
         else:
@@ -703,6 +726,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the image generation and editing explainer.
@@ -736,6 +761,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             distance_type: Metric used to compute distance between images.
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate model.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **provider_kwargs: Additional keyword arguments for the model provider.
 
         Raises:
@@ -879,6 +907,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         super().__init__(config)
@@ -1205,7 +1235,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         prompts: list[str],
         display_image: bool = False,
         output_dir: str = "outputs",
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, list[float]]:
         """Compute distances between the original image and perturbations.
 
         Args:
@@ -1216,16 +1246,20 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             output_dir: Directory to save the distance metrics array.
 
         Returns:
-            An array of computed distance metrics for each perturbation.
+            A tuple of (computed distance metrics array, p-values list).
 
         Raises:
             ValueError: If embedding extraction fails or representations are empty.
 
         """
         distances = []
+        p_values = []
 
         use_embedding = self.config.use_image_embedding_model  # type: ignore[union-attr]
         dist_type = self.config.distance_type  # type: ignore[union-attr]
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+
         if input_image_path:
             self._action = "edit"
 
@@ -1250,11 +1284,15 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         ):
             if success is not None and not success:
                 distances.append(float("inf"))
+                if return_p_val:
+                    p_values.append(float("nan"))
                 continue
 
             if not os.path.exists(img_path):
                 logger.warning("Generated image path not found: %s", img_path)
                 distances.append(float("inf"))
+                if return_p_val:
+                    p_values.append(float("nan"))
                 continue
 
             _, current_image = load_image_as_tensor(image_path=img_path)
@@ -1282,12 +1320,20 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 raise ValueError("Representations are empty. Cannot compute distance.")
 
             # Compute distance metric
-            dist = calculate_distance(
+            res = calculate_distance(
                 metric=dist_type,
                 source=base_representation,
                 target=current_representation,
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
             )
-            distances.append(dist)
+            if isinstance(res, tuple):
+                p_val, dist = res
+                p_values.append(p_val)
+                distances.append(dist)
+            else:
+                dist = res
+                distances.append(res)
 
             if display_image:
                 gen_img = Image.open(img_path)
@@ -1307,7 +1353,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         np.save(save_path, distances_array)
         logger.debug("All generated embeddings and distances saved.")
 
-        return distances_array
+        return distances_array, p_values
 
     def explain(
         self,
@@ -1442,7 +1488,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "Computing %s distances between images...",
             self.config.distance_type,  # type: ignore[union-attr]
         )
-        image_distances = self._compute_perturbation_distances(
+        image_distances, p_values = self._compute_perturbation_distances(
             input_image_path=base_image_path,
             generated_images=generated_images,
             prompts=perturbed_texts,
@@ -1595,6 +1641,11 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "y_target": y_valid,
             "y_pred": y_pred_valid,
         }
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method

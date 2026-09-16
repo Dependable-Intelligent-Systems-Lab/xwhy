@@ -308,3 +308,89 @@ def test_tabular_explain_warns_on_low_valid_ratio(
 
     warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
     assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_includes_p_values(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Store per-feature p-values when return_p_value is enabled."""
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=2,
+        num_distribution_samples=3,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+        return_p_value=True,
+        n_bootstrap=10,
+    )
+
+    mock_calc_dist.return_value = (0.05, 0.5)
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain(np.array([0.1, -0.2]))
+
+    assert "p_values" in result.raw_data
+    p_vals = result.raw_data["p_values"]
+    assert p_vals.shape == (2, 2)
+    assert np.allclose(p_vals, 0.05)
+    assert mock_calc_dist.call_args.kwargs["return_p_value"] is True
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_tuple_distance_without_p_value_matrix(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Unpack tuple distances when return_p_value is False.
+
+    Covers the branch where ``isinstance(res, tuple)`` is True but
+    ``p_values_matrix`` is None, so the inner assignment is skipped.
+    """
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=2,
+        num_distribution_samples=3,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+        return_p_value=False,
+    )
+
+    # calculate_distance still returns a tuple even though p-values are off
+    mock_calc_dist.return_value = (0.05, 0.5)
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain(np.array([0.1, -0.2]))
+
+    assert "p_values" not in result.raw_data
+    # 2 features summed => distance per perturbation is 0.5 + 0.5 = 1.0
+    assert np.allclose(result.raw_data["distances"], 1.0)
