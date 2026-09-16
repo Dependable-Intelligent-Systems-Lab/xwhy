@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
-from gensim.models import KeyedVectors
 
 from xwhy.config import Settings
 from xwhy.models.embeddings.word2vec import Word2VecEmbedding
@@ -154,22 +153,29 @@ def test_encode_returns_vector() -> None:
 
     result = embedding.encode("hello world")
 
-    assert len(result) == 3
-    assert all(isinstance(x, float) for x in result)
+    assert result.shape == (2, 3)
+    assert result[0].tolist() == [1.0, 2.0, 3.0]
+    assert result[1].tolist() == [3.0, 2.0, 1.0]
 
 
 # ---------------------------------------------------------------------
 # Empty encode fallback
 # ---------------------------------------------------------------------
 def test_encode_empty_text() -> None:
-    """Test encoding empty result fallback."""
+    """Test encoding empty result fallback returns (0, D) array."""
     embedding = create_embedding()
 
-    embedding.load = lambda: {}  # type: ignore
+    class FakeEmptyModel:
+        vector_size = 300
+
+        def __contains__(self, key: str) -> bool:
+            return False
+
+    embedding.load = lambda: FakeEmptyModel()  # type: ignore
 
     result = embedding.encode("unknown words only")
 
-    assert result == [0.0] * 300
+    assert result.shape == (0, 300)
 
 
 # ---------------------------------------------------------------------
@@ -922,36 +928,49 @@ def test_word2vec_processor_property() -> None:
     assert obj.processor is None
 
 
-def test_word2vec_call_invalid_model() -> None:
-    """Test __call__ raises ValueError if model is not KeyedVectors."""
+def test_word2vec_call_single_string() -> None:
+    """Test __call__ encodes a single string via encode()."""
     obj = create_embedding()
-    obj._model = "not_a_keyed_vector"
-    with pytest.raises(ValueError, match="WMDDistance requires a gensim KeyedVectors"):
-        obj(inputs="test")
+
+    class FakeModel:
+        vector_size = 3
+
+        def __contains__(self, key: str) -> bool:
+            return key in {"hello", "world"}
+
+        def __getitem__(self, key: str) -> list[float]:
+            return [1.0, 2.0, 3.0] if key == "hello" else [4.0, 5.0, 6.0]
+
+    obj.load = lambda: FakeModel()  # type: ignore
+    result = obj(inputs="hello world")
+    assert result.shape == (2, 3)  # type: ignore[union-attr]
 
 
-def test_word2vec_call_tuple_input_valid_words() -> None:
-    """Test __call__ with tuple input and matching words computes WMD."""
+def test_word2vec_call_list_input() -> None:
+    """Test __call__ encodes a list of strings into a list of arrays."""
     obj = create_embedding()
-    mock_model = MagicMock(spec=KeyedVectors)
-    mock_model.__contains__.side_effect = lambda x: x in ["hello", "world"]
-    mock_model.wmdistance.return_value = 0.42
-    obj._model = mock_model
 
-    result = obj(inputs=("Hello!", "World..."))
+    class FakeModel:
+        vector_size = 2
 
-    mock_model.wmdistance.assert_called_once_with(["hello"], ["world"])
-    assert result == 0.42
+        def __contains__(self, key: str) -> bool:
+            return key in {"a", "b"}
+
+        def __getitem__(self, key: str) -> list[float]:
+            return [1.0, 0.0] if key == "a" else [0.0, 1.0]
+
+    obj.load = lambda: FakeModel()  # type: ignore
+    result = obj(inputs=["a", "b c", "zzz"])
+    assert isinstance(result, list)
+    assert len(result) == 3
+    assert result[0].shape[0] == 1  # "a"
+    assert result[1].shape[0] == 1  # "b" in vocab
+    assert result[2].shape[0] == 0  # "zzz" OOV -> empty
 
 
-def test_word2vec_call_kwargs_missing_words() -> None:
-    """Test __call__ returns 1.0 if words are completely missing."""
+def test_word2vec_model_property_loaded() -> None:
+    """Return the loaded model from the model property (line 77)."""
     obj = create_embedding()
-    mock_model = MagicMock(spec=KeyedVectors)
-    mock_model.__contains__.return_value = False
-    obj._model = mock_model
-
-    result = obj(inputs="Hello", target="World")
-
-    assert result == 1.0
-    mock_model.wmdistance.assert_not_called()
+    fake = MagicMock()
+    obj._model = fake
+    assert obj.model is fake

@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from xwhy.core.result import TextXWhyResult
+from xwhy.distance.types import DistanceType
 from xwhy.explainers.text import TextExplainer
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.surrogate.types import SurrogateType
@@ -17,15 +18,7 @@ class MockModelProba:
     """Mock model implementing predict_proba."""
 
     def predict_proba(self, texts: Sequence[str]) -> np.ndarray:
-        """Mock probabilistic predictions.
-
-        Args:
-            texts: Input sequence of text strings.
-
-        Returns:
-            np.ndarray: Mocked 2D array of probabilities.
-
-        """
+        """Mock probabilistic predictions."""
         return np.array([[0.2, 0.8] for _ in texts])
 
 
@@ -33,15 +26,7 @@ class MockModelPredict:
     """Mock model implementing predict."""
 
     def predict(self, texts: Sequence[str]) -> np.ndarray:
-        """Mock binary/class predictions.
-
-        Args:
-            texts: Input sequence of text strings.
-
-        Returns:
-            np.ndarray: Mocked 1D array of class indices.
-
-        """
+        """Mock binary/class predictions."""
         return np.array([1 for _ in texts])
 
 
@@ -49,15 +34,7 @@ class MockModelCallable:
     """Mock model implementing __call__."""
 
     def __call__(self, texts: Sequence[str]) -> np.ndarray:
-        """Mock callable predictions.
-
-        Args:
-            texts: Input sequence of text strings.
-
-        Returns:
-            np.ndarray: Mocked 1D array.
-
-        """
+        """Mock callable predictions."""
         return np.array([1 for _ in texts])
 
 
@@ -66,26 +43,13 @@ class MockModelInvalid:
 
 
 def dummy_predict_fn(texts: Sequence[str]) -> np.ndarray:
-    """Mock standalone prediction function.
-
-    Args:
-        texts: Input sequence of text strings.
-
-    Returns:
-        np.ndarray: Mocked array of predictions.
-
-    """
+    """Mock standalone prediction function."""
     return np.array([1 for _ in texts])
 
 
 @pytest.fixture
 def base_explainer() -> TextExplainer:
-    """Fixture providing a baseline TextExplainer with mocked internals.
-
-    Returns:
-        TextExplainer: Instantiated explainer with mocked factories.
-
-    """
+    """Fixture providing a baseline TextExplainer with mocked internals."""
     with (
         patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
         patch("xwhy.explainers.text.EmbeddingFactory"),
@@ -93,6 +57,7 @@ def base_explainer() -> TextExplainer:
     ):
         mock_config = MagicMock()
         mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.distance_type = DistanceType.WASSERSTEIN
         mock_config.surrogate_type = SurrogateType.LIME
         mock_config.seed = 42
         mock_config.num_perturbations = 64
@@ -101,7 +66,8 @@ def base_explainer() -> TextExplainer:
         mock_config.epsilon = 0.0
         mock_config.kernel_width = 0.5
         mock_config.ridge_alpha = 1.0
-        mock_config.sanitize_distances = True
+        mock_config.return_p_value = False
+        mock_config.n_bootstrap = 1000
         mock_config_cls.return_value = mock_config
 
         return TextExplainer(predict_fn=dummy_predict_fn)
@@ -218,10 +184,12 @@ def test_init_creates_default_config() -> None:
             kernel_width=0.5,
             ridge_alpha=1.0,
             num_perturbations=32,
-            embedding_type="word2vec",
-            surrogate_type="lime_ridge",
+            embedding_type=EmbeddingType.WORD2VEC,
+            distance_type=DistanceType.WASSERSTEIN,
+            surrogate_type=SurrogateType.LIME_RIDGE,
             use_best_surrogate=False,
-            sanitize_distances=True,
+            return_p_value=False,
+            n_bootstrap=1000,
         )
         assert explainer.config is mock_config
 
@@ -351,7 +319,39 @@ def test_explain_embedding_uninitialized(base_explainer: TextExplainer) -> None:
         base_explainer.explain(instance="test")
 
 
-@patch("xwhy.explainers.text.WMDDistance")
+def _wire_text_explain_mocks(
+    base_explainer: TextExplainer,
+    mock_calc_dist: MagicMock,
+    mock_surr_trainer: MagicMock,
+    mock_surr_factory: MagicMock,
+    mock_metrics: MagicMock,
+    *,
+    distance: float | tuple[float, float] = 0.0,
+    n_samples: int = 1,
+) -> None:
+    """Shared plumbing for text explain pipeline tests."""
+    mock_pert = MagicMock()
+    texts = [f"t{i}" for i in range(n_samples)]
+    masks = [[1] * n_samples for _ in range(n_samples)]
+    mock_pert.generate.return_value = (texts, masks)
+    base_explainer.state.perturbator = mock_pert
+
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2, 0.3])
+    base_explainer.state.embedding_model = embed
+
+    mock_calc_dist.return_value = distance
+    mock_surr_trainer.find_best.return_value = (SurrogateType.LIME, 0.9)
+    mock_surr_trainer.compute_weights.return_value = np.ones(n_samples)
+
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.5] * n_samples)
+    mock_surrogate.predict.return_value = np.ones(n_samples)
+    mock_surr_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+
+@patch("xwhy.explainers.text.calculate_distance")
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
@@ -359,29 +359,20 @@ def test_explain_with_explicit_predict_fn(
     mock_metrics: MagicMock,
     mock_surr_factory: MagicMock,
     mock_surr_trainer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     base_explainer: TextExplainer,
 ) -> None:
     """Test explain() overrides internal state when given an explicit predict_fn."""
-    mock_pert = MagicMock()
-    mock_pert.generate.return_value = (["test"], [[1]])
-    base_explainer.state.perturbator = mock_pert
-
-    mock_wmd_instance = mock_wmd.return_value
-    mock_wmd_instance.compute_batch.return_value = [("test", 0.0)]
-
-    mock_surr_trainer.find_best.return_value = (MagicMock(), 0.9)
-    mock_surr_trainer.compute_weights.return_value = np.array([1.0])
-
-    mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.5])
-    mock_surrogate.predict.return_value = np.array([1.0])
-    mock_surr_factory.create.return_value = mock_surrogate
-
-    mock_metrics.calculate.return_value = MagicMock()
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+    )
 
     def custom_predict(texts: Sequence[str]) -> np.ndarray:
-        return np.array([2.0])
+        return np.array([2.0] * len(texts))
 
     result = base_explainer.explain(
         instance="test",
@@ -393,7 +384,7 @@ def test_explain_with_explicit_predict_fn(
     mock_surr_trainer.find_best.assert_called_once()
 
 
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
@@ -401,45 +392,31 @@ def test_explain_1d_predictions_and_best_surrogate(
     mock_metrics: MagicMock,
     mock_surr_factory: MagicMock,
     mock_surr_trainer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     base_explainer: TextExplainer,
 ) -> None:
     """Test execution path handling 1D predictions and surrogate optimization."""
-    mock_pert = MagicMock()
-    mock_pert.generate.return_value = (["test"], [[1]])
-    base_explainer.state.perturbator = mock_pert
-
-    mock_wmd_instance = mock_wmd.return_value
-    mock_wmd_instance.compute_batch.return_value = [("test", 0.0)]
-
-    mock_surr_trainer.find_best.return_value = (MagicMock(), 0.9)
-    mock_surr_trainer.compute_weights.return_value = np.array([1.0])
-
-    mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.5])
-    mock_surrogate.predict.return_value = np.array([1.0])
-    mock_surr_factory.create.return_value = mock_surrogate
-
-    mock_metrics.calculate.return_value = MagicMock()
-
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+    )
     base_explainer.config.use_best_surrogate = True  # type: ignore[union-attr]
 
     def mock_predict_1d(texts: Sequence[str]) -> np.ndarray:
-        return np.array([1.0])
+        return np.array([1.0] * len(texts))
 
-    # Assign to state explicitly instead of passing to explain() to hit internal branch
     base_explainer.state.predict_fn = mock_predict_1d
 
-    result = base_explainer.explain(
-        instance="test",
-        num_perturbations=10,
-    )
+    result = base_explainer.explain(instance="test", num_perturbations=10)
 
     assert isinstance(result, TextXWhyResult)
     mock_surr_trainer.find_best.assert_called_once()
 
 
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
@@ -449,30 +426,21 @@ def test_explain_2d_predictions_default_surrogate_and_plot(
     mock_metrics: MagicMock,
     mock_surr_factory: MagicMock,
     mock_surr_trainer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     base_explainer: TextExplainer,
 ) -> None:
     """Test execution with 2D arrays, default surrogate use, and fidelity plot."""
-    mock_pert = MagicMock()
-    mock_pert.generate.return_value = (["test"], [[1]])
-    base_explainer.state.perturbator = mock_pert
-
-    mock_wmd_instance = mock_wmd.return_value
-    mock_wmd_instance.compute_batch.return_value = [("test", 0.0)]
-
-    mock_surr_trainer.compute_weights.return_value = np.array([1.0])
-
-    mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.5])
-    mock_surrogate.predict.return_value = np.array([1.0])
-    mock_surr_factory.create.return_value = mock_surrogate
-
-    mock_metrics.calculate.return_value = MagicMock()
-
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+    )
     base_explainer.config.use_best_surrogate = False  # type: ignore[union-attr]
 
     def mock_predict_2d(texts: Sequence[str]) -> np.ndarray:
-        return np.array([[0.1, 0.9]])
+        return np.array([[0.1, 0.9] for _ in texts])
 
     result = base_explainer.explain(
         instance="test",
@@ -485,7 +453,7 @@ def test_explain_2d_predictions_default_surrogate_and_plot(
     mock_plot.assert_called_once_with(show=True)
 
 
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
@@ -493,29 +461,19 @@ def test_explain_empty_predictions(
     mock_metrics: MagicMock,
     mock_surr_factory: MagicMock,
     mock_surr_trainer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     base_explainer: TextExplainer,
 ) -> None:
     """Test generation of explanation handles empty prediction edge cases."""
-    mock_pert = MagicMock()
-    mock_pert.generate.return_value = (["test"], [[1]])
-    base_explainer.state.perturbator = mock_pert
-
-    mock_wmd_instance = mock_wmd.return_value
-    mock_wmd_instance.compute_batch.return_value = [("test", 0.0)]
-
-    mock_surr_trainer.find_best.return_value = (MagicMock(), 0.0)
-    mock_surr_trainer.compute_weights.return_value = np.array([1.0])
-
-    mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.0])
-    mock_surrogate.predict.return_value = np.array([0.0])
-    mock_surr_factory.create.return_value = mock_surrogate
-    mock_metrics.calculate.return_value = MagicMock()
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+    )
 
     def mock_predict_empty(texts: Sequence[str]) -> np.ndarray:
-        # Length must match perturbation count so y_target aligns with
-        # the finite-distance validity mask after filtering.
         return np.zeros(len(texts))
 
     result = base_explainer.explain(
@@ -530,14 +488,14 @@ def test_explain_empty_predictions(
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 def test_text_explain_filters_non_finite_distances(
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Filter non-finite WMD distances and train only on valid rows."""
+    """Filter non-finite distances and train only on valid rows."""
     predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]))
 
     with (
@@ -547,6 +505,7 @@ def test_text_explain_filters_non_finite_distances(
     ):
         mock_config = MagicMock()
         mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.distance_type = DistanceType.WASSERSTEIN
         mock_config.surrogate_type = SurrogateType.LIME
         mock_config.seed = 42
         mock_config.num_perturbations = 3
@@ -555,7 +514,7 @@ def test_text_explain_filters_non_finite_distances(
         mock_config.epsilon = 0.0
         mock_config.kernel_width = 0.5
         mock_config.ridge_alpha = 1.0
-        mock_config.sanitize_distances = True
+        mock_config.return_p_value = False
         mock_config.model = None
         mock_config.predict_fn = predict_fn
         mock_config_cls.return_value = mock_config
@@ -566,11 +525,11 @@ def test_text_explain_filters_non_finite_distances(
         )
         explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
 
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("t1", 0.5),
-        ("t2", np.inf),
-        ("t3", 1.5),
-    ]
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2, 0.3])
+    explainer.state.embedding_model = embed
+
+    mock_calc_dist.side_effect = [0.5, np.inf, 1.5]
     mock_trainer.compute_weights.return_value = np.ones(2)
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
@@ -591,14 +550,14 @@ def test_text_explain_filters_non_finite_distances(
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 def test_text_explain_raises_when_all_distances_non_finite(
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Raise ValueError when every WMD distance is non-finite."""
+    """Raise ValueError when every distance is non-finite."""
     predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7]]))
 
     with (
@@ -608,6 +567,7 @@ def test_text_explain_raises_when_all_distances_non_finite(
     ):
         mock_config = MagicMock()
         mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.distance_type = DistanceType.WASSERSTEIN
         mock_config.surrogate_type = SurrogateType.LIME
         mock_config.seed = 42
         mock_config.num_perturbations = 2
@@ -616,7 +576,7 @@ def test_text_explain_raises_when_all_distances_non_finite(
         mock_config.epsilon = 0.0
         mock_config.kernel_width = 0.5
         mock_config.ridge_alpha = 1.0
-        mock_config.sanitize_distances = True
+        mock_config.return_p_value = False
         mock_config.model = None
         mock_config.predict_fn = predict_fn
         mock_config_cls.return_value = mock_config
@@ -627,10 +587,11 @@ def test_text_explain_raises_when_all_distances_non_finite(
         )
         explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
 
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("t1", np.inf),
-        ("t2", np.nan),
-    ]
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2, 0.3])
+    explainer.state.embedding_model = embed
+
+    mock_calc_dist.side_effect = [np.inf, np.nan]
 
     with pytest.raises(
         ValueError,
@@ -642,16 +603,16 @@ def test_text_explain_raises_when_all_distances_non_finite(
 @patch("xwhy.explainers.text.SurrogateTrainer")
 @patch("xwhy.explainers.text.SurrogateFactory")
 @patch("xwhy.explainers.text.RegressionMetrics")
-@patch("xwhy.explainers.text.WMDDistance")
+@patch("xwhy.explainers.text.calculate_distance")
 @patch("xwhy.explainers.text.logger")
 def test_text_explain_warns_on_low_valid_ratio(
     mock_logger: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Log a warning when valid WMD ratio is below ``min_valid_ratio``."""
+    """Log a warning when valid ratio is below ``min_valid_ratio``."""
     predict_fn = MagicMock(return_value=np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]))
 
     with (
@@ -661,6 +622,7 @@ def test_text_explain_warns_on_low_valid_ratio(
     ):
         mock_config = MagicMock()
         mock_config.embedding_type = EmbeddingType.WORD2VEC
+        mock_config.distance_type = DistanceType.WASSERSTEIN
         mock_config.surrogate_type = SurrogateType.LIME
         mock_config.seed = 42
         mock_config.num_perturbations = 3
@@ -669,7 +631,7 @@ def test_text_explain_warns_on_low_valid_ratio(
         mock_config.epsilon = 0.0
         mock_config.kernel_width = 0.5
         mock_config.ridge_alpha = 1.0
-        mock_config.sanitize_distances = True
+        mock_config.return_p_value = False
         mock_config.model = None
         mock_config.predict_fn = predict_fn
         mock_config_cls.return_value = mock_config
@@ -680,12 +642,11 @@ def test_text_explain_warns_on_low_valid_ratio(
         )
         explainer = TextExplainer(predict_fn=predict_fn, use_best_surrogate=False)
 
-    # 1 valid of 3 -> ratio ~0.33 < 0.5
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("t1", 0.5),
-        ("t2", np.inf),
-        ("t3", np.nan),
-    ]
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2, 0.3])
+    explainer.state.embedding_model = embed
+
+    mock_calc_dist.side_effect = [0.5, np.inf, np.nan]
     mock_trainer.compute_weights.return_value = np.ones(1)
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
@@ -699,3 +660,100 @@ def test_text_explain_warns_on_low_valid_ratio(
 
     warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
     assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.text.calculate_distance")
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+def test_text_explain_includes_p_values(
+    mock_metrics: MagicMock,
+    mock_surr_factory: MagicMock,
+    mock_surr_trainer: MagicMock,
+    mock_calc_dist: MagicMock,
+    base_explainer: TextExplainer,
+) -> None:
+    """Store filtered p-values when return_p_value is enabled."""
+    base_explainer.config.return_p_value = True  # type: ignore[union-attr]
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+        distance=(0.03, 0.5),
+        n_samples=2,
+    )
+
+    def mock_predict(texts: Sequence[str]) -> np.ndarray:
+        return np.array([1.0] * len(texts))
+
+    result = base_explainer.explain(instance="test", predict_fn=mock_predict)
+
+    assert "p_values" in result.raw_data
+    assert list(result.raw_data["p_values"]) == pytest.approx([0.03, 0.03])
+
+
+@patch("xwhy.explainers.text.calculate_distance")
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+def test_text_explain_empty_embedding_fallback(
+    mock_metrics: MagicMock,
+    mock_surr_factory: MagicMock,
+    mock_surr_trainer: MagicMock,
+    mock_calc_dist: MagicMock,
+    base_explainer: TextExplainer,
+) -> None:
+    """Use distance 1.0 when embeddings are empty arrays."""
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+        n_samples=2,
+    )
+    base_explainer.state.embedding_model.encode.return_value = np.array([])  # type: ignore[union-attr]
+
+    def mock_predict(texts: Sequence[str]) -> np.ndarray:
+        return np.array([1.0] * len(texts))
+
+    result = base_explainer.explain(instance="test", predict_fn=mock_predict)
+
+    distances = result.raw_data["distances"]
+    assert len(distances) == 2
+    assert np.allclose(distances, 1.0)
+    mock_calc_dist.assert_not_called()
+
+
+@patch("xwhy.explainers.text.calculate_distance")
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+def test_text_explain_empty_embedding_with_p_values(
+    mock_metrics: MagicMock,
+    mock_surr_factory: MagicMock,
+    mock_surr_trainer: MagicMock,
+    mock_calc_dist: MagicMock,
+    base_explainer: TextExplainer,
+) -> None:
+    """Append NaN p-values when embeddings are empty and return_p_value."""
+    base_explainer.config.return_p_value = True  # type: ignore[union-attr]
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+        n_samples=1,
+    )
+    base_explainer.state.embedding_model.encode.return_value = np.array([])  # type: ignore[union-attr]
+
+    def mock_predict(texts: Sequence[str]) -> np.ndarray:
+        return np.array([1.0] * len(texts))
+
+    result = base_explainer.explain(instance="test", predict_fn=mock_predict)
+
+    assert "p_values" in result.raw_data
+    assert np.isnan(result.raw_data["p_values"][0])

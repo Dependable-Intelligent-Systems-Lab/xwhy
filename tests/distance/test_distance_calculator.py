@@ -27,29 +27,11 @@ def test_calculate_distance_target_mismatch() -> None:
         calculate_distance("cosine", np.array([1, 2]), "hello")
 
 
-def test_calculate_distance_invalid_text_metric() -> None:
-    """Ensure text data throws error when paired with numeric metric."""
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "Text data requires a text-based metric like WMD. Received: cosine"
-        ),
-    ):
-        calculate_distance("cosine", "hello", "world")
-
-
-def test_calculate_distance_invalid_numeric_metric() -> None:
-    """Ensure numeric data throws error when paired with text metric."""
+def test_calculate_distance_invalid_metric_string() -> None:
+    """Ensure unknown metric strings raise ValueError from DistanceType."""
     arr = np.array([1, 2, 3])
-    distance_type = "wmd"
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            f"Numerical data (e.g., images) cannot use text-based metrics. "
-            f"Received: {distance_type}"
-        ),
-    ):
-        calculate_distance(distance_type, arr, arr)
+    with pytest.raises(ValueError, match="is not a valid DistanceType"):
+        calculate_distance("wmd", arr, arr)
 
 
 @patch("xwhy.distance.distances.CosineDistance.compute")
@@ -64,19 +46,6 @@ def test_calculate_distance_numeric_success(mock_compute: MagicMock) -> None:
     mock_compute.assert_called_once_with(source=arr, target=arr)
 
 
-@patch("xwhy.distance.wmd.WMDDistance.compute")
-def test_calculate_distance_text_success(mock_compute: MagicMock) -> None:
-    """Test successful dispatch and calculation for text data."""
-    mock_compute.return_value = 1.2
-
-    result = calculate_distance("wmd", "hello", "world", model="mock_model")
-
-    assert result == 1.2
-    mock_compute.assert_called_once_with(
-        source="hello", target="world", model="mock_model"
-    )
-
-
 def _make_tensor_mock(array: np.ndarray) -> MagicMock:
     """Create a mock that behaves like a PyTorch tensor.
 
@@ -89,7 +58,6 @@ def _make_tensor_mock(array: np.ndarray) -> MagicMock:
     """
     tensor = MagicMock()
     tensor.detach.return_value.cpu.return_value.numpy.return_value = array
-    # Ensure hasattr(tensor, "detach") is True
     return tensor
 
 
@@ -97,12 +65,7 @@ def _make_tensor_mock(array: np.ndarray) -> MagicMock:
 def test_calculate_distance_source_tensor_conversion(
     mock_compute: MagicMock,
 ) -> None:
-    """Verify source PyTorch-like tensor is converted to ndarray before dispatch.
-
-    Args:
-        mock_compute: Mocked CosineDistance.compute method.
-
-    """
+    """Verify source PyTorch-like tensor is converted to ndarray before dispatch."""
     mock_compute.return_value = 0.42
     source_arr = np.array([1.0, 2.0, 3.0])
     target_arr = np.array([1.0, 2.0, 3.0])
@@ -118,12 +81,7 @@ def test_calculate_distance_source_tensor_conversion(
 def test_calculate_distance_target_tensor_conversion(
     mock_compute: MagicMock,
 ) -> None:
-    """Verify target PyTorch-like tensor is converted to ndarray before dispatch.
-
-    Args:
-        mock_compute: Mocked CosineDistance.compute method.
-
-    """
+    """Verify target PyTorch-like tensor is converted to ndarray before dispatch."""
     mock_compute.return_value = 0.55
     source_arr = np.array([4.0, 5.0, 6.0])
     target_arr = np.array([4.0, 5.0, 6.0])
@@ -139,12 +97,7 @@ def test_calculate_distance_target_tensor_conversion(
 def test_calculate_distance_both_tensors_conversion(
     mock_compute: MagicMock,
 ) -> None:
-    """Verify both source and target tensors are converted to ndarrays.
-
-    Args:
-        mock_compute: Mocked CosineDistance.compute method.
-
-    """
+    """Verify both source and target tensors are converted to ndarrays."""
     mock_compute.return_value = 0.99
     source_arr = np.array([7.0, 8.0])
     target_arr = np.array([9.0, 10.0])
@@ -161,12 +114,7 @@ def test_calculate_distance_both_tensors_conversion(
 def test_calculate_distance_return_p_value(
     mock_compute_p: MagicMock,
 ) -> None:
-    """Dispatch to compute_with_p_value when return_p_value is True.
-
-    Args:
-        mock_compute_p: Mocked CosineDistance.compute_with_p_value method.
-
-    """
+    """Dispatch to compute_with_p_value when return_p_value is True."""
     mock_compute_p.return_value = (0.03, 0.85)
     arr = np.array([1.0, 2.0, 3.0])
 
@@ -184,3 +132,15 @@ def test_calculate_distance_return_p_value(
         target=arr,
         n_bootstrap=50,
     )
+
+
+@patch("xwhy.distance.distances.WassersteinDistance.compute")
+def test_calculate_distance_wasserstein_dispatch(mock_compute: MagicMock) -> None:
+    """Dispatch to WassersteinDistance for the wasserstein metric."""
+    mock_compute.return_value = 0.33
+    arr = np.array([1.0, 2.0, 3.0])
+
+    result = calculate_distance("wasserstein", arr, arr, mode="spatial")
+
+    assert result == 0.33
+    mock_compute.assert_called_once_with(source=arr, target=arr, mode="spatial")

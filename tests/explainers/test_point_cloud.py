@@ -131,12 +131,6 @@ def _make_explainer(
 # ---------------------------------------------------------------------------
 
 
-def test_init_rejects_non_numeric_distance() -> None:
-    """ValueError is raised when a text distance metric is supplied."""
-    with pytest.raises(ValueError, match="Invalid distance metric"):
-        PointCloudExplainer(distance_type=DistanceType.WMD)
-
-
 def test_init_with_base_point_cloud_model(mock_config: MagicMock) -> None:
     """Passing a BasePointCloudModel instance is stored directly."""
     model = MagicMock(spec=BasePointCloudModel)

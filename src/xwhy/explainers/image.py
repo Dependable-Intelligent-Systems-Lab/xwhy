@@ -31,7 +31,6 @@ from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
-from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
 from xwhy.metrics.image import ImageCoverageMetrics
 from xwhy.metrics.regression import RegressionMetrics
@@ -144,12 +143,6 @@ class ImageClassificationExplainer(BaseExplainer):
 
         """
         distance_type = DistanceType.from_str(distance_type)
-
-        if not distance_type.is_numeric_metric:
-            raise ValueError(
-                f"Invalid distance metric '{distance_type}' "
-                "for ImageClassificationExplainer. Must be a numeric distance."
-            )
 
         classification_type = ClassificationType.from_str(classification_type)
         embedding_type = EmbeddingType.from_str(embedding_type)
@@ -723,7 +716,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
         min_valid_ratio: float = 0.5,
-        distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        text_distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         return_p_value: bool = False,
@@ -758,7 +752,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             num_perturbations: Number of text perturbations to generate.
             min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
                 perturbation evaluations required for reliable surrogate training.
-            distance_type: Metric used to compute distance between images.
+            image_distance_type: Metric used to compute distance between images.
+            text_distance_type: Metric used to compute distance between texts.
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate model.
             return_p_value: Whether to compute statistical significance
@@ -766,18 +761,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **provider_kwargs: Additional keyword arguments for the model provider.
 
-        Raises:
-            ValueError: If an invalid distance metric is provided.
-
         """
         self._action: Literal["generate", "edit"] = "generate"
-        distance_type = DistanceType.from_str(distance_type)
-
-        if not distance_type.is_numeric_metric:
-            raise ValueError(
-                f"Invalid distance metric '{distance_type}' "
-                "for ImageClassificationExplainer. Must be a numeric distance."
-            )
+        image_distance_type = DistanceType.from_str(image_distance_type)
+        text_distance_type = DistanceType.from_str(text_distance_type)
 
         self._provider_kwargs = provider_kwargs
 
@@ -904,7 +891,8 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
                 min_valid_ratio=min_valid_ratio,
-                distance_type=distance_type,
+                image_distance_type=image_distance_type,
+                text_distance_type=text_distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
                 return_p_value=return_p_value,
@@ -1256,7 +1244,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         p_values = []
 
         use_embedding = self.config.use_image_embedding_model  # type: ignore[union-attr]
-        dist_type = self.config.distance_type  # type: ignore[union-attr]
+        dist_type = self.config.image_distance_type  # type: ignore[union-attr]
         return_p_val = getattr(self.config, "return_p_value", False)
         n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
 
@@ -1486,7 +1474,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
 
         logger.info(
             "Computing %s distances between images...",
-            self.config.distance_type,  # type: ignore[union-attr]
+            self.config.image_distance_type,  # type: ignore[union-attr]
         )
         image_distances, p_values = self._compute_perturbation_distances(
             input_image_path=base_image_path,
@@ -1496,17 +1484,51 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             output_dir=output_dir,
         )
 
-        logger.info("Computing WMD scores...")
-        wmd_distance = WMDDistance()
-        wmd_scores = wmd_distance.compute_batch(
-            model=self.state.text_embedding_model,
-            original=normalized_prompt,
-            perturbed_texts=perturbed_texts,
+        logger.info(
+            "Computing %s distances between texts...",
+            self.config.text_distance_type,  # type: ignore[union-attr]
         )
+
+        base_text_representation = self.state.text_embedding_model.encode(  # type: ignore[union-attr]
+            normalized_prompt
+        )
+        text_distances: list[tuple[str, float]] = []
+        text_p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+
+        for text in perturbed_texts:
+            current_text_representation = self.state.text_embedding_model.encode(text)  # type: ignore[union-attr]
+
+            if (
+                base_text_representation.size == 0  # type: ignore[union-attr]
+                or current_text_representation.size == 0  # type: ignore[union-attr]
+            ):
+                text_distances.append((text, 1.0))
+                if return_p_val:
+                    text_p_values.append(float("nan"))
+                continue
+
+            res = calculate_distance(
+                metric=self.config.text_distance_type,  # type: ignore[union-attr]
+                source=base_text_representation,
+                target=current_text_representation,
+                mode="spatial",
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
+            )
+
+            if isinstance(res, tuple):
+                p_val, dist_val = res
+                text_p_values.append(p_val)
+                text_distances.append((text, float(dist_val)))
+            else:
+                text_distances.append((text, float(res)))
 
         logger.info("Normalizing similarities...")
         sims = DistanceNormalizer.min_max(
-            scores=wmd_scores,
+            scores=text_distances,
             mode=normalization_method,
         )
 
@@ -1514,11 +1536,11 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         # Surrogate Model Training Inputs & Targets setup:
         # X: Matrix indicating word presence/absence in perturbations.
         # Y: The change/distance in the generated output images.
-        # Weights: Derived from textual distance (WMD/sims).
+        # Weights: Derived from textual distance (text_distances/sims).
         # ---------------------------------------------------------
         x_features = np.vstack([np.array(m, dtype=int) for m in binary_masks])
         y_target_raw = np.array(image_distances, dtype=float)
-        text_distances_raw = np.array([d for _, d in wmd_scores])
+        text_distances_raw = np.array([d for _, d in text_distances])
 
         # Identify valid (non-infinite, non-NaN) distances
         valid_mask = np.isfinite(y_target_raw)
@@ -1615,7 +1637,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             responses=perturbed_texts,
             perturbations=binary_masks,
             image_distances=image_distances,
-            wmd_scores=wmd_scores,
+            text_distances=text_distances,
             sims=sims,
             normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
@@ -1627,7 +1649,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         csv_path = save_perturbation_data_to_csv(
             perturbations=binary_masks,  # type: ignore[arg-type]
             similarities=sims,
-            wmd_scores=wmd_scores,
+            text_distances=text_distances,
             output_path=os.path.join(output_dir, f"perturbation_data_{method}.csv"),
         )
 
@@ -1635,17 +1657,20 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "prompt": normalized_prompt,
             "csv_output_path": csv_path,
             "perturbed_texts": perturbed_texts,
-            "wmd_scores": wmd_scores,
+            "text_distances": text_distances,
             "similarities": sims,
             "weights": weights,
             "y_target": y_valid,
             "y_pred": y_pred_valid,
         }
 
-        return_p_val = getattr(self.config, "return_p_value", False)
-        if return_p_val and p_values:
-            p_values_raw = np.array(p_values, dtype=float)
-            raw_data["p_values"] = p_values_raw[valid_mask]
+        if return_p_val:
+            if p_values:
+                p_values_raw = np.array(p_values, dtype=float)
+                raw_data["image_p_values"] = p_values_raw[valid_mask]
+            if text_p_values:
+                text_p_values_raw = np.array(text_p_values, dtype=float)
+                raw_data["text_p_values"] = text_p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method

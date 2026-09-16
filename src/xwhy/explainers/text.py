@@ -9,7 +9,8 @@ from xwhy.core.config import ExplainerConfig, TextConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.result import TextXWhyResult
 from xwhy.core.states import TextState
-from xwhy.distance.wmd import WMDDistance
+from xwhy.distance.calculator import calculate_distance
+from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
 from xwhy.models.embeddings.factory import EmbeddingFactory
@@ -34,9 +35,11 @@ class TextExplainer(BaseExplainer):
         ridge_alpha: float = 1.0,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
+        distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        sanitize_distances: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
     ) -> None:
         """Initialize the text explainer.
 
@@ -49,17 +52,20 @@ class TextExplainer(BaseExplainer):
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
             num_perturbations: Default number of perturbed text samples to generate.
-            embedding_type: Embedding method used for Word Mover's Distance.
+            embedding_type: Embedding method to extract text representations.
+            distance_type: Metric used to compute distance between texts.
             surrogate_type: Default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model.
-            sanitize_distances: If True, applies sanitize_distances to clean non-finite
-                values.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
 
         Raises:
             ValueError: If the embedding type is invalid for text explanation.
 
         """
         embedding_type = EmbeddingType.from_str(embedding_type)
+        distance_type = DistanceType.from_str(distance_type)
 
         if not embedding_type.is_text_embedding:
             raise ValueError(
@@ -81,9 +87,11 @@ class TextExplainer(BaseExplainer):
                 ridge_alpha=ridge_alpha,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
+                distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
-                sanitize_distances=sanitize_distances,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         if (
@@ -203,6 +211,7 @@ class TextExplainer(BaseExplainer):
         Raises:
             TypeError: If instance is not a string.
             ValueError: If no prediction method or model is available.
+            RuntimeError: If embedding model or perturbator state is not initialized.
 
         """
         if not isinstance(instance, str):
@@ -245,25 +254,55 @@ class TextExplainer(BaseExplainer):
         else:
             y_target = predictions_arr[:, class_index]
 
-        logger.info("Computing WMD scores in the INPUT space...")
-        wmd_distance = WMDDistance()
+        logger.info(
+            "Computing %s distances in the INPUT space...",
+            self.config.distance_type,  # type: ignore[union-attr]
+        )
 
         if self.state.embedding_model is None:
             raise RuntimeError("Embedding model state is not initialized.")
 
-        raw_wmd_scores = wmd_distance.compute_batch(
-            model=self.state.embedding_model,
-            original=instance,
-            perturbed_texts=perturbed_texts,
-            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
-        )
+        base_text_representation = self.state.embedding_model.encode(instance)
+        text_distances: list[tuple[str, float]] = []
+        p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+
+        for text in perturbed_texts:
+            current_text_representation = self.state.embedding_model.encode(text)
+
+            if (
+                base_text_representation.size == 0  # type: ignore[attr-defined]
+                or current_text_representation.size == 0  # type: ignore[attr-defined]
+            ):
+                text_distances.append((text, 1.0))
+                if return_p_val:
+                    p_values.append(float("nan"))
+                continue
+
+            res = calculate_distance(
+                metric=self.config.distance_type,  # type: ignore[union-attr]
+                source=base_text_representation,
+                target=current_text_representation,
+                mode="spatial",
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
+            )
+
+            if isinstance(res, tuple):
+                p_val, dist_val = res
+                p_values.append(p_val)
+                text_distances.append((text, float(dist_val)))
+            else:
+                text_distances.append((text, float(res)))
 
         # ---------------------------------------------------------
         # Distance Validation & Filtering setup:
         # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
-        distances_raw = np.array([d for _, d in raw_wmd_scores], dtype=float)
+        distances_raw = np.array([d for _, d in text_distances], dtype=float)
 
         # Identify valid (non-infinite, non-NaN) distances
         valid_mask = np.isfinite(distances_raw)
@@ -294,6 +333,7 @@ class TextExplainer(BaseExplainer):
         # Filter arrays and lists to drop failed evaluations cleanly
         valid_indices = np.where(valid_mask)[0]
         distances_valid = distances_raw[valid_mask]
+        valid_text_distances = [text_distances[i] for i in valid_indices]
 
         masks_as_arrays: list[np.ndarray] = [
             np.array(binary_masks[i], dtype=int) for i in valid_indices
@@ -364,13 +404,17 @@ class TextExplainer(BaseExplainer):
             "instance": instance,
             "perturbed_texts": perturbed_texts,
             "binary_masks": binary_masks,
-            "wmd_scores": raw_wmd_scores,
+            "text_distances": valid_text_distances,
             "distances": distances_valid,
             "weights": weights,
             "y_target": y_valid,
             "y_pred": y_pred_valid,
             "class_index": class_index,
         }
+
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method

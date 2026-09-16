@@ -47,7 +47,10 @@ class LLMConfig(ExplainerConfig):
     delay: float | None = Field(default=None, ge=0.0)
     normalization_method: Literal["linear", "inverse"] = "linear"
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    sanitize_distances: bool = False
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class ImageClassificationConfig(ExplainerConfig):
@@ -151,7 +154,8 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
     normalization_method: Literal["linear", "inverse"] = "linear"
-    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    text_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
 
     # Surrogate & Perturbation Fine-tuning Parameters
     normalization_mode: Literal["linear", "inverse"] = "linear"
@@ -174,7 +178,10 @@ class TextConfig(ExplainerConfig):
     model: Any = None
     predict_fn: Callable[..., Any] | None = None
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    sanitize_distances: bool = True
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class PointCloudConfig(ExplainerConfig):

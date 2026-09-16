@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import gzip
 import shutil
-import string
 import zipfile
 from pathlib import Path
 from typing import Any, ClassVar
 
 import gdown
 import gensim.downloader as api
+import numpy as np
 import requests
 from gensim.models import KeyedVectors
 from tqdm.auto import tqdm
@@ -18,6 +18,7 @@ from tqdm.auto import tqdm
 from xwhy.config import Settings
 from xwhy.logger import logger
 from xwhy.models.embeddings import BaseEmbedding
+from xwhy.utils.text import clean_text
 
 
 class Word2VecEmbedding(BaseEmbedding):
@@ -89,47 +90,22 @@ class Word2VecEmbedding(BaseEmbedding):
         self,
         inputs: Any,  # noqa: ANN401
         **kwargs: Any,  # noqa: ANN401
-    ) -> float:
-        """Compute Word Mover's Distance between source and target text.
+    ) -> np.ndarray | list[np.ndarray]:
+        """Encode inputs into word embeddings.
 
         Args:
-            inputs: Source text string or a tuple/list of (source, target).
-            **kwargs: Additional keyword arguments, including 'target' text
-                or 'model' (Loaded Word2Vec KeyedVectors).
+            inputs: Source text string or a sequence (tuple/list) of strings.
+            **kwargs: Additional keyword arguments (kept for interface compatibility).
 
         Returns:
-            float: Word Mover's Distance.
+            np.ndarray | list[np.ndarray]: A 2D array of embeddings for a single string,
+                or a list of 2D arrays if a sequence of strings is provided.
 
         """
-        model = kwargs.get("model") or self.model
-        if not isinstance(model, KeyedVectors):
-            raise ValueError(
-                "WMDDistance requires a gensim KeyedVectors 'model' passed "
-                "via kwargs or loaded."
-            )
+        if isinstance(inputs, (list, tuple)):
+            return [self.encode(text=str(item)) for item in inputs]
 
-        # Handle inputs as either a tuple/list of two texts or separate arguments
-        if isinstance(inputs, (tuple, list)) and len(inputs) == 2:
-            source, target = inputs
-        else:
-            source = str(inputs)
-            target = kwargs.get("target", "")
-
-        # Remove punctuation and normalize text
-        clean_source = source.translate(
-            str.maketrans("", "", string.punctuation)
-        ).lower()
-        clean_target = target.translate(
-            str.maketrans("", "", string.punctuation)
-        ).lower()
-
-        words1 = [word for word in clean_source.split() if word in model]
-        words2 = [word for word in clean_target.split() if word in model]
-
-        if not words1 or not words2:
-            return 1.0
-
-        return float(model.wmdistance(words1, words2))
+        return self.encode(text=str(inputs))
 
     def load(self) -> KeyedVectors:
         """Load embedding model with caching strategy."""
@@ -191,26 +167,30 @@ class Word2VecEmbedding(BaseEmbedding):
 
         raise RuntimeError(f"Failed to load embedding model: {self._model_name}")
 
-    def encode(self, text: str) -> list[float]:
-        """Encode text using averaged word vectors."""
+    def encode(self, text: str) -> np.ndarray:  # type: ignore[override]
+        """Extract a 2D array of word embeddings for a given text.
+
+        Args:
+            text: The raw input text string to be embedded.
+
+        Returns:
+            np.ndarray: A 2D numpy array of shape (N, D) where N is the number of
+                in-vocabulary words and D is the embedding dimension. Returns an
+                empty array of shape (0, D) if no valid words are found.
+
+        """
         model = self.load()
-        words = text.split()
 
-        vectors: list[list[float]] = [
-            model[word].tolist() for word in words if word in model
-        ]
+        cleaned = clean_text(text=text)
 
-        if not vectors:
-            return [0.0] * 300
+        words = [word for word in cleaned.split() if word in model]
 
-        dim = len(vectors[0])
-        result = [0.0] * dim
+        if not words:
+            # Return an empty 2D array with the correct feature dimension
+            return np.empty((0, model.vector_size), dtype=float)
 
-        for vec in vectors:
-            for i, val in enumerate(vec):
-                result[i] += val
-
-        return [x / len(vectors) for x in result]
+        vectors = [model[word] for word in words]
+        return np.array(vectors, dtype=float)
 
     def _get_cache_dir(self) -> Path:
         cache_dir = self._settings.embedding_cache_dir

@@ -10,8 +10,9 @@ from xwhy.core.config import LLMConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.result import TextXWhyResult
 from xwhy.core.states import LLMState
+from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.normalization import DistanceNormalizer
-from xwhy.distance.wmd import WMDDistance
+from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
 from xwhy.models.embeddings.factory import EmbeddingFactory
@@ -49,9 +50,11 @@ class LLMExplainer(BaseExplainer):
         num_perturbations: int = 64,
         min_valid_ratio: float = 0.5,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
+        distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        sanitize_distances: bool = False,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the LLM explainer.
@@ -75,12 +78,14 @@ class LLMExplainer(BaseExplainer):
             num_perturbations: Number of perturbed samples to generate.
             min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
                 perturbation evaluations required for reliable surrogate training.
-            embedding_type: Embedding method for WMD.
+            embedding_type: Embedding method to extract text representations.
+            distance_type: Metric used to compute distance between texts.
             surrogate_type: The default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model
                 automatically.
-            sanitize_distances: If True, applies sanitize_distances to clean non-finite
-                values.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **provider_kwargs: Additional provider-specific options.
 
         Raises:
@@ -88,6 +93,7 @@ class LLMExplainer(BaseExplainer):
 
         """
         embedding_type = EmbeddingType.from_str(embedding_type)
+        distance_type = DistanceType.from_str(distance_type)
 
         if not embedding_type.is_text_embedding:
             raise ValueError(
@@ -136,9 +142,11 @@ class LLMExplainer(BaseExplainer):
                 num_perturbations=num_perturbations,
                 min_valid_ratio=min_valid_ratio,
                 embedding_type=embedding_type,
+                distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
-                sanitize_distances=sanitize_distances,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         super().__init__(config)
@@ -158,7 +166,7 @@ class LLMExplainer(BaseExplainer):
         if not self.config.embedding_type.is_text_embedding:  # type: ignore[union-attr]
             raise ValueError(
                 "Invalid embedding type '%s' "
-                "for ImageGenerationAndEditingExplainer. Must be a text embedding.",
+                "for LLMExplainer. Must be a text embedding.",
                 self.config.embedding_type,  # type: ignore[union-attr]
             )
 
@@ -243,21 +251,52 @@ class LLMExplainer(BaseExplainer):
             num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
         )
 
-        logger.info("Computing WMD scores...")
-        wmd_distance = WMDDistance()
-        raw_wmd_scores = wmd_distance.compute_batch(
-            model=self.state.embedding_model,
-            original=original_output,
-            perturbed_texts=perturbed_texts,
-            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
+        logger.info(
+            "Computing %s distances between texts...",
+            self.config.distance_type,  # type: ignore[union-attr]
         )
+
+        base_text_representation = self.state.embedding_model.encode(original_output)
+        text_distances: list[tuple[str, float]] = []
+        p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+
+        for text in perturbed_texts:
+            current_text_representation = self.state.embedding_model.encode(text)
+
+            if (
+                base_text_representation.size == 0  # type: ignore[attr-defined]
+                or current_text_representation.size == 0  # type: ignore[attr-defined]
+            ):
+                text_distances.append((text, 1.0))
+                if return_p_val:
+                    p_values.append(float("nan"))
+                continue
+
+            res = calculate_distance(
+                metric=self.config.distance_type,  # type: ignore[union-attr]
+                source=base_text_representation,
+                target=current_text_representation,
+                mode="spatial",
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
+            )
+
+            if isinstance(res, tuple):
+                p_val, dist_val = res
+                p_values.append(p_val)
+                text_distances.append((text, float(dist_val)))
+            else:
+                text_distances.append((text, float(res)))
 
         # ---------------------------------------------------------
         # Distance Validation & Filtering setup:
         # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
-        distances_raw = np.array([d for _, d in raw_wmd_scores], dtype=float)
+        distances_raw = np.array([d for _, d in text_distances], dtype=float)
 
         # Identify valid (non-infinite, non-NaN) distances
         valid_mask = np.isfinite(distances_raw)
@@ -286,16 +325,16 @@ class LLMExplainer(BaseExplainer):
             )
 
         # Filter arrays and lists to drop failed evaluations cleanly
-        # Use valid_indices to filter standard Python lists (raw_wmd_scores,
+        # Use valid_indices to filter standard Python lists (text_distances,
         # binary_masks)
         valid_indices = np.where(valid_mask)[0]
 
-        valid_wmd_scores = [raw_wmd_scores[i] for i in valid_indices]
+        valid_text_distances = [text_distances[i] for i in valid_indices]
         distances_valid = distances_raw[valid_mask]
 
         logger.info("Normalizing similarities...")
         sims = DistanceNormalizer.min_max(
-            scores=valid_wmd_scores,
+            scores=valid_text_distances,
             mode=normalization_method,
         )
 
@@ -365,12 +404,16 @@ class LLMExplainer(BaseExplainer):
 
         raw_data = {
             "perturbed_texts": perturbed_texts,
-            "wmd_scores": valid_wmd_scores,
+            "text_distances": valid_text_distances,
             "similarities": sims,
             "weights": weights,
             "y_target": y_valid,
             "y_pred": y_pred_valid,
         }
+
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method
