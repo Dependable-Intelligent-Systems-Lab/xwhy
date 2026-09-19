@@ -31,7 +31,7 @@ def test_calculate_distance_invalid_metric_string() -> None:
     """Ensure unknown metric strings raise ValueError from DistanceType."""
     arr = np.array([1, 2, 3])
     with pytest.raises(ValueError, match="is not a valid DistanceType"):
-        calculate_distance("wmd", arr, arr)
+        calculate_distance("fake_invalid_metric", source=arr, target=arr)
 
 
 @patch("xwhy.distance.distances.CosineDistance.compute")

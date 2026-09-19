@@ -185,7 +185,7 @@ def test_init_creates_default_config() -> None:
             ridge_alpha=1.0,
             num_perturbations=32,
             embedding_type=EmbeddingType.WORD2VEC,
-            distance_type=DistanceType.WASSERSTEIN,
+            distance_type=DistanceType.WMD,
             surrogate_type=SurrogateType.LIME_RIDGE,
             use_best_surrogate=False,
             return_p_value=False,

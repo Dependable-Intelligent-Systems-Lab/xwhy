@@ -15,6 +15,17 @@ class DistanceType(StrEnum):
     ANDERSON_DARLING = "anderson_darling"
     KUIPER = "kuiper"
     DTS = "dts"
+    WMD = "wmd"
+
+    @property
+    def is_text_metric(self) -> bool:
+        """Check if the metric is designed for text data."""
+        return self == DistanceType.WMD
+
+    @property
+    def is_numeric_metric(self) -> bool:
+        """Check if the metric is designed for numerical/image data."""
+        return self != DistanceType.WMD
 
     @classmethod
     def from_str(cls, value: str | DistanceType) -> DistanceType:

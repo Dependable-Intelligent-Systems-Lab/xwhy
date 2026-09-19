@@ -532,7 +532,9 @@ def test_llm_explain_empty_embedding_fallback(
 ) -> None:
     """Use distance 1.0 when embeddings are empty arrays."""
     mock_resolve.return_value = mock_provider
-    explainer = LLMExplainer(provider="openai", use_best_surrogate=False)
+    explainer = LLMExplainer(
+        provider="openai", distance_type="wasserstein", use_best_surrogate=False
+    )
 
     mock_perturbation.return_value.generate.return_value = (
         ["res1", "res2"],
@@ -582,6 +584,7 @@ def test_llm_explain_empty_embedding_with_p_values(
     mock_resolve.return_value = mock_provider
     explainer = LLMExplainer(
         provider="openai",
+        distance_type="wasserstein",
         use_best_surrogate=False,
         return_p_value=True,
     )

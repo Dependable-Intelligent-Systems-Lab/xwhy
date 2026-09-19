@@ -6,10 +6,12 @@ import random
 from typing import Any, cast
 
 import numpy as np
+from gensim.models import KeyedVectors
 from scipy.spatial.distance import cosine
 
 from xwhy.distance.base import BaseDistance
 from xwhy.logger import logger
+from xwhy.utils.text import clean_text
 
 
 class BaseNumericDistance(BaseDistance):
@@ -299,3 +301,41 @@ class WassersteinDistance(BaseNumericDistance):
             res += (height**power) * width
 
         return float(res)
+
+
+class WMDDistance(BaseDistance):
+    """Word Mover's Distance metric for raw text strings."""
+
+    def compute(
+        self,
+        source: str,
+        target: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> float:
+        """Compute Word Mover's Distance between two text instances.
+
+        Args:
+            source: Source text string.
+            target: Target text string.
+            **kwargs: Must contain 'model' (loaded Word2Vec KeyedVectors).
+
+        Returns:
+            float: Calculated Word Mover's Distance value.
+
+        Raises:
+            ValueError: If 'model' is missing or not an instance of KeyedVectors.
+
+        """
+        model = kwargs.get("model")
+        if not isinstance(model, KeyedVectors):
+            raise ValueError(
+                "WMDDistance requires a gensim KeyedVectors 'model' passed via kwargs."
+            )
+
+        words1 = [word for word in clean_text(text=source).split() if word in model]
+        words2 = [word for word in clean_text(text=target).split() if word in model]
+
+        if not words1 or not words2:
+            return 1.0
+
+        return float(model.wmdistance(words1, words2))

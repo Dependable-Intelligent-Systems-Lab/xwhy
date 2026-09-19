@@ -90,6 +90,12 @@ class PointCloudExplainer(BaseExplainer):
         dist_enum = DistanceType.from_str(distance_type)
         surrogate_enum = SurrogateType.from_str(surrogate_type)
 
+        if not dist_enum.is_numeric_metric:
+            raise ValueError(
+                f"Invalid distance metric '{dist_enum}' "
+                "for PointCloudExplainer. Must be a numeric distance."
+            )
+
         # 2. Construct or update configuration
         if config is None:
             config = PointCloudConfig(

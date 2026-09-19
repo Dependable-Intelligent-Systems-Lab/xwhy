@@ -50,7 +50,7 @@ class LLMExplainer(BaseExplainer):
         num_perturbations: int = 64,
         min_valid_ratio: float = 0.5,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
-        distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
+        distance_type: str | DistanceType = DistanceType.WMD,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         return_p_value: bool = False,
@@ -174,11 +174,16 @@ class LLMExplainer(BaseExplainer):
             "Loading text embedding model: %s",
             self.config.embedding_type,  # type: ignore[union-attr]
         )
-        embedding_factory_result = EmbeddingFactory.create(
+        embedder = EmbeddingFactory.create(
             embedding=self.config.embedding_type,  # type: ignore[union-attr]
         )
-        self.state.embedding_model = embedding_factory_result.load()
-        self.state.embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+        embedder.load()
+
+        # Apply norms if the underlying model supports it (e.g., Gensim)
+        if hasattr(embedder.model, "fill_norms"):
+            embedder.model.fill_norms(force=True)
+
+        self.state.embedding_model = embedder
 
         logger.info("Initializing text perturbator...")
         self.state.perturbator = TextPerturbation(
@@ -256,33 +261,49 @@ class LLMExplainer(BaseExplainer):
             self.config.distance_type,  # type: ignore[union-attr]
         )
 
-        base_text_representation = self.state.embedding_model.encode(original_output)
         text_distances: list[tuple[str, float]] = []
         p_values: list[float] = []
 
         return_p_val = getattr(self.config, "return_p_value", False)
         n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+        is_wmd = self.config.distance_type == DistanceType.WMD  # type: ignore[union-attr]
+
+        # Extract base representation outside the loop to save computation
+        if not is_wmd:
+            base_text_representation = self.state.embedding_model.encode(
+                original_output
+            )
 
         for text in perturbed_texts:
-            current_text_representation = self.state.embedding_model.encode(text)
+            if is_wmd:
+                res = calculate_distance(
+                    metric=DistanceType.WMD,
+                    source=original_output,
+                    target=text,
+                    model=self.state.embedding_model.model,
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+            else:
+                current_text_representation = self.state.embedding_model.encode(text)
 
-            if (
-                base_text_representation.size == 0  # type: ignore[attr-defined]
-                or current_text_representation.size == 0  # type: ignore[attr-defined]
-            ):
-                text_distances.append((text, 1.0))
-                if return_p_val:
-                    p_values.append(float("nan"))
-                continue
+                if (
+                    base_text_representation.size == 0  # type: ignore[attr-defined]
+                    or current_text_representation.size == 0  # type: ignore[attr-defined]
+                ):
+                    text_distances.append((text, 1.0))
+                    if return_p_val:
+                        p_values.append(float("nan"))
+                    continue
 
-            res = calculate_distance(
-                metric=self.config.distance_type,  # type: ignore[union-attr]
-                source=base_text_representation,
-                target=current_text_representation,
-                mode="spatial",
-                return_p_value=return_p_val,
-                n_bootstrap=n_bootstrap,
-            )
+                res = calculate_distance(
+                    metric=self.config.distance_type,  # type: ignore[union-attr]
+                    source=base_text_representation,
+                    target=current_text_representation,
+                    mode="spatial",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
 
             if isinstance(res, tuple):
                 p_val, dist_val = res

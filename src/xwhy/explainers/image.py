@@ -144,6 +144,12 @@ class ImageClassificationExplainer(BaseExplainer):
         """
         distance_type = DistanceType.from_str(distance_type)
 
+        if not distance_type.is_numeric_metric:
+            raise ValueError(
+                f"Invalid distance metric '{distance_type}' "
+                "for ImageClassificationExplainer. Must be a numeric distance."
+            )
+
         classification_type = ClassificationType.from_str(classification_type)
         embedding_type = EmbeddingType.from_str(embedding_type)
         segmentation_type = SegmentationType.from_str(segmentation_type)
@@ -717,7 +723,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         num_perturbations: int = 64,
         min_valid_ratio: float = 0.5,
         image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
-        text_distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        text_distance_type: DistanceType | str = DistanceType.WMD,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         return_p_value: bool = False,
@@ -761,10 +767,19 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **provider_kwargs: Additional keyword arguments for the model provider.
 
+        Raises:
+            ValueError: If an invalid distance metric is provided for images.
+
         """
         self._action: Literal["generate", "edit"] = "generate"
         image_distance_type = DistanceType.from_str(image_distance_type)
         text_distance_type = DistanceType.from_str(text_distance_type)
+
+        if not image_distance_type.is_numeric_metric:
+            raise ValueError(
+                f"Invalid image distance metric '{image_distance_type}' "
+                "for ImageGenerationAndEditingExplainer. Must be a numeric distance."
+            )
 
         self._provider_kwargs = provider_kwargs
 
@@ -830,10 +845,14 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             # Instance or Subclass
             if not is_resolved_as_standard_provider:
                 engine_type = "custom"
-                if hasattr(engine, "__class__") and "BaseImageGenerationAndEditing" in [
+                mro_names = [
                     b.__name__
                     for b in engine.__class__.__mro__  # type: ignore[union-attr]
-                ]:
+                ]
+                if (
+                    hasattr(engine, "__class__")
+                    and "BaseImageGenerationAndEditing" in mro_names
+                ):
                     # Pre-instantiated custom engine instance
                     self.state.engine = engine  # type: ignore[assignment]
                 elif isinstance(engine, type):
@@ -849,8 +868,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
 
                         self.state.engine = PairedInferenceModel(model_name=model_name)
                     else:
-                        # String passed but has no specific resolver (e.g.,
-                        # unrecognized)
+                        # String passed but has no specific resolver
                         if custom_model is None:
                             custom_model = engine
 
@@ -929,7 +947,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                     "Initializing %s Model Adapter...", engine_type.capitalize()
                 )
                 self.state.engine = CustomImageGenerationAndEditingModel(
-                    generate_fn=self.config.custom_generate_fn,  # type: ignore[union-attr]
+                    generate_fn=(
+                        self.config.custom_generate_fn  # type: ignore[union-attr]
+                    ),
                     model=self.config.custom_model,  # type: ignore[union-attr]
                     **self._provider_kwargs,
                 )
@@ -1002,11 +1022,16 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "Loading text embedding model: %s",
             self.config.text_embedding_type,  # type: ignore[union-attr]
         )
-        embedding_factory_result = EmbeddingFactory.create(
+        embedder = EmbeddingFactory.create(
             embedding=self.config.text_embedding_type,  # type: ignore[union-attr]
         )
-        self.state.text_embedding_model = embedding_factory_result.load()
-        self.state.text_embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+        embedder.load()
+
+        # Apply norms if the underlying model supports it (e.g., Gensim)
+        if hasattr(embedder.model, "fill_norms"):
+            embedder.model.fill_norms(force=True)
+
+        self.state.text_embedding_model = embedder
 
         # 4. Load Segmentation Model (if enabled)
         if self.config.use_segmentation_model:  # type: ignore[union-attr]
@@ -1255,9 +1280,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         _, original_image = load_image_as_tensor(image_path=input_image_path)
         base_representation = original_image
         if use_embedding:
-            original_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
-                original_image
-            )
+            img_model = self.state.image_embedding_model
+            if img_model is None:
+                raise ValueError("Image embedding model is not initialized.")
+            original_embedding = img_model.encode_image(original_image)  # type: ignore[attr-defined]
             if original_embedding is None:
                 raise ValueError("Original embedding extraction failed.")
             base_representation = np.asarray(original_embedding)  # type: ignore[assignment]
@@ -1287,9 +1313,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             current_representation = current_image
 
             if use_embedding:
-                current_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
-                    current_representation
-                )
+                img_model = self.state.image_embedding_model
+                if img_model is None:
+                    raise ValueError("Image embedding model is not initialized.")
+                current_embedding = img_model.encode_image(current_representation)  # type: ignore[attr-defined]
                 if current_embedding is None:
                     raise ValueError(
                         f"Embedding extraction failed for image: {img_path}"
@@ -1304,7 +1331,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             current_representation = np.asarray(current_representation)  # type: ignore[assignment]
             base_representation = np.asarray(base_representation)  # type: ignore[assignment]
 
-            if current_representation.size == 0 or base_representation.size == 0:  # type: ignore[comparison-overlap]
+            if (
+                current_representation.size == 0 or base_representation.size == 0  # type: ignore[comparison-overlap]
+            ):
                 raise ValueError("Representations are empty. Cannot compute distance.")
 
             # Compute distance metric
@@ -1374,7 +1403,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             FileNotFoundError: If the provided image path does not exist.
             TypeError: If the prompt is not a string.
             ValueError: If the prompt is empty or too short.
-            RuntimeError: If base image generation fails.
+            RuntimeError: If base image generation fails or models not loaded.
 
         """
         prompt = instance
@@ -1401,9 +1430,12 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
 
         self._prepare_environment(output_dir=output_dir, seed=seed)
 
+        if self.state.text_perturbator is None:
+            raise RuntimeError("Text perturbator is not initialized.")
+
         if seed != self.config.seed:  # type: ignore[union-attr]
             logger.debug("Updating perturbator RNG with new seed: %d", seed)
-            self.state.text_perturbator.set_seed(seed)  # type: ignore[union-attr]
+            self.state.text_perturbator.set_seed(seed)
 
         if input_image_path is not None and not os.path.exists(input_image_path):
             raise FileNotFoundError(f"Input image not found at {input_image_path}")
@@ -1429,19 +1461,22 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 "Please use a more descriptive prompt (at least 18-20 chars)."
             )
 
-        if self.config.num_perturbations < (2 * prompt_word_count):  # type: ignore[union-attr]
+        cfg_num_perturbations = (
+            self.config.num_perturbations  # type: ignore[union-attr]
+        )
+        if cfg_num_perturbations < (2 * prompt_word_count):
             logger.warning(
                 "The 'num_perturbations' (%d) is relatively small for a prompt "
                 "with %d words. This may lead to inaccurate fidelity metrics "
                 "(e.g., R-squared). Consider increasing it for better stability.",
-                self.config.num_perturbations,  # type: ignore[union-attr]
+                cfg_num_perturbations,
                 prompt_word_count,
             )
 
         logger.info("Generating text perturbations...")
-        perturbed_texts, binary_masks = self.state.text_perturbator.generate(  # type: ignore[union-attr]
+        perturbed_texts, binary_masks = self.state.text_perturbator.generate(
             text=normalized_prompt,
-            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=cfg_num_perturbations,
         )
 
         logger.info("Starting unified image generation/editing step...")
@@ -1489,35 +1524,54 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             self.config.text_distance_type,  # type: ignore[union-attr]
         )
 
-        base_text_representation = self.state.text_embedding_model.encode(  # type: ignore[union-attr]
-            normalized_prompt
-        )
+        text_embedder = self.state.text_embedding_model
+        if text_embedder is None:
+            raise RuntimeError("Text embedding model is not initialized.")
+
         text_distances: list[tuple[str, float]] = []
         text_p_values: list[float] = []
 
         return_p_val = getattr(self.config, "return_p_value", False)
         n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+        is_wmd = (
+            self.config.text_distance_type  # type: ignore[union-attr]
+            == DistanceType.WMD
+        )
+
+        base_text_representation = np.empty(0)
+        if not is_wmd:
+            base_text_representation = text_embedder.encode(normalized_prompt)  # type: ignore[assignment]
 
         for text in perturbed_texts:
-            current_text_representation = self.state.text_embedding_model.encode(text)  # type: ignore[union-attr]
+            if is_wmd:
+                res = calculate_distance(
+                    metric=DistanceType.WMD,
+                    source=normalized_prompt,
+                    target=text,
+                    model=text_embedder.model,
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+            else:
+                current_text_representation = text_embedder.encode(text)
 
-            if (
-                base_text_representation.size == 0  # type: ignore[union-attr]
-                or current_text_representation.size == 0  # type: ignore[union-attr]
-            ):
-                text_distances.append((text, 1.0))
-                if return_p_val:
-                    text_p_values.append(float("nan"))
-                continue
+                if (
+                    base_text_representation.size == 0
+                    or current_text_representation.size == 0  # type: ignore[attr-defined]
+                ):
+                    text_distances.append((text, 1.0))
+                    if return_p_val:
+                        text_p_values.append(float("nan"))
+                    continue
 
-            res = calculate_distance(
-                metric=self.config.text_distance_type,  # type: ignore[union-attr]
-                source=base_text_representation,
-                target=current_text_representation,
-                mode="spatial",
-                return_p_value=return_p_val,
-                n_bootstrap=n_bootstrap,
-            )
+                res = calculate_distance(
+                    metric=self.config.text_distance_type,  # type: ignore[union-attr]
+                    source=base_text_representation,
+                    target=current_text_representation,
+                    mode="spatial",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
 
             if isinstance(res, tuple):
                 p_val, dist_val = res
@@ -1628,11 +1682,13 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             num_features=len(coeffs),
         )
 
+        cfg_model_name = self.config.model_name  # type: ignore[union-attr]
+
         logger.info("Save variables data to pickle file...")
         save_data_to_pickle(
             output_path=os.path.join(
                 output_dir,
-                f"{self.config.model_name.replace('/', '_')}.pkl",  # type: ignore[union-attr]
+                f"{cfg_model_name.replace('/', '_')}.pkl",
             ),
             responses=perturbed_texts,
             perturbations=binary_masks,
@@ -1641,7 +1697,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             sims=sims,
             normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
-            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=cfg_num_perturbations,
             seed=seed,
         )
 
