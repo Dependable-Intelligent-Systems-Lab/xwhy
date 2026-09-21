@@ -19,7 +19,7 @@ For a first test, you only need a short Python script. The explainer can wrap an
 The following example uses the default configuration and explains a single local instance from the Boston housing dataset:
 
 ```python
-import pandas as pd
+import numpy as np
 from sklearn.datasets import fetch_openml
 import xgboost
 from xwhy import TabularExplainer
@@ -61,8 +61,12 @@ xg_model = xgboost.XGBRegressor(
 instance = X_scaled[0]
 
 try:
-    explainer = TabularExplainer(model=xg_model)
-    # or use `explainer.run`
+    explainer = TabularExplainer(
+        model=xg_model,
+        distance_type="wasserstein",
+        use_best_surrogate=True
+    )
+
     result = explainer.explain(instance=instance, feature_names=X.columns.to_list())
     
     print(result.metrics)
@@ -103,7 +107,6 @@ try:
     # and `instance` is a standardized 1D numpy array
     explainer = TabularExplainer(config=tabular_cfg, model=model)
     
-    # or use `explainer.run`
     result = explainer.explain(instance=instance)
     
     print(result.metrics)
@@ -161,6 +164,10 @@ XWhy allows you to specify how distances are calculated between perturbed tabula
 Pass the desired identifier via the `distance_type` argument in `TabularConfig`:
 
 * `DistanceType.WASSERSTEIN` (or `"wasserstein"`)
+* `DistanceType.COSINE` (or `"cosine"`)
+* `DistanceType.KS` (or `"ks"`)
+* `DistanceType.CRAMER_VON_MISES` (or `"cramer_von_mises"`)
+* `DistanceType.ANDERSON_DARLING` (or `"anderson_darling"`)
 
 
 
