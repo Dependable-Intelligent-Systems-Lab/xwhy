@@ -1,22 +1,52 @@
 ---
 title: XWhy Point-Cloud Explainer
-description: Development status and planned documentation for local explanations of 3D point-cloud models with XWhy.
+description: Use XWhy PointCloudExplainer for model-agnostic local explanations of 3D point-cloud classification models.
 ---
 
 # Point-cloud explainer
 
-!!! warning "Under construction"
-    `PointCloudExplainer` is exported by XWhy, but its current `explain()` method raises `NotImplementedError`.
+!!! success "Available"
+    `PointCloudExplainer` is implemented and exported by XWhy for 3D point-cloud model workflows.
 
-Planned documentation will cover:
+`PointCloudExplainer` is intended for 3D point-cloud classifiers (such as PointNet). It clusters the input point cloud into spatial regions, perturbs these regions by removing them, queries the black-box prediction function, measures distance, and fits a weighted local surrogate model to attribute importance to each cluster.
 
-- accepted point-cloud formats and tensor shapes;
-- point grouping or segmentation;
-- removal, masking, and displacement perturbations;
-- PointNet-style and custom model adapters;
-- 3D attribution visualisation;
-- fidelity, stability, and runtime evaluation.
+## Basic use
 
-Legacy point-cloud examples exist in the repository, but they should be reviewed and migrated before being treated as current package documentation.
+```python
+from xwhy import PointCloudExplainer
+
+explainer = PointCloudExplainer(
+    model=model,
+    num_clusters=32,
+    num_perturbations=500,
+    removal_probability=0.5,
+    clustering_mode="kmeans",
+    distance_type="wasserstein",
+)
+
+result = explainer.explain(
+    instance=sample_input,
+    sample_label=sample_label,
+)
+```
+
+## Current behaviour
+
+The current implementation supports:
+
+- tensor inputs for 3D point clouds;
+- model or direct prediction-function interfaces (including Hugging Face wrappers via `CustomPointCloudModel`);
+- configurable perturbation counts and removal probabilities;
+- k-means and other spatial clustering modes;
+- configurable distance metrics (e.g., `wasserstein`, `cosine`, `ks`, `cramer_von_mises`), with Wasserstein distance as the default;
+- configurable surrogate models and automatic surrogate selection;
+- cluster-level surrogate coefficients;
+- 3D attribution visualization and Jaccard stability scoring;
+
+## Interpretation
+
+Cluster coefficients describe a local surrogate approximation around the selected point cloud and perturbation strategy. They do not reveal hidden reasoning and should not be treated as causal effects.
+
+For reproducible use, report the perturbation count, clustering configuration, distance configuration, target class, surrogate configuration, random seed, and stability metrics.
 
 [View the current API reference](../reference/xwhy/explainers/pointcloud.md)

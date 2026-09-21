@@ -14,7 +14,7 @@ This page is the authoritative capability map for the current documentation rele
 | [LLM](llm/index.md) | Prompt and generated response | Local prompt influence on response behaviour | **Available** |
 | [Tabular](tabular.md) | Structured features | Feature influence on classification and regression | **Available** |
 | [Text](text.md) | Text input | Word-level influence on conventional text-model predictions | **Available** |
-| [Point Cloud](point-cloud.md) | 3D points or point groups | Local influence on 3D prediction | **Under construction** |
+| [Point Cloud](point-cloud.md) | 3D points or point groups | Local influence on 3D prediction | **Available** |
 | [Time Series](time-series.md) | Ordered observations | Influence of observations, windows, and temporal patterns | **Coming soon** |
 | [Multimodal](multimodal.md) | Two or more modalities | Modality-specific and cross-modal contributions | **Coming soon** |
 | [Agentic AI](agentic-ai.md) | Agent trajectory including plans, retrieval, memory, tools, states, and actions | Explain decisions, actions, state transitions, and uncertainty or failure propagation within an autonomous agent | **Coming soon** |

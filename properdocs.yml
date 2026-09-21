@@ -46,8 +46,8 @@ plugins:
       markdown_description: >-
         XWhy: eXplain Why is a Python library for model-agnostic local
         explainability using SMILE. Image Classification, Image Generation &
-        Editing, LLM, Tabular, and Text explainers are currently available.
-        Point Cloud remains under construction, while Time Series, Multimodal,
+        Editing, LLM, Tabular, Text, and Point Cloud explainers are currently available.
+        Point Cloud is available. Time Series, Multimodal,
         Agentic AI, and Multi-Agent AI are documented research-roadmap
         capabilities.
       full_output: llms-full.txt

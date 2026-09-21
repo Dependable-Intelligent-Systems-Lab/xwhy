@@ -2,7 +2,7 @@
 
 > XWhy is an open-source Python package for model-agnostic local explainability using SMILE.
 
-XWhy explains the local behaviour of machine-learning and generative AI models. Image Classification, Image Generation & Editing, LLM, Tabular, and Text explainers are currently available. Point Cloud remains an under-construction public interface. Time Series, Multimodal, Agentic AI, and Multi-Agent AI are documented research-roadmap capabilities rather than implemented explainers.
+XWhy explains the local behaviour of machine-learning and generative AI models. Image Classification, Image Generation & Editing, LLM, Tabular, Text, and Point Cloud explainers are currently available. Time Series, Multimodal, Agentic AI, and Multi-Agent AI are documented research-roadmap capabilities rather than implemented explainers.
 
 Package name: `xwhy`
 
@@ -28,7 +28,7 @@ Install with `pip install xwhy`.
 - [LLM explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/): Available LLM prompt-response explainability.
 - [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/): Available tabular classification and regression explainability.
 - [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/): Available conventional text-model explainability.
-- [Point cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/): Point-cloud explainer development status.
+- [Point cloud](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/point-cloud/): Available point-cloud explainer status.
 - [Time series](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/time-series/): Time-series explainability roadmap.
 - [Multimodal](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/multimodal/): Multimodal explainability roadmap.
 - [Agentic AI](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/agentic-ai/): Planned explainability for agent trajectories, planning, retrieval, memory, tool use, state transitions, and uncertainty or failure propagation.
