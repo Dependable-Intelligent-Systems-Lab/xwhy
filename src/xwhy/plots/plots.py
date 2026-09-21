@@ -356,7 +356,7 @@ def waterfall(result: BaseXWhyResult, **kwargs: Any) -> PlotResult:  # noqa: ANN
 
 def text(result: BaseXWhyResult, **kwargs: Any) -> str:  # noqa: ANN401
     """Plot a text explanation using coloured, self-contained HTML."""
-    return viz.text(result.to_explanation(), **kwargs)
+    return viz.text(result.to_explanation(), **kwargs)  # type: ignore[return-value]
 
 
 def force(result: BaseXWhyResult, **kwargs: Any) -> Figure | str | None:  # noqa: ANN401
@@ -502,7 +502,7 @@ def image_to_text(
             "For Image Classification models, please use `xwhy.plots.image()` instead."
         )
 
-    return viz.image_to_text(explanation, **kwargs)
+    return viz.image_to_text(explanation, **kwargs)  # type: ignore[func-returns-value]
 
 
 # ==============================================================================
