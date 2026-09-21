@@ -54,7 +54,7 @@ The implemented workflow can:
 
 `ImageGenerationAndEditingExplainer` can work with supported providers and can also be configured with a compatible pipeline, custom model, or custom generation function. The public component is deliberately broader than any one model family.
 
-Pix2Pix is therefore documented as one conditional image-to-image model family within this capability, not as the name of the XWhy explainer. See [Pix2Pix-style models](pix2pix-models.md).
+Image generation and editing is therefore documented as one conditional image-to-image model family within this capability, not as the name of the XWhy explainer. See [Image-genration-and-editing-style models](image-generation-editing-examples.md).
 
 ## What the explanation means
 
@@ -65,6 +65,6 @@ Generative models can also be stochastic. For research use, report the model/pro
 ## Subsections
 
 - [Image editing](image-editing.md)
-- [Pix2Pix-style model examples](pix2pix-models.md)
+- [Image-genration-and-editing-style models examples](image-generation-editing-examples.md).
 
 [View the current image explainer API reference](../../reference/xwhy/explainers/image.md)

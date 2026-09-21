@@ -157,9 +157,6 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     text_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
 
-    # Surrogate & Perturbation Fine-tuning Parameters
-    normalization_mode: Literal["linear", "inverse"] = "linear"
-
     return_p_value: bool = False
     n_bootstrap: int = Field(default=100, gt=0)
 

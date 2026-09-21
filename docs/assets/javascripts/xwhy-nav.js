@@ -4,7 +4,7 @@
     ["Image Classification", "explainers/image/"],
     ["Image Generation", "explainers/image-generation/"],
     ["Image Editing", "explainers/image-generation/image-editing/"],
-    ["Pix2Pix Models", "explainers/image-generation/pix2pix-models/"],
+    ["Image Generation and Editing Examples", "explainers/image-generation/image-generation-editing-examples/"],
     ["LLM", "explainers/llm/"],
     ["Tabular", "explainers/tabular/"],
     ["Text", "explainers/text/"],

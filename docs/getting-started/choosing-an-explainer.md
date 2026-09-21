@@ -19,4 +19,4 @@ description: Select an XWhy explainer by input modality, task, model interface, 
 | System of interacting AI agents | Planned Multi-Agent AI explainability | Coming soon | [Multi-Agent AI roadmap](../explainers/multi-agent-ai.md) |
 
 !!! tip
-    Choose by **task and implemented capability**, not only by class name. `PointCloudExplainer` is currently an exported development interface whose `explain()` method is not implemented. Pix2Pix is one image-to-image model family, not the public explainer name. Agentic AI and Multi-Agent AI are currently documented research directions, not exported XWhy explainers.
+    Choose by **task and implemented capability**, not only by class name. `PointCloudExplainer` is currently an exported development interface whose `explain()` method is not implemented. Image generation and editing models are unified under the public explainer name. Agentic AI and Multi-Agent AI are currently documented research directions, not exported XWhy explainers.

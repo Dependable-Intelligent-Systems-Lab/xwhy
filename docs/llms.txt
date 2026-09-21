@@ -24,7 +24,7 @@ Install with `pip install xwhy`.
 - [Image classification](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image/): Available image-classification explainability.
 - [Image generation and editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/): Available image-generation and image-editing explainability using `ImageGenerationAndEditingExplainer`.
 - [Image editing](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-editing/): Available instruction-guided image-editing explainability.
-- [Pix2Pix-style models](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/pix2pix-models/): Pix2Pix as a conditional image-to-image model family within the broader generative-image capability.
+- [Image Generation and Editing Examples](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/image-generation/image-generation-editing-examples/): Examples of image generation and editing using diverse providers.
 - [LLM explainability](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/llm/): Available LLM prompt-response explainability.
 - [Tabular](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/tabular/): Available tabular classification and regression explainability.
 - [Text](https://dependable-intelligent-systems-lab.github.io/xwhy/explainers/text/): Available conventional text-model explainability.

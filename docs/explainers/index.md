@@ -20,7 +20,7 @@ This page is the authoritative capability map for the current documentation rele
 | [Agentic AI](agentic-ai.md) | Agent trajectory including plans, retrieval, memory, tools, states, and actions | Explain decisions, actions, state transitions, and uncertainty or failure propagation within an autonomous agent | **Coming soon** |
 | [Multi-Agent AI](multi-agent-ai.md) | Interacting agents, messages, roles, dependencies, and shared state | Explain agent contribution, communication, coordination, disagreement, and uncertainty or failure propagation across agents | **Coming soon** |
 
-The current generative-image API is `ImageGenerationAndEditingExplainer`. The [Pix2Pix page](image-generation/pix2pix-models.md) describes Pix2Pix-style models as one conditional image-to-image model family that can be considered within the broader generation and editing capability.
+The current generative-image API is `ImageGenerationAndEditingExplainer`. The [Image Generation and Editing Examples](image-generation/image-generation-editing-examples.md) page describes comprehensive examples for generating and editing images using OpenAI, ByteDance, Gemini, and other compatible providers.
 
 Agentic AI and Multi-Agent AI are currently research-roadmap areas rather than exported explainers. Their documentation defines intended explanation targets and evaluation principles without implying that executable implementations already exist.
 

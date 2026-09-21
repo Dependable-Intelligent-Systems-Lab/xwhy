@@ -35,7 +35,7 @@ description: Use XWhy and SMILE to explain image classification, image generatio
 | Agentic AI | Planned | Plans, retrieval, memory, tool use, actions, state transitions, and uncertainty or failure propagation within an autonomous agent | Coming soon | Not yet implemented |
 | Multi-Agent AI | Planned | Agent contributions, inter-agent messages, coordination, disagreement, dependencies, and uncertainty or failure propagation across agents | Coming soon | Not yet implemented |
 
-The current generative-image component is `ImageGenerationAndEditingExplainer`. Pix2Pix is retained in the documentation as one conditional image-to-image model family, not as the name of the public XWhy explainer.
+The current generative-image component is `ImageGenerationAndEditingExplainer`. It provides a unified explanation interface for conditional image-to-image editing and text-to-image generation.
 
 ## Explainability of Agentic AI
 
