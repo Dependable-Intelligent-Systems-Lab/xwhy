@@ -27,8 +27,11 @@ try:
         use_model_preprocess=True,
         use_embedding_model=True,
         use_segmentation_model=True,
+        segmentation_type="deeplabv3_resnet101",
+        distance_type="wasserstein",
+        classification_type="inception_v3",
     )
-    # or use `explainer.run`
+
     result = explainer.explain(instance="cat-and-dog.jpg")
     print(result.metrics)
     print("Explanation successful!")
@@ -81,7 +84,7 @@ image_classification_config = ImageClassificationConfig(
 
 try:
     explainer = ImageClassificationExplainer(config=image_classification_config)
-    # or use `explainer.run`
+
     result = explainer.explain(instance="cat-and-dog.jpg")
     print(result.metrics)
     print("Explanation successful!")
