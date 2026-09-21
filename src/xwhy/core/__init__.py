@@ -3,8 +3,11 @@
 from xwhy.core.config import (
     ExplainerConfig,
     ImageClassificationConfig,
+    ImageGenerationAndEditingConfig,
     LLMConfig,
+    PointCloudConfig,
     TabularConfig,
+    TextConfig,
 )
 from xwhy.core.exceptions import XWhyError
 from xwhy.core.explainer import BaseExplainer
@@ -15,7 +18,10 @@ __all__ = [
     "BaseXWhyResult",
     "ExplainerConfig",
     "ImageClassificationConfig",
+    "ImageGenerationAndEditingConfig",
     "LLMConfig",
+    "PointCloudConfig",
     "TabularConfig",
+    "TextConfig",
     "XWhyError",
 ]

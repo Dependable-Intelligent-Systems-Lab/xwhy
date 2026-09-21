@@ -10,6 +10,7 @@ from xwhy.distance.distances import (
     KSDistance,
     KuiperDistance,
     WassersteinDistance,
+    WMDDistance,
 )
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
@@ -25,5 +26,6 @@ __all__ = [
     "DistanceType",
     "KSDistance",
     "KuiperDistance",
+    "WMDDistance",
     "WassersteinDistance",
 ]
