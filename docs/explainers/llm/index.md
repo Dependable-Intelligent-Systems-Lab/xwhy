@@ -15,6 +15,7 @@ Current documented capabilities include:
 - commercial, cloud, router, and local providers;
 - runtime, `.env`, and configuration-object setup;
 - text embeddings used by the semantic-distance workflow;
+- configurable semantic distances (`wmd`, `wassertein`, `cosine`, `anderson_darling`, etc.);
 - automatic or selected surrogate models;
 - token-level and contribution plots; and
 - embedding comparison with fidelity metrics and executed outputs.
