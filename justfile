@@ -178,6 +178,8 @@ clean:
     rm -rf .pytest_cache
     rm -rf .ruff_cache
     rm -rf .mypy_cache
+    rm -rf .cache
+    rm -rf .nox
     rm -rf htmlcov
     rm -rf site
     rm -f coverage.xml
