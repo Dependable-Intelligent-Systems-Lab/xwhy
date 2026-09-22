@@ -34,8 +34,8 @@ permissions:
 jobs:
   build-and-deploy:
     if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+      github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
 
     steps:
