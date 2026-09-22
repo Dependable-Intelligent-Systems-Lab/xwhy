@@ -325,6 +325,8 @@ def _update_axis_limits(
     """Set x/y limits and hide non-top spines for the force layout."""
     ax.set_ylim(-0.5, 0.15)
     padding = float(np.max([abs(total_pos) * 0.2, abs(total_neg) * 0.2]))
+    if padding == 0.0:
+        padding = 0.1
 
     if len(pos_features) > 0:
         min_x = min(float(np.min(pos_features[:, 0].astype(float))), base_value)
@@ -497,7 +499,10 @@ def _draw_labels(
     for _i, feature in enumerate(features):
         if max_display is not None and _i >= max_display:
             break
-        feature_contribution = abs(float(feature[0]) - pre_val) / abs(total_effect)
+        if abs(total_effect) > 0.0:
+            feature_contribution = abs(float(feature[0]) - pre_val) / abs(total_effect)
+        else:
+            feature_contribution = 0.0
         if feature_contribution < min_perc:
             break
 
@@ -574,6 +579,8 @@ def _draw_labels(
     cm = matplotlib.colors.LinearSegmentedColormap.from_list("cm", cmap_colors)
     _, z2 = np.meshgrid(np.linspace(0, 10), np.linspace(-10, 10))
     extent_shading = [out_value, box_end, 0, -0.31]
+    if extent_shading[0] == extent_shading[1]:
+        extent_shading[1] += 1e-6
     im = plt.imshow(
         z2,
         interpolation="quadric",

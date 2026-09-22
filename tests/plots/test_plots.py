@@ -182,7 +182,8 @@ def test_native_heatmap_plotter(mock_savefig: object, mock_show: object) -> None
     words = ["This", "is", "a", "test"]
     scores = np.array([0.1, -0.5, 0.8, 0.0])
 
-    plotter.plot(words=words, scores=scores, title="Test Plot", verbose=1)
+    with patch.dict("sys.modules", {"IPython": None, "IPython.display": None}):
+        plotter.plot(words=words, scores=scores, title="Test Plot", verbose=1)
 
     assert mock_show.called  # type: ignore
     plt.close("all")
@@ -190,7 +191,7 @@ def test_native_heatmap_plotter(mock_savefig: object, mock_show: object) -> None
 
 @patch("xwhy.plots.text.plt.close")
 @patch("xwhy.plots.text.plt.show")
-@patch("xwhy.plots.text.plt.savefig")
+@patch("matplotlib.figure.Figure.savefig")
 def test_native_heatmap_plotter_save_path(
     mock_savefig: MagicMock, mock_show: MagicMock, mock_close: MagicMock
 ) -> None:
@@ -201,7 +202,9 @@ def test_native_heatmap_plotter_save_path(
 
     plotter.plot(words=words, scores=scores, save_path="dummy.png", verbose=0)
 
-    mock_savefig.assert_called_once_with("dummy.png", bbox_inches="tight")
+    assert mock_savefig.call_count == 1
+    assert mock_savefig.call_args[0][0] == "dummy.png"
+    assert "bbox_inches" in mock_savefig.call_args[1]
     assert not mock_show.called
     assert mock_close.called
 
@@ -232,13 +235,19 @@ def test_plot_new_line_logic() -> None:
 
     with (
         patch("xwhy.plots.text.plt.show"),
-        patch("matplotlib.pyplot.tight_layout"),
+        patch("matplotlib.pyplot.subplots_adjust"),
         patch("matplotlib.text.Text.draw"),
         patch("matplotlib.text.Text.get_window_extent") as mock_extent,
+        patch("matplotlib.figure.Figure.get_tightbbox") as mock_tightbbox,
+        patch.dict("sys.modules", {"IPython": None}),
     ):
         bbox = MagicMock()
         bbox.width = 10.0
         mock_extent.return_value = bbox
+
+        from matplotlib.transforms import Bbox
+
+        mock_tightbbox.return_value = Bbox.from_extents(0, 0, 10, 10)
 
         plotter.plot(words=words, scores=scores, max_word_per_line=1)
 

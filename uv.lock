@@ -4600,7 +4600,7 @@ wheels = [
 
 [[package]]
 name = "xwhy"
-version = "0.0.3a0"
+version = "0.0.4"
 source = { editable = "." }
 dependencies = [
     { name = "accelerate" },

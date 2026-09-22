@@ -331,7 +331,7 @@ class TabularExplainer(BaseExplainer):
         )
 
         if cfg.mode == "classification":
-            y_pred_valid = (y_pred_valid < 0.5).astype(int).flatten()
+            y_pred_valid = np.round(y_pred_valid).astype(int).flatten()
         else:
             y_pred_valid = y_pred_valid.flatten()
 

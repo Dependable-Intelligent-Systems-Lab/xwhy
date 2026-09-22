@@ -109,7 +109,8 @@ def plot_feature_bar_chart(
     Args:
         result: The explanation result containing feature names and coefficients.
         **kwargs: Additional arguments including 'title', 'xaxis_title',
-            'yaxis_title', 'width', 'height', and 'save_path'.
+            'yaxis_title', 'width', 'height', 'save_path', 'xaxis_font_size',
+            'yaxis_font_size', and 'title_font_size'.
 
     """
     coeffs = np.asarray(result.coefficients).flatten()
@@ -124,6 +125,9 @@ def plot_feature_bar_chart(
     yaxis_title: str = str(kwargs.get("yaxis_title", "Contribution Value"))
     width: int = int(kwargs.get("width", 800))
     height: int = int(kwargs.get("height", 600))
+    xaxis_font_size: int = int(kwargs.get("xaxis_font_size", 14))
+    yaxis_font_size: int = int(kwargs.get("yaxis_font_size", 12))
+    title_font_size: int = int(kwargs.get("title_font_size", 16))
     save_path: str | Path | None = kwargs.get("save_path")
 
     fig = go.Figure(
@@ -144,7 +148,7 @@ def plot_feature_bar_chart(
         xaxis={
             "tickangle": 45,
             "tickfont": {
-                "size": 14,
+                "size": xaxis_font_size,
                 "family": "Arial",
                 "color": "black",
                 "weight": "bold",
@@ -152,14 +156,14 @@ def plot_feature_bar_chart(
         },
         yaxis={
             "tickfont": {
-                "size": 12,
+                "size": yaxis_font_size,
                 "family": "Arial",
                 "color": "black",
                 "weight": "bold",
             },
         },
         title_font={
-            "size": 16,
+            "size": title_font_size,
             "family": "Arial",
             "color": "black",
             "weight": "bold",
@@ -193,7 +197,8 @@ def plot_feature_box_plot(
     Args:
         result: The explanation result containing feature names and coefficients.
         **kwargs: Additional arguments including 'title', 'xaxis_title',
-            'yaxis_title', 'width', 'height', and 'save_path'.
+            'yaxis_title', 'width', 'height', 'save_path', 'xaxis_font_size',
+            'yaxis_font_size', and 'title_font_size'.
 
     """
     coeffs = np.asarray(result.coefficients)
@@ -208,6 +213,9 @@ def plot_feature_box_plot(
     yaxis_title: str = str(kwargs.get("yaxis_title", "Contribution Value"))
     width: int = int(kwargs.get("width", 800))
     height: int = int(kwargs.get("height", 800))
+    xaxis_font_size: int = int(kwargs.get("xaxis_font_size", 14))
+    yaxis_font_size: int = int(kwargs.get("yaxis_font_size", 12))
+    title_font_size: int = int(kwargs.get("title_font_size", 16))
     save_path: str | Path | None = kwargs.get("save_path")
 
     fig = go.Figure()
@@ -228,7 +236,7 @@ def plot_feature_box_plot(
         xaxis={
             "tickangle": 45,
             "tickfont": {
-                "size": 14,
+                "size": xaxis_font_size,
                 "family": "Arial",
                 "color": "black",
                 "weight": "bold",
@@ -236,14 +244,14 @@ def plot_feature_box_plot(
         },
         yaxis={
             "tickfont": {
-                "size": 12,
+                "size": yaxis_font_size,
                 "family": "Arial",
                 "color": "black",
                 "weight": "bold",
             },
         },
         title_font={
-            "size": 16,
+            "size": title_font_size,
             "family": "Arial",
             "color": "black",
             "weight": "bold",

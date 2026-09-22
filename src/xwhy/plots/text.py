@@ -22,8 +22,11 @@ class NativeHeatmapPlotter(BaseTextPlotter):
         height: float = 0.5,
         verbose: int = 0,
         max_word_per_line: int = 20,
-        word_spacing: int = 20,
+        word_spacing: int = 30,
         score_fontsize: int = 10,
+        line_spacing: float = 1.5,
+        score_gap: float = 0.7,
+        horizontal_margin: float = 0.05,
         save_path: str | None = None,
         **kwargs: object,
     ) -> None:
@@ -42,17 +45,31 @@ class NativeHeatmapPlotter(BaseTextPlotter):
             max_word_per_line: Max number of tokens per visual line.
             word_spacing: Horizontal spacing between tokens.
             score_fontsize: Font size for numeric score labels.
+            line_spacing: Vertical spacing multiplier between lines.
+            score_gap: Vertical gap beneath the token for the score label.
+            horizontal_margin: Left and right figure padding (fraction of width).
             save_path: Optional save path.
             **kwargs: Additional ignored arguments for interface compatibility.
 
         """
-        num_lines = math.ceil(len(words) / max_word_per_line)
-        dynamic_height = max(2.0, num_lines * height * 2.5)
+        num_lines = max(1, math.ceil(len(words) / max_word_per_line))
+        # Keep the original density formula, but drop the large forced minimum
+        # so short lists do not get an artificially tall empty figure.
+        dynamic_height = max(1.15, num_lines * height * (line_spacing + 0.2))
 
         _ = plt.figure(figsize=(width, dynamic_height))
         ax = plt.gca()
 
-        ax.set_title(title, loc="left", pad=10)
+        # Formula-based title spacing and font size based on the number of lines.
+        title_pad = 10 + 8 * math.sqrt(num_lines)
+        title_fontsize = 14 + 2 * math.sqrt(num_lines)
+
+        ax.set_title(
+            title,
+            loc="left",
+            pad=title_pad,
+            fontsize=title_fontsize,
+        )
 
         # Color map normalization
         cmap = plt.cm.ScalarMappable(cmap=plt.cm.bwr)
@@ -91,12 +108,17 @@ class NativeHeatmapPlotter(BaseTextPlotter):
             txt.draw(canvas.get_renderer())  # type: ignore
             ex = txt.get_window_extent()
 
-            # draw numeric score under token
+            # draw numeric score centered under token
+            score_transform = transforms.offset_copy(
+                transform,
+                x=ex.width / 2,
+                units="dots",
+            )
             score_txt = ax.text(
-                0.01,
-                y - 0.5,
+                0.0,
+                y - score_gap,
                 f"{score:.2f}",
-                transform=transform,
+                transform=score_transform,
                 fontsize=score_fontsize,
                 ha="center",
             )
@@ -104,7 +126,7 @@ class NativeHeatmapPlotter(BaseTextPlotter):
 
             # new transform for next token
             if (i + 1) % max_word_per_line == 0:
-                y -= 2.5
+                y -= line_spacing
                 transform = ax.transData
             else:
                 transform = transforms.offset_copy(
@@ -113,16 +135,73 @@ class NativeHeatmapPlotter(BaseTextPlotter):
                     units="dots",
                 )
 
-        ax.set_ylim(y - 1.5, 0.5)
+        # Tight top so the first token sits close to the title area.
+        # The visual title→box gap is then controlled by subplots_adjust(top=…)
+        # and stays consistent for short and long lists.
+        data_top = 0.15
+        ax.set_ylim(y - (score_gap + 0.6), data_top)
         ax.set_xlim(0, 1)
 
         if verbose == 0:
             ax.axis("off")
 
-        plt.tight_layout()
+        # Convert margin to a safe fraction of figure width
+        margin_frac = float(horizontal_margin)
+        if margin_frac >= 0.5:
+            # Treat as pixels (assuming ~100 dpi)
+            margin_frac = margin_frac / (width * 100.0) if margin_frac >= 1.0 else 0.49
+
+        margin_frac = max(0.0, min(0.49, margin_frac))
+
+        # Layout with full-width axes so the title (loc="left") and the tokens
+        # share the exact same left edge.  top/bottom leave room for the title
+        # and the score labels.  Horizontal margins are applied afterwards.
+        plt.subplots_adjust(
+            left=0.0,
+            right=1.0,
+            top=0.82,
+            bottom=0.08,
+        )
+
+        # Common: compute the padded bbox (horizontal margin + small top air)
+        fig = plt.gcf()
+        fig.canvas.draw()  # ensure final positions are known
+        tight_bbox = fig.get_tightbbox(fig.canvas.get_renderer())  # type: ignore[attr-defined]
+        h_pad = margin_frac * width
+        top_pad = 0.18  # inches of air above the title
+        expanded_bbox = transforms.Bbox.from_extents(
+            tight_bbox.x0 - h_pad,
+            tight_bbox.y0,
+            tight_bbox.x1 + h_pad,
+            tight_bbox.y1 + top_pad,
+        )
 
         if save_path:
-            plt.savefig(save_path, bbox_inches="tight")
+            fig.savefig(save_path, bbox_inches=expanded_bbox)
             plt.close()
         else:
-            plt.show()
+            # Jupyter's inline backend (and many notebook front-ends) apply
+            # bbox_inches="tight" when rendering, which crops the side margins
+            # created by subplots_adjust.  To guarantee the margins are visible
+            # we render the same padded image that save_path would produce and
+            # display it via IPython when available.
+            try:
+                import io
+
+                from IPython.display import Image, display
+
+                buf = io.BytesIO()
+                fig.savefig(buf, format="png", bbox_inches=expanded_bbox)
+                buf.seek(0)
+                display(Image(data=buf.getvalue()))  # type: ignore[no-untyped-call]
+                plt.close()
+            except Exception:
+                # Non-notebook / plain Python: fall back to a normal show with
+                # the axes inset so the window still shows side margins.
+                plt.subplots_adjust(
+                    left=margin_frac,
+                    right=1.0 - margin_frac,
+                    top=0.82,
+                    bottom=0.08,
+                )
+                plt.show()

@@ -729,6 +729,8 @@ def decision(
                 f"{names[i]} = {fmt(raw[0, i])}" if n_instances == 1 else names[i]
                 for i in order
             ]
+        else:
+            features = None
 
     paths = np.concatenate(
         [np.full((n_instances, 1), base), base + np.cumsum(ordered, axis=1)],
