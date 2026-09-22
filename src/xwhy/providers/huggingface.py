@@ -89,7 +89,9 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             )
             pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
                 self.model_name,
-                dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                torch_dtype=torch.float16
+                if torch.cuda.is_available()
+                else torch.float32,
                 safety_checker=None,
             )
             pipe.to(self.device)
@@ -116,7 +118,9 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
             )
             pipe = StableDiffusionInpaintPipeline.from_pretrained(  # type: ignore[assignment]
                 self.model_name,
-                dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                torch_dtype=torch.float16
+                if torch.cuda.is_available()
+                else torch.float32,
             )
             pipe.to(self.device)
             pipe.enable_attention_slicing()
@@ -325,6 +329,7 @@ class HuggingFaceProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         max_retries: int = kwargs.pop("max_retries", 7)
         delay_override: float | None = kwargs.pop("delay", None)
+        kwargs.pop("model_name", None)
 
         image: Image.Image | None = None
         if input_image_path is not None:

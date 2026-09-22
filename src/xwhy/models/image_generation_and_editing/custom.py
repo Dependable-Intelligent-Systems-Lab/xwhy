@@ -130,6 +130,9 @@ class CustomImageGenerationAndEditingModel(BaseImageGenerationAndEditing):
 
         """
         merged_kwargs = {**self.kwargs, **kwargs}
+        merged_kwargs.pop("max_retries", None)
+        merged_kwargs.pop("delay", None)
+
         if self.model is not None:
             merged_kwargs["model"] = self.model
 

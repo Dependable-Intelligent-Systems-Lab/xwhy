@@ -272,7 +272,7 @@ def test_initialize_pipeline_instruct_pix2pix() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
-    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float32
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float32
     mock_pipe.to.assert_called_once()
     assert provider.pipe is mock_pipe
 
@@ -300,7 +300,7 @@ def test_initialize_pipeline_instruct_pix2pix_cuda() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
-    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float16
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 
@@ -338,7 +338,7 @@ def test_initialize_pipeline_inpaint_success() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
-    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float32
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float32
     mock_pipe.to.assert_called_once()
     assert provider.pipe is mock_pipe
 
@@ -362,7 +362,7 @@ def test_initialize_pipeline_inpaint_cuda() -> None:
         )
 
     mock_from_pretrained.assert_called_once()
-    assert mock_from_pretrained.call_args.kwargs["dtype"] == torch.float16
+    assert mock_from_pretrained.call_args.kwargs["torch_dtype"] == torch.float16
     assert provider.pipe is mock_pipe
 
 

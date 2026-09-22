@@ -74,7 +74,7 @@ dependencies = [
     "diffusers>=0.39.0",
     "safetensors>=0.8.0",
     "kaleido>=1.3.0",
-    "img2img-turbo>=0.0.4",
+    "img2img-turbo>=0.0.5",
     "shap>=0.52.0",
 ]
 

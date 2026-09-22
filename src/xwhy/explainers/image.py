@@ -1146,10 +1146,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         generated_paths: list[tuple[bool, str]] = []
         engine = self.state.engine
 
-        # Merge provider kwargs (from __init__) with current method kwargs
+        # Merge current method kwargs with provider extras
         provider_kwargs_extras = self._get_provider_specific_kwargs()
         generation_kwargs = {
-            **self._provider_kwargs,
             **kwargs,
             **provider_kwargs_extras,
             # Added here, because we get it from init as parameter not kwargs
@@ -1424,6 +1423,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             if normalization_method is None
             else normalization_method
         )
+
+        # Handle backwards compatibility for 'normalization_mode'
+        if "normalization_mode" in kwargs:
+            normalization_method = kwargs.pop("normalization_mode")
 
         # Extract batch flag from kwargs if provided, defaulting to False
         batch = kwargs.pop("batch", False)

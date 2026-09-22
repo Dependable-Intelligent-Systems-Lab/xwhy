@@ -1526,7 +1526,7 @@ wheels = [
 
 [[package]]
 name = "img2img-turbo"
-version = "0.0.4"
+version = "0.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diffusers" },
@@ -1552,9 +1552,9 @@ dependencies = [
     { name = "transformers" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/95/59/cf2756cf750f54616557dfb9e872e522dc2cd3cfc68aed8e75bc2b30a0b4/img2img_turbo-0.0.4.tar.gz", hash = "sha256:9cc4478b9bc806ca99c84839a7e6f79de7b4f365d8f387eac5d26e6d353e26d2", size = 33552256, upload-time = "2026-07-30T14:39:08.895Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c4/fb/e53d9c6db90bf14c54a13ea1f9267ddcb6a9a11c2f30b1e63db9d1621b3b/img2img_turbo-0.0.5.tar.gz", hash = "sha256:60d94c9f75e4f65eecefcceca6096324d3a6cd9f964b1878518c230c07a1f5fe", size = 33551274, upload-time = "2026-09-22T11:55:04.988Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/cd/a8/2cc2429178720ff06a904ab6fbe180d9c325dbd9c17f4f552182beadcbec/img2img_turbo-0.0.4-py3-none-any.whl", hash = "sha256:03e89dde63e86f1a990ef0756b4ec9495195c57d4d62314ec63373075cd0866a", size = 38775, upload-time = "2026-07-30T14:39:07.289Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/27/fda47d18ee716de08eed12b9f05a1b69e663e599ad7b89fc865c363ae1bf/img2img_turbo-0.0.5-py3-none-any.whl", hash = "sha256:aa5c3b1b5c48a32671614943711f65d3763c02f51eb1fe4f2ded6e0ca482d3cf", size = 37895, upload-time = "2026-09-22T11:55:02.191Z" },
 ]
 
 [[package]]
@@ -4691,7 +4691,7 @@ requires-dist = [
     { name = "google-cloud-aiplatform", marker = "extra == 'vertex'", specifier = ">=1,<2" },
     { name = "google-genai", specifier = ">=2.10.0" },
     { name = "huggingface-hub", specifier = ">=1.20.1" },
-    { name = "img2img-turbo", specifier = ">=0.0.4" },
+    { name = "img2img-turbo", specifier = ">=0.0.5" },
     { name = "kaleido", specifier = ">=1.3.0" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "numpy", specifier = ">=2.0.2" },
