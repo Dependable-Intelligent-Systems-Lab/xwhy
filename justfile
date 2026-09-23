@@ -92,6 +92,9 @@ test-metrics:
 test-plots:
     uv run pytest tests/plots
 
+test-plots-visualisation:
+    uv run pytest tests/plots/visualisation
+
 test-explainers:
     uv run pytest tests/explainers
 
