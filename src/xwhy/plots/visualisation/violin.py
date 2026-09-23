@@ -24,12 +24,29 @@ from .base import (
     _finish_matplotlib,
 )
 
-# TODO: simplify this when we drop support for matplotlib 3.9
-ORIENTATION_KWARG: dict[str, str | bool]
-if version.parse(matplotlib.__version__) >= version.parse("3.10"):
-    ORIENTATION_KWARG = {"orientation": "horizontal"}
-else:
-    ORIENTATION_KWARG = {"vert": False}
+
+def _violin_orientation_kwargs() -> dict[str, str | bool]:
+    """Return ``violinplot`` orientation kwargs for the installed matplotlib.
+
+    Matplotlib 3.10 renamed the ``vert`` flag to ``orientation``.  This helper
+    isolates the version branch so callers stay free of version checks
+    (single responsibility) and the branch is unit-testable without reloading
+    the module.
+
+    Returns
+    -------
+    dict[str, str | bool]
+        ``{"orientation": "horizontal"}`` on matplotlib >= 3.10, otherwise
+        ``{"vert": False}``.
+
+    """
+    # TODO: drop the <3.10 branch when minimum matplotlib is 3.10+
+    if version.parse(matplotlib.__version__) >= version.parse("3.10"):
+        return {"orientation": "horizontal"}
+    return {"vert": False}
+
+
+ORIENTATION_KWARG: dict[str, str | bool] = _violin_orientation_kwargs()
 
 
 def _trim_crange(
@@ -346,7 +363,10 @@ def _shap_violin(
                 pc.set_edgecolor("none")
                 pc.set_alpha(alpha)
 
-    elif plot_type == "layered_violin":  # courtesy of @kodonnell
+    else:
+        # plot_type is "layered_violin" — the only remaining valid value
+        # after the earlier membership check (elif-false is unreachable).
+        # courtesy of @kodonnell
         num_x_points = 200
         bins = (
             np.linspace(0, features.shape[0], layered_violin_max_num_bins + 1)
@@ -388,14 +408,13 @@ def _shap_violin(
                 ys[i, :] *= relative_bin_size
             ys = np.cumsum(ys, axis=0)
             width = 0.8
-            scale = ys.max() * 2 / width
+            # Guard against all-zero density (e.g. every bin ignored)
+            scale = max(float(ys.max()) * 2 / width, 1e-12)
+            # Avoid ZeroDivisionError when a feature collapses to a single bin
+            denom = max(nbins - 1, 1)
             for i in range(nbins - 1, -1, -1):
                 y = ys[i, :] / scale
-                c = (
-                    plt.get_cmap(color)(i / (nbins - 1))
-                    if color in plt.colormaps
-                    else color
-                )
+                c = plt.get_cmap(color)(i / denom) if color in plt.colormaps else color
                 plt.fill_between(
                     x_points, pos - y, pos + y, facecolor=c, edgecolor="face"
                 )
@@ -405,7 +424,6 @@ def _shap_violin(
     if (
         color_bar
         and features is not None
-        and plot_type != "bar"
         and (plot_type != "layered_violin" or color in plt.colormaps)
     ):
         mappable = cm.ScalarMappable(
