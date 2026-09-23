@@ -470,18 +470,18 @@ def _shap_scatter(
         )
         raise TypeError(msg)
 
-    if isinstance(features, pd.DataFrame):
-        if feature_names is None:
-            feature_names = list(features.columns)
-        features = features.values
-
-    if feature_names is None:
-        feature_names = [f"Feature {i}" for i in range(shap_values_arr.shape[1])]
-
+    # ``features`` is always an ndarray after the reshape above; coerce any
+    # remaining 1-D vectors to column form for downstream indexing.
     if len(shap_values_arr.shape) == 1:
         shap_values_arr = np.reshape(shap_values_arr, (len(shap_values_arr), 1))
     if len(features.shape) == 1:
         features = np.reshape(features, (len(features), 1))
+
+    # Normalise feature names to a flat list (handles None, scalar, sequence).
+    if not feature_names or feature_names[0] is None:
+        feature_names = [f"Feature {i}" for i in range(shap_values_arr.shape[1])]
+    elif len(feature_names) == 1 and isinstance(feature_names[0], (list, tuple)):
+        feature_names = list(feature_names[0])
 
     jitter_amount_scale: float
     if x_jitter == "auto":
@@ -524,8 +524,6 @@ def _shap_scatter(
             name_map[xd[i]] = xv[i]
         xnames = list(name_map.keys())
 
-    if isinstance(feature_names, str):
-        feature_names = [feature_names]
     name = feature_names[ind]
 
     color_norm = None
@@ -568,10 +566,9 @@ def _shap_scatter(
     if jitter_amount_scale > 0:
         if jitter_amount_scale > 1:
             jitter_amount_scale = 1.0
-        xvals = xv.copy()
-        if isinstance(xvals[0], float):
-            xvals = xvals.astype(float)
-            xvals = xvals[~np.isnan(xvals)]
+        # ``encode_array_if_needed`` always yields a numeric float array.
+        xvals = xv.astype(float)
+        xvals = xvals[~np.isnan(xvals)]
         xvals = np.unique(xvals)
         if len(xvals) >= 2:
             smallest_diff = float(np.min(np.diff(xvals)))
@@ -632,10 +629,8 @@ def _shap_scatter(
         else:
             colorbar = plt.colorbar(scatter_pts, ax=ax, aspect=80)
 
-        if not isinstance(interaction_index, (int, np.integer)):
-            msg = f"Unexpected interaction_index type: {type(interaction_index)}"
-            raise TypeError(msg)
-        colorbar.set_label(feature_names[interaction_index], size=13)
+        # ``convert_name`` resolves to an integer column index.
+        colorbar.set_label(feature_names[int(interaction_index)], size=13)
         colorbar.ax.tick_params(labelsize=11)
         if categorical_interaction:
             colorbar.ax.tick_params(length=0)
