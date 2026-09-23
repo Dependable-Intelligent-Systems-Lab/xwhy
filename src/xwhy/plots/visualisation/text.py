@@ -327,14 +327,14 @@ def svg_force_plot(
             'style="stroke:rgb(150,150,150);stroke-width:1" />'
         )
         if bold:
-            if backing:
-                tick += (
-                    f'<text x="{x_pct}%" y="27" font-size="13px" '
-                    'style="stroke:#ffffff;stroke-width:8px;" '
-                    'font-weight="bold" fill="rgb(255,255,255)" '
-                    f'dominant-baseline="bottom" text-anchor="middle">'
-                    f"{xval:g}</text>"
-                )
+            # White stroke behind bold value for contrast on any background.
+            tick += (
+                f'<text x="{x_pct}%" y="27" font-size="13px" '
+                'style="stroke:#ffffff;stroke-width:8px;" '
+                'font-weight="bold" fill="rgb(255,255,255)" '
+                f'dominant-baseline="bottom" text-anchor="middle">'
+                f"{xval:g}</text>"
+            )
             tick += (
                 f'<text x="{x_pct}%" y="27" font-size="13px" '
                 'font-weight="bold" fill="rgb(0,0,0)" '
