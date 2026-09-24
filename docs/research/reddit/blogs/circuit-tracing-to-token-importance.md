@@ -119,6 +119,9 @@ The ratio Σ<sub>*i*</sub> *I*<sub>*i*</sub> / (Σ<sub>*i*</sub> *I*<sub>*i*</su
 
 ## Try it with circuit-tracer
 
+!!! tip "Run it on Kaggle"
+    You can try this code without installing anything. The [**Circuit Tracing → Token Importance notebook on Kaggle**](https://www.kaggle.com/code/kooaslansefat/circuit-tracing-token-importance) runs the code from this section, so you can see the token-importance results for yourself.
+
 The sketch below uses the public [circuit-tracer](https://github.com/safety-research/circuit-tracer) API with Gemma-2-2B and its released transcoders. Node ordering follows the library's `Graph` class.
 
 ```python
@@ -199,6 +202,7 @@ circuit-tracer supports open-weight models that have released transcoders, inclu
 - Anthropic, [*Open-sourcing circuit tracing tools*](https://www.anthropic.com/research/open-source-circuit-tracing), and the [safety-research/circuit-tracer](https://github.com/safety-research/circuit-tracer) repository.
 - Anthropic, [*Mapping the mind of a large language model*](https://www.anthropic.com/research/mapping-mind-language-model) and [*Scaling Monosemanticity*](https://transformer-circuits.pub/2024/scaling-monosemanticity/), the background on interpretable features.
 - Dunefsky, Chlenski and Nanda, [*Transcoders find interpretable LLM feature circuits*](https://arxiv.org/abs/2406.11944) (2024).
+- Kaggle notebook: [*Circuit tracing → token importance*](https://www.kaggle.com/code/kooaslansefat/circuit-tracing-token-importance), a runnable version of the code in this article with its outputs.
 - On the XWhy site: [Explaining LLM responses](explaining-llm-responses.md), [How SMILE works](how-smile-works.md), the [LLM explainer guide](../../../explainers/llm/index.md) and the [gSMILE preprint](https://arxiv.org/abs/2505.21657).
 
 <script type="application/ld+json">
@@ -216,6 +220,7 @@ circuit-tracer supports open-weight models that have released transcoders, inclu
       "keywords": "circuit tracing, attribution graphs, input token importance, token attribution, mechanistic interpretability, LLM explainability, SMILE, XWhy, circuit-tracer, Anthropic",
       "about": ["Mechanistic interpretability", "Explainable AI", "Large language models"],
       "citation": [
+        "https://www.kaggle.com/code/kooaslansefat/circuit-tracing-token-importance",
         "https://transformer-circuits.pub/2025/attribution-graphs/methods.html",
         "https://transformer-circuits.pub/2025/attribution-graphs/biology.html",
         "https://github.com/safety-research/circuit-tracer",
