@@ -5,7 +5,7 @@ description: Published SMILE and responsible-AI blog posts, plus XWhy guides abo
 
 # Research blogs
 
-Explore published articles from the University of Hull research group and longer XWhy explainers. For research citations, use the [publication catalogue](publications.md).
+Explore published articles from the University of Hull research group and longer XWhy explainers. For research citations, use the [publication catalogue](../publications.md).
 
 ## Published research group blog posts
 
@@ -18,9 +18,9 @@ Explore published articles from the University of Hull research group and longer
 
 ## XWhy explainers and practical reading
 
-- **[How SMILE works](../concepts/smile.md)** — The perturbation, weighting, and local surrogate workflow behind an explanation.
-- **[What a local explanation tells you](../concepts/local-explanations.md)** — How to interpret results for a particular input and model output.
-- **[Explaining LLM responses](../explainers/llm/index.md)** — Prompt perturbations and token contributions in language-model workflows.
-- **[Image generation and editing examples](../explainers/image-generation/image-generation-editing-examples.md)** — Examples and scope for visual generation workflows.
-- **[Evaluating explanation fidelity](../evaluation/attribution-fidelity.md)** — Ways to test whether an attribution reflects the model's behaviour.
-- **[Limitations and responsible interpretation](../concepts/limitations.md)** — Where local explanations need additional checks.
+- **[How SMILE works](../../concepts/smile.md)** — The perturbation, weighting, and local surrogate workflow behind an explanation.
+- **[What a local explanation tells you](../../concepts/local-explanations.md)** — How to interpret results for a particular input and model output.
+- **[Explaining LLM responses](../../explainers/llm/index.md)** — Prompt perturbations and token contributions in language-model workflows.
+- **[Image generation and editing examples](../../explainers/image-generation/image-generation-editing-examples.md)** — Examples and scope for visual generation workflows.
+- **[Evaluating explanation fidelity](../../evaluation/attribution-fidelity.md)** — Ways to test whether an attribution reflects the model's behaviour.
+- **[Limitations and responsible interpretation](../../concepts/limitations.md)** — Where local explanations need additional checks.

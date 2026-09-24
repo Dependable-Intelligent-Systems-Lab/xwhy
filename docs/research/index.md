@@ -46,7 +46,7 @@ ConceptSMILE audits whether human-understandable concepts provide explanations t
 ## Research resources
 
 - [Browse the complete publication catalogue](publications.md)
-- [Read research blogs and explainers](blogs.md)
+- [Read research blogs and explainers](reddit/blogs.md)
 - [Choose the correct citation for your use case](citation.md)
 - [Follow the reproducibility guidance](../how-to/reproducibility.md)
 
