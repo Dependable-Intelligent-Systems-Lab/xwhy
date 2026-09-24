@@ -17,6 +17,7 @@ SMILEâ€”**Statistical Model-Agnostic Interpretability with Local Explanations**â
 | Language and generative AI | gSMILE | Large language models | arXiv preprint |
 | Retrieval-augmented generation | KG-SMILE | Knowledge-graph and GraphRAG systems | arXiv preprint |
 | Concept-based explainability | ConceptSMILE | Concept-based explainable-AI methods | arXiv preprint |
+| Concept-based explainability | ConceptSMILE thesis | Retinal-image AI and trustworthy visual concepts | MSc thesis |
 | Financial language analysis | Local perturbation explanations derived from gSMILE | LLM financial-sentiment reasoning | Peer-reviewed conference chapter |
 | Consolidated academic study | Generative-AI SMILE thesis | LLMs and instruction-based image editing | MSc thesis |
 
@@ -45,6 +46,7 @@ ConceptSMILE audits whether human-understandable concepts provide explanations t
 ## Research resources
 
 - [Browse the complete publication catalogue](publications.md)
+- [Read research blogs and explainers](blogs.md)
 - [Choose the correct citation for your use case](citation.md)
 - [Follow the reproducibility guidance](../how-to/reproducibility.md)
 
