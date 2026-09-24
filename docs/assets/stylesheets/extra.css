@@ -374,6 +374,10 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.md-typeset .xwhy-blog-grid--stories {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .md-typeset .xwhy-blog-card {
   background: var(--md-default-bg-color);
   border: 1px solid var(--md-default-fg-color--lightest);

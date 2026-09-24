@@ -17,7 +17,7 @@ hide:
       <h2 id="research-stories">Research group stories</h2>
       <a href="https://www.responsibleaihull.com/research-blog">Browse the original Hull research blog <span aria-hidden="true">→</span></a>
     </div>
-    <div class="xwhy-blog-grid">
+    <div class="xwhy-blog-grid xwhy-blog-grid--stories">
       <article class="xwhy-blog-card xwhy-blog-card--blue">
         <a href="image-editing-smile/">
           <img src="../../../assets/images/blogs/image-editing.svg" alt="" loading="lazy" width="640" height="240">
@@ -28,18 +28,6 @@ hide:
         <a href="fairness-skin-cancer-ai/">
           <img src="../../../assets/images/blogs/skin-cancer.svg" alt="" loading="lazy" width="640" height="240">
           <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">Responsible AI</span><span class="xwhy-blog-card__title">Can We Trust AI for Skin Cancer?</span><span class="xwhy-blog-card__description">Fairness and reliability in medical image classification.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
-        </a>
-      </article>
-      <article class="xwhy-blog-card xwhy-blog-card--violet">
-        <a href="responsible-ai-chennai/">
-          <img src="../../../assets/images/blogs/chennai-healthcare.svg" alt="" loading="lazy" width="640" height="240">
-          <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">Research visit</span><span class="xwhy-blog-card__title">Responsible AI Research in Chennai</span><span class="xwhy-blog-card__description">Research exchange around trustworthy AI in healthcare.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
-        </a>
-      </article>
-      <article class="xwhy-blog-card xwhy-blog-card--purple">
-        <a href="digital-twins-chennai/">
-          <img src="../../../assets/images/blogs/digital-twins.svg" alt="" loading="lazy" width="640" height="240">
-          <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">Digital twins</span><span class="xwhy-blog-card__title">Digital Twin Research in Chennai</span><span class="xwhy-blog-card__description">Connections between dependable systems and wind energy.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
         </a>
       </article>
     </div>

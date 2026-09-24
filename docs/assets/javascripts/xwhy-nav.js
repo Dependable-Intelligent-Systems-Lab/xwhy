@@ -45,6 +45,7 @@
   const researchLinks = [
     ["Research overview", "research/"],
     ["Publications", "research/publications/"],
+    ["Blogs", "research/reddit/blogs/"],
     ["Citation guidance", "research/citation/"]
   ];
 
