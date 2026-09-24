@@ -304,3 +304,195 @@
   display: block;
   margin: 0 auto;
 }
+
+/* Research blog index: the cards respond to the space left by the site navigation. */
+.md-main__inner:has(.xwhy-blog-index) {
+  max-width: 94rem;
+}
+
+.md-typeset .xwhy-blog-index {
+  container-type: inline-size;
+  padding-bottom: 1.5rem;
+}
+
+.md-typeset .xwhy-blog-intro {
+  margin: 0 0 1.35rem;
+}
+
+.md-typeset .xwhy-blog-intro__rule {
+  background: #2861b2;
+  display: block;
+  height: 0.17rem;
+  margin-bottom: 0.55rem;
+  width: 2.4rem;
+}
+
+.md-typeset .xwhy-blog-intro h1 {
+  color: var(--md-default-fg-color);
+  font-size: clamp(1.65rem, 4vw, 2.3rem);
+  font-weight: 760;
+  letter-spacing: -0.025em;
+  line-height: 1.12;
+  margin: 0 0 0.35rem;
+}
+
+.md-typeset .xwhy-blog-intro p {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.85rem;
+  margin: 0;
+  text-align: left;
+}
+
+.md-typeset .xwhy-blog-section {
+  margin: 1.4rem 0 1.8rem;
+}
+
+.md-typeset .xwhy-blog-section__heading {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.md-typeset .xwhy-blog-section__heading h2 {
+  border: 0;
+  color: var(--md-default-fg-color);
+  font-size: 1.16rem;
+  font-weight: 720;
+  margin: 0;
+}
+
+.md-typeset .xwhy-blog-section__heading > a {
+  font-size: 0.72rem;
+}
+
+.md-typeset .xwhy-blog-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.md-typeset .xwhy-blog-card {
+  background: var(--md-default-bg-color);
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-bottom: 0.26rem solid var(--blog-card-accent);
+  border-radius: 0.38rem;
+  box-shadow: 0 0.2rem 0.7rem rgba(15, 23, 42, 0.11);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  transition: box-shadow 160ms ease, transform 160ms ease;
+}
+
+.md-typeset .xwhy-blog-card:hover,
+.md-typeset .xwhy-blog-card:focus-within {
+  box-shadow: 0 0.42rem 1.1rem rgba(15, 23, 42, 0.18);
+  transform: translateY(-0.12rem);
+}
+
+.md-typeset .xwhy-blog-card--blue { --blog-card-accent: #2861b2; }
+.md-typeset .xwhy-blog-card--teal { --blog-card-accent: #008991; }
+.md-typeset .xwhy-blog-card--violet { --blog-card-accent: #6241a9; }
+.md-typeset .xwhy-blog-card--purple { --blog-card-accent: #663796; }
+
+.md-typeset .xwhy-blog-card > a {
+  color: var(--md-default-fg-color);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  text-decoration: none !important;
+}
+
+.md-typeset .xwhy-blog-card > a:focus-visible {
+  outline: 3px solid #2861b2;
+  outline-offset: -3px;
+}
+
+.md-typeset .xwhy-blog-card img {
+  aspect-ratio: 3 / 1;
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+.md-typeset .xwhy-blog-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.65rem 0.75rem 0.75rem;
+}
+
+.md-typeset .xwhy-blog-card__category {
+  color: var(--blog-card-accent);
+  font-size: 0.64rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.md-typeset .xwhy-blog-card__title {
+  color: var(--md-default-fg-color);
+  font-size: 0.81rem;
+  font-weight: 750;
+  line-height: 1.27;
+}
+
+.md-typeset .xwhy-blog-card__description {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  line-height: 1.38;
+  text-align: left;
+}
+
+.md-typeset .xwhy-blog-card__read {
+  color: var(--blog-card-accent);
+  font-size: 0.67rem;
+  font-weight: 700;
+  margin-top: auto;
+  padding-top: 0.38rem;
+}
+
+.md-typeset .xwhy-blog-footer {
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+  color: var(--md-default-fg-color--light);
+  padding-top: 0.8rem;
+  text-align: left;
+}
+
+.md-typeset .xwhy-blog-back {
+  display: inline-block;
+  font-size: 0.78rem;
+  margin-bottom: 0.8rem;
+}
+
+@media screen and (max-width: 74em) {
+  .md-typeset .xwhy-blog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 40em) {
+  .md-typeset .xwhy-blog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 49rem) {
+  .md-typeset .xwhy-blog-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 29rem) {
+  .md-typeset .xwhy-blog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-typeset .xwhy-blog-card {
+    transition: none;
+  }
+}
