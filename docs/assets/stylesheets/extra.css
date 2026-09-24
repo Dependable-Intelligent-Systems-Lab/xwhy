@@ -476,6 +476,11 @@
   grid-column: 1 / -1;
 }
 
+.md-typeset .xwhy-blog-card--feature img {
+  aspect-ratio: 16 / 9;
+  background: #0f2a55;
+}
+
 @container (min-width: 40rem) {
   .md-typeset .xwhy-blog-card--feature > a {
     flex-direction: row;

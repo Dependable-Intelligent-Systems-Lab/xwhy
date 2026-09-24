@@ -17,7 +17,7 @@ hide:
     <div class="xwhy-blog-grid">
       <article class="xwhy-blog-card xwhy-blog-card--blue xwhy-blog-card--feature">
         <a href="circuit-tracing-to-token-importance/">
-          <img src="../../../assets/images/blogs/circuit-tracing.svg" alt="" loading="lazy" width="640" height="220">
+          <img src="../../../assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp" alt="" width="1672" height="941">
           <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">LLM interpretability</span><span class="xwhy-blog-card__title">From Circuit Tracing to Input-Token Importance</span><span class="xwhy-blog-card__description">How to turn an attribution graph into token scores in five steps, using the Dallas → Texas → Austin example, the circuit-tracer library and a comparison with SMILE, SHAP and Integrated Gradients.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
         </a>
       </article>
