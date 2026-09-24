@@ -42,6 +42,12 @@ hide:
           <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">Responsible AI</span><span class="xwhy-blog-card__title">Can We Trust AI for Skin Cancer?</span><span class="xwhy-blog-card__description">Fairness and reliability in medical image classification.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
         </a>
       </article>
+      <article class="xwhy-blog-card xwhy-blog-card--violet">
+        <a href="closed-model-assurance/">
+          <img src="../../../assets/images/blogs/closed-model-assurance.svg" alt="" loading="lazy" width="640" height="220">
+          <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">Frontier AI assurance</span><span class="xwhy-blog-card__title">When the Model Is Closed, What Can XWhy Test?</span><span class="xwhy-blog-card__description">How LLM explainability can guide tests when only model behaviour is visible.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
+        </a>
+      </article>
     </div>
   </section>
 
