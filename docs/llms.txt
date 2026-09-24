@@ -63,6 +63,8 @@ Install with `pip install xwhy`.
 
 - [Research overview](https://dependable-intelligent-systems-lab.github.io/xwhy/research/): Research and reproducibility entry point.
 - [Publications](https://dependable-intelligent-systems-lab.github.io/xwhy/research/publications/): Related publications.
+- [Research blogs](https://dependable-intelligent-systems-lab.github.io/xwhy/research/reddit/blogs/): Research stories and XWhy explainers.
+- [From circuit tracing to input-token importance](https://dependable-intelligent-systems-lab.github.io/xwhy/research/reddit/blogs/circuit-tracing-to-token-importance/): Converting Anthropic-style attribution graphs into per-token importance, with an explicit error share, compared with SMILE, SHAP, LIME and Integrated Gradients.
 - [Citation](https://dependable-intelligent-systems-lab.github.io/xwhy/research/citation/): How to cite XWhy.
 - [Contributors](https://dependable-intelligent-systems-lab.github.io/xwhy/contributors/): Maintainers and contributors.
 - [Contributing guide](https://dependable-intelligent-systems-lab.github.io/xwhy/contribute/contributing/): Contribution guidance.

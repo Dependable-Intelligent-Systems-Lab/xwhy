@@ -12,6 +12,18 @@ hide:
     <p>Explore our research articles, explainers and practical resources.</p>
   </header>
 
+  <section class="xwhy-blog-section" aria-labelledby="latest-article">
+    <div class="xwhy-blog-section__heading"><h2 id="latest-article">Latest article</h2></div>
+    <div class="xwhy-blog-grid">
+      <article class="xwhy-blog-card xwhy-blog-card--blue xwhy-blog-card--feature">
+        <a href="circuit-tracing-to-token-importance/">
+          <img src="../../../assets/images/blogs/circuit-tracing.svg" alt="" loading="lazy" width="640" height="220">
+          <span class="xwhy-blog-card__body"><span class="xwhy-blog-card__category">LLM interpretability</span><span class="xwhy-blog-card__title">From Circuit Tracing to Input-Token Importance</span><span class="xwhy-blog-card__description">How to turn an attribution graph into token scores in five steps, using the Dallas → Texas → Austin example, the circuit-tracer library and a comparison with SMILE, SHAP and Integrated Gradients.</span><span class="xwhy-blog-card__read">Read article <span aria-hidden="true">→</span></span></span>
+        </a>
+      </article>
+    </div>
+  </section>
+
   <section class="xwhy-blog-section" aria-labelledby="research-stories">
     <div class="xwhy-blog-section__heading">
       <h2 id="research-stories">Research group stories</h2>

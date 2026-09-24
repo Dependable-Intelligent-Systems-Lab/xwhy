@@ -471,6 +471,78 @@
   margin-bottom: 0.8rem;
 }
 
+/* Featured article: spans the full grid row and places the illustration beside the text. */
+.md-typeset .xwhy-blog-card--feature {
+  grid-column: 1 / -1;
+}
+
+@container (min-width: 40rem) {
+  .md-typeset .xwhy-blog-card--feature > a {
+    flex-direction: row;
+  }
+
+  .md-typeset .xwhy-blog-card--feature img {
+    flex: 0 0 46%;
+    height: auto;
+    max-width: 46%;
+  }
+
+  .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__body {
+    justify-content: center;
+    padding: 1rem 1.25rem;
+  }
+
+  .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__title {
+    font-size: 1.05rem;
+  }
+
+  .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__description {
+    font-size: 0.76rem;
+  }
+
+  .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__read {
+    margin-top: 0.4rem;
+  }
+}
+
+/* Article figures and formulas. */
+.md-typeset .xwhy-blog-back ~ figure {
+  margin: 1.2rem 0 1.4rem;
+  width: 100%;
+}
+
+.md-typeset .xwhy-blog-back ~ figure img {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.38rem;
+  box-shadow: 0 0.2rem 0.7rem rgba(15, 23, 42, 0.11);
+}
+
+.md-typeset .xwhy-blog-back ~ figure figcaption {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.72rem;
+  max-width: 40rem;
+}
+
+.md-typeset .xwhy-formula {
+  background: var(--md-code-bg-color);
+  border-left: 0.2rem solid #2861b2;
+  border-radius: 0.2rem;
+  font-family: "Cambria Math", "STIX Two Math", "Latin Modern Math", Georgia, serif;
+  font-size: 0.95rem;
+  overflow-x: auto;
+  padding: 0.7rem 1rem;
+  text-align: center;
+}
+
+.md-typeset .xwhy-formula__op {
+  font-size: 1.25em;
+}
+
+.md-typeset .xwhy-formula__gap {
+  display: inline-block;
+  width: 2.2rem;
+}
+
 @media screen and (max-width: 74em) {
   .md-typeset .xwhy-blog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

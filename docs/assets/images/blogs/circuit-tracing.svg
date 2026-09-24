@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" width="640" height="220" role="img" aria-hidden="true">
+ <defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#12305f"/><stop offset="1" stop-color="#2861b2"/></linearGradient><pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="white" opacity=".1"/></pattern></defs>
+ <rect width="640" height="220" fill="url(#g)"/><rect width="640" height="220" fill="url(#dots)"/>
+ <circle cx="590" cy="-40" r="150" fill="white" opacity=".045"/><circle cx="30" cy="250" r="150" fill="white" opacity=".035"/>
+ <g fill="none" stroke-width="2.4" stroke-linecap="round">
+  <path d="M320 38 L255 68 L200 100 L175 150" stroke="#7ee2b8" stroke-opacity=".85"/>
+  <path d="M320 38 L385 68 L345 100 L335 150" stroke="#9cc4ff" stroke-opacity=".85"/>
+  <path d="M385 68 L455 150" stroke="#ff9d8a" stroke-opacity=".85"/>
+  <path d="M255 68 L345 100" stroke="#ffffff" stroke-opacity=".25"/>
+ </g>
+ <g fill="#1a2c55" fill-opacity=".8" stroke="#cfe0ff" stroke-opacity=".6">
+  <rect x="280" y="24" width="80" height="26" rx="7" fill="#ffc86b" fill-opacity=".95" stroke="#ffe3ad"/>
+  <rect x="215" y="56" width="80" height="24" rx="7"/><rect x="345" y="56" width="80" height="24" rx="7"/>
+  <rect x="165" y="88" width="70" height="24" rx="7"/><rect x="310" y="88" width="70" height="24" rx="7"/>
+ </g>
+ <g font-family="sans-serif" font-size="12.5" text-anchor="middle" fill="#eaf2ff"><text x="320" y="42" fill="#3b2a05" font-weight="700">Austin</text><text x="255" y="72">Say capital</text><text x="385" y="72">Texas</text><text x="200" y="104">capital</text><text x="345" y="104">state</text></g>
+ <rect x="30" y="140" width="580" height="62" rx="12" fill="#0d1f42" fill-opacity=".7" stroke="#9cc4ff" stroke-opacity=".5"/>
+ <g fill="#9cc4ff" fill-opacity=".45"><rect x="62" y="182" width="30" height="6"/><rect x="208" y="182" width="30" height="6"/><rect x="264" y="182" width="30" height="6"/><rect x="560" y="182" width="30" height="6"/></g>
+ <rect x="150" y="150" width="34" height="38" fill="#ff9d4d"/>
+ <rect x="320" y="167" width="30" height="21" fill="#7fb4ff"/><rect x="380" y="164" width="34" height="24" fill="#7fb4ff"/><rect x="440" y="156" width="34" height="32" fill="#7fb4ff"/>
+ <g font-family="sans-serif" font-size="12" text-anchor="middle" fill="#dbe8ff"><text x="77" y="200">the</text><text x="167" y="200">capital</text><text x="223" y="200">of</text><text x="279" y="200">the</text><text x="335" y="200">state</text><text x="397" y="200">contain.</text><text x="457" y="200">Dallas</text><text x="575" y="200">is</text></g>
+ <rect x="498" y="150" width="46" height="38" rx="5" fill="none" stroke="#ff9d8a" stroke-dasharray="4 3" stroke-opacity=".8"/><text x="521" y="173" font-family="sans-serif" font-size="11" text-anchor="middle" fill="#ffc2b5">error</text>
+</svg>

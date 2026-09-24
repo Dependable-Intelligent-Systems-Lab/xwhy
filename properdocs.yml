@@ -99,6 +99,7 @@ plugins:
           - research/reddit/blogs/reading-local-explanations.md: Interpreting local explanations
           - research/reddit/blogs/explaining-llm-responses.md: Explaining LLM responses
           - research/reddit/blogs/testing-explanation-fidelity.md: Evaluating explanation fidelity
+          - research/reddit/blogs/circuit-tracing-to-token-importance.md: Converting circuit-tracing attribution graphs into input-token importance
           - research/citation.md: How to cite XWhy
         Releases:
           - release-notes.md: Version history and detailed release notes
