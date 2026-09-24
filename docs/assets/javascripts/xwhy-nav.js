@@ -124,6 +124,21 @@
   }
 
   function updateActiveState(nav) {
+    const activeDropdownLinks = new Set();
+
+    nav.querySelectorAll(".xwhy-topnav__dropdown").forEach(function (submenu) {
+      const matchingLinks = Array.from(submenu.querySelectorAll("a[href]")).filter(function (anchor) {
+        return isActive(new URL(anchor.href).pathname);
+      });
+      const closestMatch = matchingLinks.reduce(function (best, anchor) {
+        return !best || anchor.pathname.length > best.pathname.length ? anchor : best;
+      }, null);
+
+      if (closestMatch) {
+        activeDropdownLinks.add(closestMatch);
+      }
+    });
+
     nav.querySelectorAll("a[href]").forEach(function (anchor) {
       const href = new URL(anchor.href).pathname;
       const active = isActive(href);
@@ -134,7 +149,7 @@
       }
 
       if (anchor.classList.contains("xwhy-topnav__dropdown-link")) {
-        anchor.classList.toggle("xwhy-topnav__dropdown-link--active", active);
+        anchor.classList.toggle("xwhy-topnav__dropdown-link--active", activeDropdownLinks.has(anchor));
       }
 
       if (exact) {
