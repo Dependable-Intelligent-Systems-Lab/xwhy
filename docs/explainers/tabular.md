@@ -18,6 +18,7 @@ from xwhy import TabularExplainer
 explainer = TabularExplainer(
     model,
     mode="classification",
+    distance_type="wasserstein",
     num_perturbations=500,
 )
 
@@ -37,7 +38,7 @@ The current implementation supports:
 - array-like input instances;
 - configurable perturbation counts and random seed;
 - local Gaussian feature distributions;
-- configurable distance metrics, with Wasserstein distance as the default;
+- configurable distance metrics (e.g., `wasserstein`, `cosine`, `ks`, `cramer_von_mises`), with Wasserstein distance as the default;
 - configurable surrogate models and automatic surrogate selection;
 - surrogate coefficients as local feature contributions;
 - regression-style fidelity metrics for the local surrogate;

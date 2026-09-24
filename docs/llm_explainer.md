@@ -40,6 +40,7 @@ explainer = LLMExplainer(
     provider="openai",
     model_name="gpt-5-nano",
     embedding_type="word2vec",
+    distance_type="wmd",
     use_best_surrogate=True,
 )
 
@@ -64,7 +65,7 @@ For the selected prompt, XWhy:
 
 1. obtains the original model response;
 2. generates perturbed versions of the input prompt;
-3. computes Word Mover's Distance between the original response and each perturbed prompt;
+3. computes the semantic distance (e.g., Word Mover's Distance) between the original response and each perturbed prompt. XWhy supports various distances like `wmd` (default), `wassertein`, `cosine`, `anderson_darling`, etc.;
 4. normalises those distances into the local target scores;
 5. fits a surrogate model to the perturbation masks and target scores; and
 6. returns term contributions, evaluation metrics, and diagnostic plots.
@@ -202,6 +203,7 @@ config = LLMConfig(
     seed=1024,
     num_perturbations=64,
     embedding_type="word2vec",
+    distance_type="wmd",
     surrogate_type="lime",
     use_best_surrogate=True,
 )

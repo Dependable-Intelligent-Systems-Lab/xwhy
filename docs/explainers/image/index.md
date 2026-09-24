@@ -16,7 +16,7 @@ Current documented capabilities include:
 - custom PyTorch models and preprocessing;
 - DINOv2 image embeddings;
 - supported segmentation models or a supplied mask;
-- multiple statistical distance measures;
+- configurable statistical distance measures (e.g., `wasserstein`, `cosine`, `ks`, etc.);
 - image and image-heatmap visualisations.
 
 [Read the complete image-classification tutorial](../../image_classification_explainer.md)

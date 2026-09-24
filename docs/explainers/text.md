@@ -18,6 +18,7 @@ from xwhy import TextExplainer
 explainer = TextExplainer(
     model=classifier,
     num_perturbations=64,
+    distance_type="wmd",
 )
 
 result = explainer.explain(
@@ -36,7 +37,7 @@ The current implementation supports:
 - model or direct prediction-function interfaces;
 - configurable perturbation counts and random seed;
 - word-presence perturbation masks;
-- text embeddings and Word Mover's Distance for local weighting;
+- text embeddings and configurable distance metrics (e.g., `wmd`, `wasserstein`, `cosine`, `ks`, `cramer_von_mises`), with Word Mover's Distance (`wmd`) as the default for local weighting;
 - configurable surrogate models and automatic surrogate selection;
 - word-level surrogate coefficients;
 - surrogate fidelity metrics;

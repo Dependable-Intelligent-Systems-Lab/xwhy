@@ -43,12 +43,15 @@ class PointCloudExplainer(BaseExplainer):
         kernel_width: float = 0.5,
         ridge_alpha: float = 1.0,
         max_iters: int = 50,
+        min_valid_ratio: float = 0.5,
         device: str = "cpu",
         clustering_mode: Literal["kmeans", "precomputed"] = "kmeans",
         distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
         distance_mode: Literal["mask", "spatial", "latent"] = "mask",
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
         **model_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the Point Cloud explainer.
@@ -67,12 +70,17 @@ class PointCloudExplainer(BaseExplainer):
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
             max_iters: Maximum iterations for clustering.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             device: Computation device ("cpu" or "cuda").
             clustering_mode: "kmeans" or "precomputed".
             distance_type: Metric used to compute distance between points.
             distance_mode: "mask", "spatial", or "latent".
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **model_kwargs: Additional parameters for model wrapper.
 
         Raises:
@@ -102,12 +110,15 @@ class PointCloudExplainer(BaseExplainer):
                 kernel_width=kernel_width,
                 ridge_alpha=ridge_alpha,
                 max_iters=max_iters,
+                min_valid_ratio=min_valid_ratio,
                 device=device,
                 clustering_mode=clustering_mode,
                 distance_type=dist_enum,
                 distance_mode=distance_mode,
                 surrogate_type=surrogate_enum,
                 use_best_surrogate=use_best_surrogate,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         # 3. Bind config to base class pipeline
@@ -226,6 +237,8 @@ class PointCloudExplainer(BaseExplainer):
         Raises:
             RuntimeError: If model is not loaded.
             TypeError: If input sample is invalid type.
+            ValueError: If all perturbation evaluations fail or invalid
+                distance mode is encountered.
 
         """
         sample_input = instance
@@ -280,31 +293,49 @@ class PointCloudExplainer(BaseExplainer):
         # Step 4: Distance computation
         # --------------------------------------------------
         distances: list[float] = []
+        p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
 
         if self.config.distance_mode == "mask":  # type: ignore[union-attr]
             # Baseline is a full mask of 1s (all clusters present)
             reference_mask = np.ones(self.config.num_clusters)  # type: ignore[union-attr]
 
             for mask in cluster_masks:
-                dist = calculate_distance(
+                res = calculate_distance(
                     metric=self.config.distance_type,  # type: ignore[union-attr]
                     source=reference_mask,
                     target=mask,
                     mode="mask",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
                 )
-                distances.append(dist)
+                if isinstance(res, tuple):
+                    p_val, dist = res
+                    p_values.append(p_val)
+                    distances.append(dist)
+                else:
+                    distances.append(res)
 
         elif self.config.distance_mode == "spatial":  # type: ignore[union-attr]
             original = sample_input.squeeze(0)  # Shape: (N, 3)
 
             for perturbed in perturbed_samples:  # Shape: (M, 3)
-                dist = calculate_distance(
+                res = calculate_distance(
                     metric=self.config.distance_type,  # type: ignore[union-attr]
                     source=original,
                     target=perturbed,
                     mode="spatial",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
                 )
-                distances.append(dist)
+                if isinstance(res, tuple):
+                    p_val, dist = res
+                    p_values.append(p_val)
+                    distances.append(dist)
+                else:
+                    distances.append(res)
 
         elif self.config.distance_mode == "latent":  # type: ignore[union-attr]
             # Ensure model receives batch dimension: (1, N, 3)
@@ -329,37 +360,61 @@ class PointCloudExplainer(BaseExplainer):
                 )
                 perturbed_latent = perturbed_latent.squeeze(0)
 
-                dist = calculate_distance(
+                res = calculate_distance(
                     metric=self.config.distance_type,  # type: ignore[union-attr]
                     source=original_latent,
                     target=perturbed_latent,
                     mode="latent",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
                 )
-                distances.append(dist)
+                if isinstance(res, tuple):
+                    p_val, dist = res
+                    p_values.append(p_val)
+                    distances.append(dist)
+                else:
+                    distances.append(res)
 
         else:
-            raise ValueError(f"Invalid distance_mode: {self.config.distance_mode}")  # type: ignore[union-attr]
+            dist_mode = self.config.distance_mode  # type: ignore[union-attr]
+            raise ValueError(f"Invalid distance_mode: {dist_mode}")
 
         # --------------------------------------------------
         # Step 5: Distance Validation, Weights, & Surrogate Fitting
         # --------------------------------------------------
         cfg = self.config
 
-        # 1. Scale and validate distances with infinity/NaN imputation
+        # Validate distances and filter out non-finite (inf/NaN) values
         logger.info("Validating perturbation distances...")
         distances_raw = np.array(distances, dtype=float)
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
 
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        scaled_distances = np.where(
-            np.isfinite(distances_raw), distances_raw, max_penalty
-        )
+        min_valid_ratio = cfg.min_valid_ratio  # type: ignore[union-attr]
 
-        # 2. Retrieve perturbation predictions for target class
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
+
+        distances_valid = distances_raw[valid_mask]
+
+        # Retrieve perturbation predictions for target class
         output_probs = self.state.model.get_output_probabilities(
             samples=perturbed_samples,
             device=self.state.device,
@@ -369,16 +424,20 @@ class PointCloudExplainer(BaseExplainer):
         else:
             output_np = np.asarray(output_probs)
 
-        y_target = output_np[:, pred]
-        x_matrix = cluster_masks  # Shape: (num_perturbations, num_clusters)
+        y_target_raw = output_np[:, pred]
+        x_matrix_raw = cluster_masks  # Shape: (num_perturbations, num_clusters)
 
-        # 3. Surrogate selection and weight calculation
+        # Filter features and targets cleanly using the validity mask
+        x_valid = x_matrix_raw[valid_mask]
+        y_valid = y_target_raw[valid_mask]
+
+        # Surrogate selection and weight calculation
         if cfg.use_best_surrogate:  # type: ignore[union-attr]
             logger.info("Searching for optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=scaled_distances,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=cfg.seed,  # type: ignore[union-attr]
                 kernel_width=cfg.kernel_width,  # type: ignore[union-attr]
                 epsilon=cfg.epsilon,  # type: ignore[union-attr]
@@ -398,25 +457,25 @@ class PointCloudExplainer(BaseExplainer):
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=scaled_distances,
+            distances=distances_valid,
             kernel_width=cfg.kernel_width,  # type: ignore[union-attr]
             epsilon=cfg.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
         )
 
-        # 4. Fit surrogate model
+        # Fit surrogate model
         method_name = method.value if hasattr(method, "value") else method
         logger.info("Training surrogate model (%s)...", method_name)
         surrogate = SurrogateFactory.create(method=method, seed=cfg.seed)  # type: ignore[union-attr]
-        surrogate.fit(x_matrix, y_target, weights)
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
-        # 5. Compute regression fidelity metrics
+        # Compute regression fidelity metrics
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -424,15 +483,19 @@ class PointCloudExplainer(BaseExplainer):
         top_k = cfg.num_top_features  # type: ignore[union-attr]
         top_features = np.argsort(coeffs)[-top_k:]
 
-        raw_data = {
-            "x_matrix": x_matrix,
-            "y_target": y_target,
-            "y_pred": y_pred,
+        raw_data: dict[str, Any] = {
+            "x_matrix": x_valid,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
             "weights": weights,
-            "distances": scaled_distances,
+            "distances": distances_valid,
             "surrogate_method": method,
             "top_classes": top_classes,
         }
+
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         result = PointCloudXWhyResult(
             coefficients=coeffs,

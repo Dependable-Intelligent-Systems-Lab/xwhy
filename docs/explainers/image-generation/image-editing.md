@@ -48,6 +48,6 @@ Future extensions can add explicit source-region, mask-region, and cross-modal a
 
 Because image-generation and editing models may be stochastic, explanation results can vary across executions. Where the provider supports it, control and report the seed, model version, perturbation count, output-distance measure, and surrogate fidelity.
 
-See the [image generation and editing overview](index.md) and [Pix2Pix-style model examples](pix2pix-models.md).
+See the [image generation and editing overview](index.md) and [Image-genration-and-editing-style models examples](image-generation-editing-examples.md).
 
 [View the current image explainer API reference](../../reference/xwhy/explainers/image.md)

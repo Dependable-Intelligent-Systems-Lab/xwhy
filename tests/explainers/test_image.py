@@ -45,13 +45,9 @@ class DummyModule(nn.Module):
 
 
 def test_init_invalid_distance_type() -> None:
-    """Raise ValueError for non-numeric distance metric."""
-    with patch("xwhy.explainers.image.DistanceType") as mock_dist_type:
-        mock_metric = MagicMock()
-        mock_metric.is_numeric_metric = False
-        mock_dist_type.from_str.return_value = mock_metric
-        with pytest.raises(ValueError, match=re.escape("Invalid distance metric")):
-            ImageClassificationExplainer(distance_type="invalid")
+    """Raise validation error for an unknown distance metric string."""
+    with pytest.raises((ValueError, ValidationError)):
+        ImageClassificationExplainer(distance_type="invalid")
 
 
 @patch("xwhy.explainers.image.ClassificationFactory")
@@ -487,8 +483,11 @@ def test_run_perturbation_loop_without_embedding(
 
     mock_np_to_tensor.return_value = MagicMock()
     mock_calc_dist.return_value = 0.5
+    # getattr(config, "return_p_value", False) defaults via MagicMock truthiness;
+    # force False so calculate_distance is not expected to return a tuple.
+    explainer.config.return_p_value = False
 
-    preds, dists = ImageClassificationExplainer._run_perturbation_loop(
+    preds, dists, p_vals = ImageClassificationExplainer._run_perturbation_loop(
         explainer,
         original_image=np.zeros((10, 10, 3)),
         superpixels=np.zeros((10, 10), dtype=int),
@@ -496,6 +495,7 @@ def test_run_perturbation_loop_without_embedding(
     )
     assert preds.shape[0] == 2
     assert dists.shape == (2,)
+    assert p_vals == []
     assert mock_calc_dist.call_count == 2
 
 
@@ -510,6 +510,7 @@ def test_run_perturbation_loop_with_embedding(
     explainer.config = MagicMock()
     explainer.config.use_embedding_model = True
     explainer.config.distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
     explainer.state = MagicMock()
     explainer.state.device = torch.device("cpu")
     explainer.state.transform_fn = MagicMock()
@@ -533,7 +534,7 @@ def test_run_perturbation_loop_with_embedding(
     mock_np_to_tensor.return_value = MagicMock()
     mock_calc_dist.return_value = 0.5
 
-    preds, dists = ImageClassificationExplainer._run_perturbation_loop(
+    preds, dists, p_vals = ImageClassificationExplainer._run_perturbation_loop(
         explainer,
         original_image=np.zeros((10, 10, 3)),
         superpixels=np.zeros((10, 10), dtype=int),
@@ -541,6 +542,7 @@ def test_run_perturbation_loop_with_embedding(
     )
     assert preds is not None
     assert dists is not None
+    assert p_vals == []
     # original + 2 perturbed encodings
     assert mock_embed.encode_image.call_count == 3
 
@@ -550,6 +552,7 @@ def test_run_perturbation_loop_original_embedding_none() -> None:
     explainer = MagicMock(spec=ImageClassificationExplainer)
     explainer.config = MagicMock()
     explainer.config.use_embedding_model = True
+    explainer.config.return_p_value = False
     explainer.state = MagicMock()
     explainer.state.embedding_model = MagicMock()
     explainer.state.embedding_model.encode_image.return_value = None
@@ -565,6 +568,51 @@ def test_run_perturbation_loop_original_embedding_none() -> None:
         )
 
 
+@patch("xwhy.explainers.image.numpy_image_to_tensor")
+@patch("xwhy.explainers.image.calculate_distance")
+def test_run_perturbation_loop_with_p_values(
+    mock_calc_dist: MagicMock,
+    mock_np_to_tensor: MagicMock,
+) -> None:
+    """Return p-values when ``return_p_value`` is enabled."""
+    explainer = MagicMock(spec=ImageClassificationExplainer)
+    explainer.config = MagicMock()
+    explainer.config.use_embedding_model = False
+    explainer.config.distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = True
+    explainer.config.n_bootstrap = 10
+    explainer.state = MagicMock()
+    explainer.state.device = torch.device("cpu")
+    explainer.state.transform_fn = MagicMock()
+
+    mock_tensor_out = MagicMock()
+    mock_tensor_out.detach.return_value.cpu.return_value.numpy.return_value = np.zeros(
+        (1, 5)
+    )
+    mock_cls_model = MagicMock()
+    mock_cls_model.model = MagicMock(return_value=mock_tensor_out)
+    explainer.state.classification_model = mock_cls_model
+
+    mock_perturbator = MagicMock()
+    mock_perturbator.apply_mask.return_value = np.zeros((10, 10, 3))
+    explainer.state.perturbator = mock_perturbator
+
+    mock_np_to_tensor.return_value = MagicMock()
+    # calculate_distance returns (p_value, distance) when return_p_value=True
+    mock_calc_dist.return_value = (0.03, 0.5)
+
+    preds, dists, p_vals = ImageClassificationExplainer._run_perturbation_loop(
+        explainer,
+        original_image=np.zeros((10, 10, 3)),
+        superpixels=np.zeros((10, 10), dtype=int),
+        perturbation_masks=np.zeros((2, 5), dtype=int),
+    )
+    assert preds.shape[0] == 2
+    assert dists.shape == (2,)
+    assert p_vals == [0.03, 0.03]
+    assert mock_calc_dist.call_count == 2
+
+
 # ---------------------------------------------------------------------------
 # explain - full pipeline branches
 # ---------------------------------------------------------------------------
@@ -578,7 +626,20 @@ def _build_explainer_mocks(
     num_perturb: int = 5,
     num_classes: int = 5,
 ) -> MagicMock:
-    """Build a fully mocked explainer for explain() tests."""
+    """Build a fully mocked explainer for explain() tests.
+
+    Args:
+        use_best: Whether best-surrogate search is enabled.
+        use_seg: Whether a segmentation model is present.
+        use_embed: Whether an embedding model is present.
+        num_perturb: Number of perturbation samples to mock.
+        num_classes: Number of classification output classes.
+
+    Returns:
+        MagicMock: Explainer mock with config and state fully wired for
+        ``ImageClassificationExplainer.explain``.
+
+    """
     explainer = MagicMock(spec=ImageClassificationExplainer)
     explainer.config = MagicMock()
     explainer.config.device = "cpu"
@@ -586,15 +647,24 @@ def _build_explainer_mocks(
     explainer.config.use_best_surrogate = use_best
     explainer.config.surrogate_type = SurrogateType.LIME
     explainer.config.num_top_features = 2
-    explainer.config.num_perturb = num_perturb
+    explainer.config.num_perturbations = num_perturb
+    explainer.config.keep_probability = 0.5
+    explainer.config.min_valid_ratio = 0.5
     explainer.config.use_model_preprocess = True
     explainer.config.use_embedding_model = use_embed
     explainer.config.distance_type = DistanceType.WASSERSTEIN
     explainer.config.seed = 42
+    explainer.config.epsilon = 0.0
+    explainer.config.kernel_width = 0.5
+    explainer.config.ridge_alpha = 1.0
+    explainer.config.class_of_interest = 1
+    explainer.config.return_p_value = False
+    explainer.config.n_bootstrap = 1000
 
     explainer._run_perturbation_loop.return_value = (
         np.zeros((num_perturb, num_classes)),
         np.zeros(num_perturb),
+        [],
     )
 
     explainer.state = MagicMock()
@@ -1021,98 +1091,22 @@ def test_explain_runtime_error_classification_model_none() -> None:
         ImageClassificationExplainer.explain(explainer, "test.jpg")
 
 
-@patch("xwhy.explainers.image.SurrogateTrainer")
-@patch("xwhy.explainers.image.SurrogateFactory")
-@patch("xwhy.explainers.image.RegressionMetrics")
-@patch("xwhy.explainers.image.load_image_as_tensor")
-@patch("xwhy.explainers.image.tensor_to_numpy_image")
-def test_image_classification_explain_impute_when_some_distances_valid(
-    mock_tensor_to_np: MagicMock,
-    mock_load: MagicMock,
-    mock_metrics: MagicMock,
-    mock_factory: MagicMock,
-    mock_trainer: MagicMock,
-) -> None:
-    """Cover the branch where at least one distance is finite.
+def _make_classification_distance_explainer(
+    *,
+    num_perturb: int,
+    distances: np.ndarray,
+    predictions: np.ndarray,
+) -> MagicMock:
+    """Build a minimal classification explainer mock for distance-validation tests.
 
-    ``max_penalty`` becomes ``max(valid) + 1000.0`` and non-finite values
-    are replaced by that penalty.
-    """
-    # Minimal explainer with mocked state
-    explainer = MagicMock(spec=ImageClassificationExplainer)
-    explainer.config = MagicMock()
-    explainer.config.use_best_surrogate = False
-    explainer.config.surrogate_type = SurrogateType.LIME
-    explainer.config.seed = 42
-    explainer.config.num_top_features = 2
-    explainer.config.num_top_predictions = 1
-    explainer.config.use_model_preprocess = False
-    explainer.config.device = "cpu"
-    explainer.config.num_perturb = 3
+    Args:
+        num_perturb: Number of perturbation rows.
+        distances: Distance vector returned by the perturbation loop.
+        predictions: Prediction matrix returned by the perturbation loop.
 
-    explainer.state = MagicMock()
-    explainer.state.classification_model = MagicMock()
-    explainer.state.classification_model.preprocess_fn.mean = [0.0]
-    explainer.state.classification_model.preprocess_fn.std = [1.0]
-    explainer.state.classification_model.weights.meta = {"categories": ["cat", "dog"]}
-    explainer.state.classification_model.predict.return_value = torch.tensor(
-        [[0.1, 0.9]]
-    )
-    explainer.state.transform_fn = None
-    explainer.state.perturbator = MagicMock()
-    explainer.state.perturbator.generate_superpixels.return_value = (
-        np.zeros((8, 8), dtype=int),
-        4,
-    )
-    explainer.state.perturbator.generate.return_value = np.array(
-        [[1, 0, 1, 0], [0, 1, 0, 1], [1, 1, 0, 0]]
-    )
-    explainer.state.perturbator.apply_mask.return_value = np.zeros((8, 8, 3))
-    explainer.state.segmentation_model = None
-    explainer.state.embedding_model = None
+    Returns:
+        MagicMock: Fully wired explainer ready for ``explain``.
 
-    mock_load.return_value = (torch.zeros(1, 3, 8, 8), MagicMock())
-    mock_tensor_to_np.return_value = np.zeros((8, 8, 3))
-
-    # Two finite + one non-finite distance
-    explainer._run_perturbation_loop = MagicMock(
-        return_value=(
-            np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]]),
-            np.array([0.5, np.inf, 1.5]),
-        )
-    )
-
-    mock_trainer.compute_weights.return_value = np.ones(3)
-    mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2, 0.3, 0.4])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
-    mock_factory.create.return_value = mock_surrogate
-    mock_metrics.calculate.return_value = MagicMock()
-
-    # Bind the real explain method
-    result = ImageClassificationExplainer.explain(explainer, instance="dummy.png")
-
-    distances = result.raw_data["distances"]
-    assert distances[0] == pytest.approx(0.5)
-    assert distances[1] == pytest.approx(1001.5)  # max(0.5,1.5)+1000
-    assert distances[2] == pytest.approx(1.5)
-
-
-@patch("xwhy.explainers.image.SurrogateTrainer")
-@patch("xwhy.explainers.image.SurrogateFactory")
-@patch("xwhy.explainers.image.RegressionMetrics")
-@patch("xwhy.explainers.image.load_image_as_tensor")
-@patch("xwhy.explainers.image.tensor_to_numpy_image")
-def test_image_classification_explain_impute_when_all_distances_non_finite(
-    mock_tensor_to_np: MagicMock,
-    mock_load: MagicMock,
-    mock_metrics: MagicMock,
-    mock_factory: MagicMock,
-    mock_trainer: MagicMock,
-) -> None:
-    """Cover the branch where every distance is non-finite.
-
-    ``max_penalty`` falls back to the constant ``1000.0``.
     """
     explainer = MagicMock(spec=ImageClassificationExplainer)
     explainer.config = MagicMock()
@@ -1123,13 +1117,21 @@ def test_image_classification_explain_impute_when_all_distances_non_finite(
     explainer.config.num_top_predictions = 1
     explainer.config.use_model_preprocess = False
     explainer.config.device = "cpu"
-    explainer.config.num_perturb = 2
+    explainer.config.num_perturbations = num_perturb
+    explainer.config.keep_probability = 0.5
+    explainer.config.min_valid_ratio = 0.5
+    explainer.config.epsilon = 0.0
+    explainer.config.kernel_width = 0.5
+    explainer.config.ridge_alpha = 1.0
+    explainer.config.class_of_interest = 1
 
     explainer.state = MagicMock()
     explainer.state.classification_model = MagicMock()
     explainer.state.classification_model.preprocess_fn.mean = [0.0]
     explainer.state.classification_model.preprocess_fn.std = [1.0]
-    explainer.state.classification_model.weights.meta = {"categories": ["cat", "dog"]}
+    explainer.state.classification_model.weights.meta = {
+        "categories": ["cat", "dog"],
+    }
     explainer.state.classification_model.predict.return_value = torch.tensor(
         [[0.1, 0.9]]
     )
@@ -1139,23 +1141,46 @@ def test_image_classification_explain_impute_when_all_distances_non_finite(
         np.zeros((8, 8), dtype=int),
         4,
     )
-    explainer.state.perturbator.generate.return_value = np.array(
-        [[1, 0, 1, 0], [0, 1, 0, 1]]
+    explainer.state.perturbator.generate.return_value = np.ones(
+        (num_perturb, 4), dtype=int
     )
     explainer.state.perturbator.apply_mask.return_value = np.zeros((8, 8, 3))
     explainer.state.segmentation_model = None
     explainer.state.embedding_model = None
 
+    explainer._run_perturbation_loop = MagicMock(
+        return_value=(predictions, distances, [])
+    )
+    return explainer
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.load_image_as_tensor")
+@patch("xwhy.explainers.image.tensor_to_numpy_image")
+def test_image_classification_explain_filters_non_finite_distances(
+    mock_tensor_to_np: MagicMock,
+    mock_load: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Filter non-finite distances and train only on valid rows.
+
+    When at least one distance is finite, failed perturbations are dropped
+    from the training matrix before surrogate fitting.
+    """
+    distances = np.array([0.5, np.inf, 1.5])
+    predictions = np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]])
+    explainer = _make_classification_distance_explainer(
+        num_perturb=3,
+        distances=distances,
+        predictions=predictions,
+    )
+
     mock_load.return_value = (torch.zeros(1, 3, 8, 8), MagicMock())
     mock_tensor_to_np.return_value = np.zeros((8, 8, 3))
-
-    # All non-finite
-    explainer._run_perturbation_loop = MagicMock(
-        return_value=(
-            np.array([[0.2, 0.8], [0.3, 0.7]]),
-            np.array([np.inf, np.nan]),
-        )
-    )
 
     mock_trainer.compute_weights.return_value = np.ones(2)
     mock_surrogate = MagicMock()
@@ -1166,9 +1191,127 @@ def test_image_classification_explain_impute_when_all_distances_non_finite(
 
     result = ImageClassificationExplainer.explain(explainer, instance="dummy.png")
 
-    distances = result.raw_data["distances"]
-    assert distances[0] == pytest.approx(1000.0)
-    assert distances[1] == pytest.approx(1000.0)
+    # Original distances kept in raw_data; filtered y has only valid rows
+    assert len(result.raw_data["distances"]) == 3
+    y_valid = result.raw_data["y_target"]
+    assert len(y_valid) == 2
+    # class_to_explain is index 1 (higher logit 0.9)
+    assert y_valid[0] == pytest.approx(0.8)
+    assert y_valid[1] == pytest.approx(0.6)
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.load_image_as_tensor")
+@patch("xwhy.explainers.image.tensor_to_numpy_image")
+def test_image_classification_explain_raises_when_all_distances_non_finite(
+    mock_tensor_to_np: MagicMock,
+    mock_load: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Raise ValueError when every perturbation distance is non-finite."""
+    distances = np.array([np.inf, np.nan])
+    predictions = np.array([[0.2, 0.8], [0.3, 0.7]])
+    explainer = _make_classification_distance_explainer(
+        num_perturb=2,
+        distances=distances,
+        predictions=predictions,
+    )
+
+    mock_load.return_value = (torch.zeros(1, 3, 8, 8), MagicMock())
+    mock_tensor_to_np.return_value = np.zeros((8, 8, 3))
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape("All perturbations failed (0 valid distances)"),
+    ):
+        ImageClassificationExplainer.explain(explainer, instance="dummy.png")
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.load_image_as_tensor")
+@patch("xwhy.explainers.image.tensor_to_numpy_image")
+@patch("xwhy.explainers.image.logger")
+def test_image_classification_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_tensor_to_np: MagicMock,
+    mock_load: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Log a warning when valid_ratio is below ``min_valid_ratio``."""
+    # 1 valid out of 3 -> ratio ~0.33 < 0.5
+    distances = np.array([0.5, np.inf, np.nan])
+    predictions = np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]])
+    explainer = _make_classification_distance_explainer(
+        num_perturb=3,
+        distances=distances,
+        predictions=predictions,
+    )
+    explainer.config.min_valid_ratio = 0.5
+
+    mock_load.return_value = (torch.zeros(1, 3, 8, 8), MagicMock())
+    mock_tensor_to_np.return_value = np.zeros((8, 8, 3))
+
+    mock_trainer.compute_weights.return_value = np.ones(1)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2, 0.3, 0.4])
+    mock_surrogate.predict.return_value = np.array([0.5])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = ImageClassificationExplainer.explain(explainer, instance="dummy.png")
+    assert result is not None
+    assert len(result.raw_data["y_target"]) == 1
+
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.load_image_as_tensor")
+@patch("xwhy.explainers.image.tensor_to_numpy_image")
+def test_image_classification_explain_includes_p_values(
+    mock_tensor_to_np: MagicMock,
+    mock_load: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Store filtered p-values in raw_data when return_p_value is enabled."""
+    distances = np.array([0.5, 1.0, 1.5])
+    predictions = np.array([[0.2, 0.8], [0.3, 0.7], [0.4, 0.6]])
+    p_values = [0.01, 0.02, 0.03]
+    explainer = _make_classification_distance_explainer(
+        num_perturb=3,
+        distances=distances,
+        predictions=predictions,
+    )
+    explainer.config.return_p_value = True
+    explainer._run_perturbation_loop = MagicMock(
+        return_value=(predictions, distances, p_values)
+    )
+
+    mock_load.return_value = (torch.zeros(1, 3, 8, 8), MagicMock())
+    mock_tensor_to_np.return_value = np.zeros((8, 8, 3))
+    mock_trainer.compute_weights.return_value = np.ones(3)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2, 0.3, 0.4])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = ImageClassificationExplainer.explain(explainer, instance="dummy.png")
+    assert "p_values" in result.raw_data
+    assert list(result.raw_data["p_values"]) == pytest.approx([0.01, 0.02, 0.03])
 
 
 # -------------------------------------------------------------------------
@@ -1305,9 +1448,9 @@ def mock_dependencies() -> Any:  # noqa: ANN401
 
 
 def test_init_invalid_distance() -> None:
-    """Test ValueError raised on non-numeric distance metric."""
-    with pytest.raises(ValueError, match=re.escape("is not a valid DistanceType")):
-        ImageGenerationAndEditingExplainer(distance_type="BLEU")
+    """Raise validation error for an unknown image/text distance metric."""
+    with pytest.raises((ValueError, ValidationError)):
+        ImageGenerationAndEditingExplainer(image_distance_type="BLEU")
 
 
 @patch("torch.cuda.is_available", return_value=True)
@@ -1325,10 +1468,28 @@ def test_init_device_resolution_cpu(
     mock_cuda: Mock,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Test device defaults to cpu when config is None and cuda missing."""
-    explainer = ImageGenerationAndEditingExplainer(device=None)  # type: ignore[arg-type]
+    """Test device defaults to cpu when config is None and cuda missing.
+
+    Also covers the False branch of ``hasattr(embedder.model, "fill_norms")``
+    (line 1031→1034) by giving the text embedder a plain object model.
+    """
+
+    class _ModelNoNorms:
+        """Stub model without fill_norms."""
+
+    mock_embedder = MagicMock()
+    mock_embedder.model = _ModelNoNorms()
+
+    with patch(
+        "xwhy.explainers.image.EmbeddingFactory.create",
+        return_value=mock_embedder,
+    ):
+        explainer = ImageGenerationAndEditingExplainer(
+            device=None,  # type: ignore[arg-type]
+        )
     assert str(explainer.state.device) == "cpu"
     assert explainer.config.device == "cpu"  # type: ignore[union-attr]
+    assert explainer.state.text_embedding_model is mock_embedder
 
 
 def test_init_pipeline_resolution(mock_dependencies: Any) -> None:  # noqa: ANN401
@@ -1513,16 +1674,20 @@ def test_generate_images(mock_dependencies: Any) -> None:  # noqa: ANN401
 # --- DISTANCES TESTS ---
 
 
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.load_image_as_tensor")
 @patch("matplotlib.pyplot.show")
 def test_compute_distances(
     mock_show: Mock,
     mock_load: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
     """Test computation branches including invalid images and embeddings."""
     mock_load.return_value = (None, np.array([1, 2, 3]))
+    # Return (p_value, distance) so display_image debug path can bind `dist`
+    mock_calc_dist.return_value = (0.01, 0.5)
 
     exp = ImageGenerationAndEditingExplainer(use_image_embedding_model=True)
     exp.state.image_embedding_model = MagicMock()
@@ -1534,7 +1699,7 @@ def test_compute_distances(
     img.save(p1)
 
     # Normal success
-    res = exp._compute_perturbation_distances(
+    res, _p_vals = exp._compute_perturbation_distances(
         input_image_path=str(p1),
         generated_images=[(True, str(p1))],
         prompts=["text"],
@@ -1544,7 +1709,7 @@ def test_compute_distances(
     assert len(res) == 1
 
     # False success flag
-    res_skip = exp._compute_perturbation_distances(
+    res_skip, _p_vals_skip = exp._compute_perturbation_distances(
         input_image_path=str(p1),
         generated_images=[(False, str(p1)), (True, "not_exist.png")],
         prompts=["text", "text2"],
@@ -1572,9 +1737,7 @@ def test_compute_distances(
 
 
 # --- EXPLAIN TESTS ---
-
-
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -1586,7 +1749,7 @@ def test_explain_logic(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -1618,10 +1781,11 @@ def test_explain_logic(
     exp.state.text_perturbator.generate.return_value = (["pt"], [[1]])
 
     exp._generate_images = MagicMock(return_value=[(True, str(p1))])  # type: ignore[method-assign]
-    exp._compute_perturbation_distances = MagicMock(return_value=np.array([1.0]))  # type: ignore[method-assign]
+    exp._compute_perturbation_distances = MagicMock(return_value=(np.array([1.0]), []))  # type: ignore[method-assign]
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
 
     mock_surg_train.find_best.return_value = (SurrogateType.LIME, 0.9)
     mock_surg_train.compute_weights.return_value = np.array([1.0])
@@ -1652,7 +1816,7 @@ def test_explain_logic(
         exp_fail.explain(instance="valid long text description")
 
 
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -1664,7 +1828,7 @@ def test_image_generation_and_editing_explain_fidelity_plot_true(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -1679,10 +1843,11 @@ def test_image_generation_and_editing_explain_fidelity_plot_true(
     exp.state.text_perturbator.generate.return_value = (["pt"], [[1]])
 
     exp._generate_images = MagicMock(return_value=[(True, str(p1))])  # type: ignore[method-assign]
-    exp._compute_perturbation_distances = MagicMock(return_value=np.array([1.0]))  # type: ignore[method-assign]
+    exp._compute_perturbation_distances = MagicMock(return_value=(np.array([1.0]), []))  # type: ignore[method-assign]
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
 
     mock_surg_train.find_best.return_value = (SurrogateType.LIME, 0.9)
     mock_surg_train.compute_weights.return_value = np.array([1.0])
@@ -1717,20 +1882,9 @@ def test_image_generation_and_editing_explain_fidelity_plot_true(
 def test_init_invalid_distance_non_numeric(
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Raise ValueError when distance is valid type but non-numeric."""
-    mock_metric = MagicMock()
-    mock_metric.is_numeric_metric = False
-    with (
-        patch(
-            "xwhy.explainers.image.DistanceType.from_str",
-            return_value=mock_metric,
-        ),
-        pytest.raises(
-            ValueError,
-            match=re.escape("Invalid distance metric"),
-        ),
-    ):
-        ImageGenerationAndEditingExplainer(distance_type="something")
+    """Raise validation error for an unrecognized distance metric string."""
+    with pytest.raises((ValueError, ValidationError)):
+        ImageGenerationAndEditingExplainer(image_distance_type="not_a_metric")
 
 
 @patch("torch.cuda.is_available", return_value=True)
@@ -1891,6 +2045,7 @@ def test_get_provider_kwargs_openai_edit(
     assert "response_format" not in kw or kw.get("response_format") is None
 
 
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.load_image_as_tensor")
 @patch("matplotlib.pyplot.show")
 @patch("matplotlib.pyplot.imshow")
@@ -1904,18 +2059,21 @@ def test_compute_distances_display_image(
     mock_imshow: Mock,
     mock_show: Mock,
     mock_load: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
     """Render display when display_image=True in distance computation."""
     mock_load.return_value = (None, np.array([1.0, 2.0, 3.0]))
+    # Return (p_value, distance) so display_image debug path can bind `dist`
+    mock_calc_dist.return_value = (0.01, 0.5)
 
     exp = ImageGenerationAndEditingExplainer(use_image_embedding_model=False)
     p1 = tmp_path / "disp.png"
     img = Image.new("RGB", (10, 10), color="green")
     img.save(p1)
 
-    res = exp._compute_perturbation_distances(
+    res, _p_vals = exp._compute_perturbation_distances(
         input_image_path=str(p1),
         generated_images=[(True, str(p1))],
         prompts=["prompt text"],
@@ -1990,7 +2148,7 @@ def test_generate_images_progress_logging(
     assert len(paths) == 6
 
 
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -2002,7 +2160,7 @@ def test_explain_use_best_surrogate_false(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -2016,11 +2174,12 @@ def test_explain_use_best_surrogate_false(
     exp.state.text_perturbator.generate.return_value = (["pt"], [[1]])
     exp._generate_images = MagicMock(return_value=[(True, str(p1))])  # type: ignore[method-assign]
     exp._compute_perturbation_distances = MagicMock(  # type: ignore[method-assign]
-        return_value=np.array([1.0])
+        return_value=(np.array([1.0]), [])
     )
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
 
     mock_surg_train.compute_weights.return_value = np.array([1.0])
     surg_mock = mock_surg_fac.create.return_value
@@ -2043,7 +2202,7 @@ def test_explain_use_best_surrogate_false(
     mock_surg_train.find_best.assert_not_called()
 
 
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -2055,7 +2214,7 @@ def test_explain_num_perturbations_warning(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -2072,11 +2231,12 @@ def test_explain_num_perturbations_warning(
     exp.state.text_perturbator.generate.return_value = (["pt"], [[1]])
     exp._generate_images = MagicMock(return_value=[(True, str(p1))])  # type: ignore[method-assign]
     exp._compute_perturbation_distances = MagicMock(  # type: ignore[method-assign]
-        return_value=np.array([1.0])
+        return_value=(np.array([1.0]), [])
     )
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
 
     mock_surg_train.compute_weights.return_value = np.array([1.0])
     surg_mock = mock_surg_fac.create.return_value
@@ -2095,7 +2255,7 @@ def test_explain_num_perturbations_warning(
         assert mock_logger.warning.called
 
 
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -2107,7 +2267,7 @@ def test_explain_seed_update_perturbator(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -2120,11 +2280,12 @@ def test_explain_seed_update_perturbator(
     exp.state.text_perturbator.generate.return_value = (["pt"], [[1]])
     exp._generate_images = MagicMock(return_value=[(True, str(p1))])  # type: ignore[method-assign]
     exp._compute_perturbation_distances = MagicMock(  # type: ignore[method-assign]
-        return_value=np.array([1.0])
+        return_value=(np.array([1.0]), [])
     )
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
     mock_surg_train.find_best.return_value = (SurrogateType.LIME, 0.9)
     mock_surg_train.compute_weights.return_value = np.array([1.0])
     surg_mock = mock_surg_fac.create.return_value
@@ -2327,7 +2488,7 @@ def test_compute_distances_empty_input_path_skips_edit_action(
     assert exp._action == "generate"
 
 
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
@@ -2339,7 +2500,7 @@ def test_explain_seed_equals_config_skips_set_seed(
     mock_reg: Mock,
     mock_surg_fac: Mock,
     mock_surg_train: Mock,
-    mock_wmd: Mock,
+    mock_calc_dist: Mock,
     tmp_path: Path,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
@@ -2354,11 +2515,12 @@ def test_explain_seed_equals_config_skips_set_seed(
         return_value=[(True, str(p1))]
     )
     exp._compute_perturbation_distances = MagicMock(  # type: ignore[method-assign]
-        return_value=np.array([1.0])
+        return_value=(np.array([1.0]), [])
     )
 
-    wmd_inst = mock_wmd.return_value
-    wmd_inst.compute_batch.return_value = [("t", 1.0)]
+    exp.state.text_embedding_model = MagicMock()
+    exp.state.text_embedding_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_calc_dist.return_value = 0.5
     mock_surg_train.find_best.return_value = (SurrogateType.LIME, 0.9)
     mock_surg_train.compute_weights.return_value = np.array([1.0])
     surg_mock = mock_surg_fac.create.return_value
@@ -2430,61 +2592,231 @@ def test_generate_images_no_segmentation_model(
     assert all(success for success, _ in res)
 
 
-@patch("xwhy.explainers.image.SurrogateTrainer")
-@patch("xwhy.explainers.image.SurrogateFactory")
-@patch("xwhy.explainers.image.RegressionMetrics")
-@patch("xwhy.explainers.image.WMDDistance")
-@patch("xwhy.explainers.image.DistanceNormalizer")
-@patch("xwhy.explainers.image.save_data_to_pickle")
-@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
-def test_image_generation_explain_impute_when_some_distances_valid(
-    mock_csv: MagicMock,
-    mock_pickle: MagicMock,
-    mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
-    mock_metrics: MagicMock,
-    mock_factory: MagicMock,
-    mock_trainer: MagicMock,
-) -> None:
-    """Cover the branch where at least one image distance is finite."""
+def _make_generation_distance_explainer(
+    *,
+    num_perturbations: int,
+    distances: np.ndarray,
+    masks: list[list[int]],
+    prompts: list[str],
+) -> MagicMock:
+    """Build a minimal generation explainer mock for distance-validation tests.
+
+    Args:
+        num_perturbations: Number of text perturbations.
+        distances: Image-distance vector from ``_compute_perturbation_distances``.
+        masks: Binary feature masks for each perturbation.
+        prompts: Perturbed prompt strings.
+
+    Returns:
+        MagicMock: Fully wired explainer ready for ``explain``.
+
+    """
     explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
     explainer.config = MagicMock()
     explainer.config.use_best_surrogate = False
     explainer.config.surrogate_type = SurrogateType.LIME
     explainer.config.seed = 42
-    explainer.config.num_perturbations = 3
+    explainer.config.num_perturbations = num_perturbations
     explainer.config.model_name = "test-model"
     explainer.config.output_dir = "/tmp"
-    explainer.config.distance_type = MagicMock()
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.text_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.distance_type = DistanceType.WASSERSTEIN
     explainer.config.kernel_width = 0.25
     explainer.config.ridge_alpha = 1.0
+    explainer.config.epsilon = 0.0
+    explainer.config.min_valid_ratio = 0.5
+    explainer.config.normalization_method = "linear"
+    explainer.config.max_retries = 7
+    explainer.config.delay = None
+    explainer.config.return_p_value = False
 
     explainer.state = MagicMock()
     explainer.state.text_perturbator = MagicMock()
-    explainer.state.text_perturbator.generate.return_value = (
-        ["p1", "p2", "p3"],
-        [[1, 0], [0, 1], [1, 1]],
-    )
-    explainer.state.text_embedding_model = MagicMock()
+    explainer.state.text_perturbator.generate.return_value = (prompts, masks)
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2, 0.3])
+    explainer.state.text_embedding_model = embed
     explainer.state.engine = MagicMock()
 
     explainer._prepare_environment = MagicMock()
-    explainer._generate_images = MagicMock(
-        side_effect=[
-            [(True, "/tmp/base.png")],  # base
-            [(True, "/tmp/1.png"), (True, "/tmp/2.png"), (True, "/tmp/3.png")],
-        ]
-    )
-    # Two finite + one inf
-    explainer._compute_perturbation_distances = MagicMock(
-        return_value=np.array([0.5, np.inf, 1.5])
+    base_paths = [(True, "/tmp/base.png")]
+    pert_paths = [(True, f"/tmp/{i}.png") for i in range(num_perturbations)]
+    explainer._generate_images = MagicMock(side_effect=[base_paths, pert_paths])
+    explainer._compute_perturbation_distances = MagicMock(return_value=(distances, []))
+    return explainer
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+def test_image_generation_explain_filters_non_finite_distances(
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Filter non-finite image distances and train only on valid rows."""
+    distances = np.array([0.5, np.inf, 1.5])
+    prompts = ["p1", "p2", "p3"]
+    masks = [[1, 0], [0, 1], [1, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=3,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
     )
 
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("p1", 0.1),
-        ("p2", 0.2),
-        ("p3", 0.3),
-    ]
+    mock_calc_dist.return_value = 0.2
+    mock_normalizer.min_max.return_value = [("v", 0.5)] * 3
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+    mock_csv.return_value = "/tmp/out.csv"
+
+    result = ImageGenerationAndEditingExplainer.explain(
+        explainer, instance="a short descriptive prompt here"
+    )
+
+    y_target = result.raw_data["y_target"]
+    assert len(y_target) == 2
+    assert y_target[0] == pytest.approx(0.5)
+    assert y_target[1] == pytest.approx(1.5)
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+def test_image_generation_explain_raises_when_all_distances_non_finite(
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Raise ValueError when every image distance is non-finite."""
+    distances = np.array([np.inf, np.inf])
+    prompts = ["p1", "p2"]
+    masks = [[1, 0], [0, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=2,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
+    )
+
+    mock_calc_dist.return_value = 0.2
+    mock_normalizer.min_max.return_value = [("v", 0.5)] * 2
+    mock_csv.return_value = "/tmp/out.csv"
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape("All perturbations failed (0 valid images)"),
+    ):
+        ImageGenerationAndEditingExplainer.explain(
+            explainer, instance="a short descriptive prompt here"
+        )
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+@patch("xwhy.explainers.image.logger")
+def test_image_generation_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Log a warning when valid image-distance ratio is below threshold."""
+    distances = np.array([0.5, np.inf, np.nan])
+    prompts = ["p1", "p2", "p3"]
+    masks = [[1, 0], [0, 1], [1, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=3,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
+    )
+    explainer.config.min_valid_ratio = 0.5
+
+    mock_calc_dist.return_value = 0.2
+    mock_normalizer.min_max.return_value = [("v", 0.5)] * 3
+    mock_trainer.compute_weights.return_value = np.ones(1)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+    mock_csv.return_value = "/tmp/out.csv"
+
+    result = ImageGenerationAndEditingExplainer.explain(
+        explainer, instance="a short descriptive prompt here"
+    )
+    assert result is not None
+    assert len(result.raw_data["y_target"]) == 1
+
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+def test_image_generation_explain_includes_p_values(
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Store filtered image and text p-values when return_p_value is enabled."""
+    distances = np.array([0.5, 1.0, 1.5])
+    prompts = ["p1", "p2", "p3"]
+    masks = [[1, 0], [0, 1], [1, 1]]
+    image_p_values = [0.01, 0.02, 0.03]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=3,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
+    )
+    explainer.config.return_p_value = True
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(distances, image_p_values)
+    )
+
+    mock_calc_dist.return_value = (0.04, 0.2)
     mock_normalizer.min_max.return_value = [("v", 0.5)] * 3
     mock_trainer.compute_weights.return_value = np.ones(3)
     mock_surrogate = MagicMock()
@@ -2497,71 +2829,143 @@ def test_image_generation_explain_impute_when_some_distances_valid(
     result = ImageGenerationAndEditingExplainer.explain(
         explainer, instance="a short descriptive prompt here"
     )
-
-    y_target = result.raw_data["y_target"]
-    assert y_target[0] == pytest.approx(0.5)
-    assert y_target[1] == pytest.approx(1001.5)
-    assert y_target[2] == pytest.approx(1.5)
+    assert "image_p_values" in result.raw_data
+    assert list(result.raw_data["image_p_values"]) == pytest.approx([0.01, 0.02, 0.03])
+    assert "text_p_values" in result.raw_data
+    assert list(result.raw_data["text_p_values"]) == pytest.approx([0.04, 0.04, 0.04])
 
 
 @patch("xwhy.explainers.image.SurrogateTrainer")
 @patch("xwhy.explainers.image.SurrogateFactory")
 @patch("xwhy.explainers.image.RegressionMetrics")
-@patch("xwhy.explainers.image.WMDDistance")
+@patch("xwhy.explainers.image.calculate_distance")
 @patch("xwhy.explainers.image.DistanceNormalizer")
 @patch("xwhy.explainers.image.save_data_to_pickle")
 @patch("xwhy.explainers.image.save_perturbation_data_to_csv")
-def test_image_generation_explain_impute_when_all_distances_non_finite(
+def test_image_generation_explain_empty_text_embedding_fallback(
     mock_csv: MagicMock,
     mock_pickle: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Cover the branch where every image distance is non-finite."""
-    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
-    explainer.config = MagicMock()
-    explainer.config.use_best_surrogate = False
-    explainer.config.surrogate_type = SurrogateType.LIME
-    explainer.config.seed = 42
-    explainer.config.num_perturbations = 2
-    explainer.config.model_name = "test-model"
-    explainer.config.output_dir = "/tmp"
-    explainer.config.distance_type = MagicMock()
-    explainer.config.kernel_width = 0.25
-    explainer.config.ridge_alpha = 1.0
-
-    explainer.state = MagicMock()
-    explainer.state.text_perturbator = MagicMock()
-    explainer.state.text_perturbator.generate.return_value = (
-        ["p1", "p2"],
-        [[1, 0], [0, 1]],
+    """Use distance 1.0 when text embeddings are empty arrays."""
+    distances = np.array([0.5, 0.6])
+    prompts = ["p1", "p2"]
+    masks = [[1, 0], [0, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=2,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
     )
-    explainer.state.text_embedding_model = MagicMock()
-    explainer.state.engine = MagicMock()
+    # Empty embeddings trigger the size==0 fallback branch
+    explainer.state.text_embedding_model.encode.return_value = np.array([])
 
-    explainer._prepare_environment = MagicMock()
-    explainer._generate_images = MagicMock(
-        side_effect=[
-            [(True, "/tmp/base.png")],
-            [(True, "/tmp/1.png"), (True, "/tmp/2.png")],
-        ]
-    )
-    explainer._compute_perturbation_distances = MagicMock(
-        return_value=np.array([np.inf, np.inf])
-    )
-
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("p1", 0.1),
-        ("p2", 0.2),
-    ]
+    mock_calc_dist.return_value = 0.2  # should not be needed for empty embeds
     mock_normalizer.min_max.return_value = [("v", 0.5)] * 2
     mock_trainer.compute_weights.return_value = np.ones(2)
     mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.1])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+    mock_csv.return_value = "/tmp/out.csv"
+
+    result = ImageGenerationAndEditingExplainer.explain(
+        explainer, instance="a short descriptive prompt here"
+    )
+    assert result is not None
+    # text distances should be 1.0 fallback
+    text_dists = [d for _, d in result.raw_data["text_distances"]]
+    assert text_dists == pytest.approx([1.0, 1.0])
+
+
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.load_image_as_tensor")
+def test_compute_distances_failed_entries_append_nan_p_values(
+    mock_load: Mock,
+    mock_calc_dist: Mock,
+    tmp_path: Path,
+    mock_dependencies: Any,  # noqa: ANN401
+) -> None:
+    """Append NaN p-values for failed success flags and missing image paths."""
+    mock_load.return_value = (None, np.array([1.0, 2.0, 3.0]))
+    mock_calc_dist.return_value = (0.05, 0.5)
+
+    exp = ImageGenerationAndEditingExplainer(
+        use_image_embedding_model=False,
+        return_p_value=True,
+        n_bootstrap=10,
+    )
+    p1 = tmp_path / "ok.png"
+    Image.new("RGB", (8, 8), color="blue").save(p1)
+
+    distances, p_values = exp._compute_perturbation_distances(
+        input_image_path=str(p1),
+        generated_images=[
+            (False, str(p1)),
+            (True, "not_exist_path.png"),
+            (True, str(p1)),
+        ],
+        prompts=["a", "b", "c"],
+        display_image=False,
+        output_dir=str(tmp_path),
+    )
+
+    assert len(distances) == 3
+    assert np.isinf(distances[0])
+    assert np.isinf(distances[1])
+    assert distances[2] == pytest.approx(0.5)
+    assert len(p_values) == 3
+    assert np.isnan(p_values[0])
+    assert np.isnan(p_values[1])
+    assert p_values[2] == pytest.approx(0.05)
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+def test_image_generation_empty_text_embedding_with_p_values(
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Append NaN text p-values when embeddings are empty and return_p_value.
+
+    Covers the ``if return_p_val`` body inside the empty-embedding branch
+    (line ~1510).
+    """
+    distances = np.array([0.5, 0.6])
+    prompts = ["p1", "p2"]
+    masks = [[1, 0], [0, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=2,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
+    )
+    explainer.config.return_p_value = True
+    explainer.state.text_embedding_model.encode.return_value = np.array([])
+    # Empty image p_values list covers 1668->1671 (skip image_p_values store)
+    explainer._compute_perturbation_distances = MagicMock(return_value=(distances, []))
+
+    mock_calc_dist.return_value = 0.2
+    mock_normalizer.min_max.return_value = [("v", 0.5)] * 2
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
     mock_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
     mock_csv.return_value = "/tmp/out.csv"
@@ -2570,6 +2974,333 @@ def test_image_generation_explain_impute_when_all_distances_non_finite(
         explainer, instance="a short descriptive prompt here"
     )
 
-    y_target = result.raw_data["y_target"]
-    assert y_target[0] == pytest.approx(1000.0)
-    assert y_target[1] == pytest.approx(1000.0)
+    assert "image_p_values" not in result.raw_data
+    assert "text_p_values" in result.raw_data
+    assert len(result.raw_data["text_p_values"]) == 2
+    assert np.all(np.isnan(result.raw_data["text_p_values"]))
+    text_dists = [d for _, d in result.raw_data["text_distances"]]
+    assert text_dists == pytest.approx([1.0, 1.0])
+
+
+@patch("xwhy.explainers.image.SurrogateTrainer")
+@patch("xwhy.explainers.image.SurrogateFactory")
+@patch("xwhy.explainers.image.RegressionMetrics")
+@patch("xwhy.explainers.image.calculate_distance")
+@patch("xwhy.explainers.image.DistanceNormalizer")
+@patch("xwhy.explainers.image.save_data_to_pickle")
+@patch("xwhy.explainers.image.save_perturbation_data_to_csv")
+def test_image_generation_return_p_value_without_text_p_values(
+    mock_csv: MagicMock,
+    mock_pickle: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Skip storing text_p_values when distances are scalars (non-tuple).
+
+    Covers branch 1671->1675: return_p_val is True but text_p_values is empty
+    because calculate_distance returns a plain float.
+    """
+    distances = np.array([0.5, 0.6])
+    prompts = ["p1", "p2"]
+    masks = [[1, 0], [0, 1]]
+    explainer = _make_generation_distance_explainer(
+        num_perturbations=2,
+        distances=distances,
+        masks=masks,
+        prompts=prompts,
+    )
+    explainer.config.return_p_value = True
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(distances, [0.01, 0.02])
+    )
+
+    # Scalar return => text_p_values stays empty
+    mock_calc_dist.return_value = 0.25
+    mock_normalizer.min_max.return_value = [("v", 0.5)] * 2
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+    mock_csv.return_value = "/tmp/out.csv"
+
+    result = ImageGenerationAndEditingExplainer.explain(
+        explainer, instance="a short descriptive prompt here"
+    )
+
+    assert "image_p_values" in result.raw_data
+    assert "text_p_values" not in result.raw_data
+
+
+@patch("xwhy.explainers.image.DistanceType.from_str")
+def test_init_non_numeric_distance_metric(mock_from_str: MagicMock) -> None:
+    """Raise ValueError when distance metric is not numeric (line 148)."""
+    mock_dist = MagicMock()
+    mock_dist.is_numeric_metric = False
+    mock_from_str.return_value = mock_dist
+
+    with pytest.raises(ValueError, match="Must be a numeric distance"):
+        ImageClassificationExplainer(
+            distance_type="mock_non_numeric",
+            use_embedding_model=False,
+            use_segmentation_model=False,
+        )
+
+
+@patch("xwhy.explainers.image.DistanceType.from_str")
+def test_generation_init_non_numeric_image_distance(
+    mock_from_str: MagicMock,
+) -> None:
+    """Raise ValueError for non-numeric image distance (line 779)."""
+    mock_dist = MagicMock()
+    mock_dist.is_numeric_metric = False
+    mock_from_str.return_value = mock_dist
+
+    with pytest.raises(ValueError, match="Must be a numeric distance"):
+        ImageGenerationAndEditingExplainer(
+            image_distance_type="mock_non_numeric",
+        )
+
+
+@patch("xwhy.explainers.image.load_image_as_tensor")
+def test_compute_distances_embedding_model_none_original(
+    mock_load: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Raise when image embedding is enabled but model is None (line 1284)."""
+    mock_load.return_value = (None, np.zeros((8, 8, 3)))
+
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.use_image_embedding_model = True
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+    explainer.config.n_bootstrap = 10
+    explainer.state = MagicMock()
+    explainer.state.image_embedding_model = None
+    explainer._action = "generate"
+
+    p1 = tmp_path / "img.png"
+    Image.new("RGB", (8, 8), color="red").save(p1)
+
+    msg = "Image embedding model is not initialized"
+    with pytest.raises(ValueError, match=msg):
+        ImageGenerationAndEditingExplainer._compute_perturbation_distances(
+            explainer,
+            input_image_path=str(p1),
+            generated_images=[(True, str(p1))],
+            prompts=["prompt"],
+            display_image=False,
+            output_dir=str(tmp_path),
+        )
+
+
+@patch("xwhy.explainers.image.load_image_as_tensor")
+def test_compute_distances_embedding_model_none_current(
+    mock_load: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Raise when embedding model is None for current image (line 1317)."""
+    mock_load.return_value = (None, np.zeros((8, 8, 3)))
+
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.use_image_embedding_model = True
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+    explainer.config.n_bootstrap = 10
+    explainer.state = MagicMock()
+    explainer._action = "generate"
+
+    mock_embed = MagicMock()
+
+    def _encode_then_clear(img: object) -> np.ndarray:
+        explainer.state.image_embedding_model = None
+        return np.array([0.1, 0.2, 0.3])
+
+    mock_embed.encode_image.side_effect = _encode_then_clear
+    explainer.state.image_embedding_model = mock_embed
+
+    p1 = tmp_path / "img.png"
+    Image.new("RGB", (8, 8), color="green").save(p1)
+
+    msg = "Image embedding model is not initialized"
+    with pytest.raises(ValueError, match=msg):
+        ImageGenerationAndEditingExplainer._compute_perturbation_distances(
+            explainer,
+            input_image_path=str(p1),
+            generated_images=[(True, str(p1))],
+            prompts=["prompt"],
+            display_image=False,
+            output_dir=str(tmp_path),
+        )
+
+
+def test_explain_normalization_mode_kwarg() -> None:
+    """Accept legacy normalization_mode kwarg (line 1429)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.config.num_perturbations = 4
+    explainer.config.model_name = "test"
+    explainer.config.use_best_surrogate = False
+    explainer.config.surrogate_type = SurrogateType.LIME
+    explainer.config.epsilon = 0.0
+    explainer.config.kernel_width = 0.25
+    explainer.config.ridge_alpha = 1.0
+    explainer.config.min_valid_ratio = 0.5
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.text_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = MagicMock()
+    explainer.state.text_perturbator.generate.return_value = (
+        ["p1", "p2"],
+        [[1], [0]],
+    )
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2])
+    explainer.state.text_embedding_model = embed
+    explainer._prepare_environment = MagicMock()
+    explainer._generate_images = MagicMock(
+        side_effect=[
+            [(True, "/tmp/base.png")],
+            [(True, "/tmp/1.png"), (True, "/tmp/2.png")],
+        ]
+    )
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(np.array([0.5, 0.6]), [])
+    )
+
+    with (
+        patch("xwhy.explainers.image.calculate_distance", return_value=0.2),
+        patch(
+            "xwhy.explainers.image.DistanceNormalizer.min_max",
+            return_value=[("v", 0.5)] * 2,
+        ),
+        patch("xwhy.explainers.image.SurrogateTrainer") as mock_trainer,
+        patch("xwhy.explainers.image.SurrogateFactory") as mock_factory,
+        patch("xwhy.explainers.image.RegressionMetrics") as mock_metrics,
+        patch("xwhy.explainers.image.save_data_to_pickle"),
+        patch(
+            "xwhy.explainers.image.save_perturbation_data_to_csv",
+            return_value="/tmp/out.csv",
+        ),
+    ):
+        mock_trainer.compute_weights.return_value = np.ones(2)
+        mock_s = MagicMock()
+        mock_s.coefficients.return_value = np.array([0.1])
+        mock_s.predict.return_value = np.array([0.5, 0.6])
+        mock_factory.create.return_value = mock_s
+        mock_metrics.calculate.return_value = MagicMock()
+
+        result = ImageGenerationAndEditingExplainer.explain(
+            explainer,
+            instance="a short descriptive prompt here",
+            normalization_mode="inverse",
+        )
+    assert result is not None
+
+
+def test_explain_text_perturbator_none() -> None:
+    """Raise RuntimeError when text perturbator is None (line 1437)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = None
+    explainer._prepare_environment = MagicMock()
+
+    msg = "Text perturbator is not initialized"
+    with pytest.raises(RuntimeError, match=msg):
+        ImageGenerationAndEditingExplainer.explain(
+            explainer, instance="a valid descriptive prompt"
+        )
+
+
+def test_explain_text_embedding_model_none() -> None:
+    """Raise RuntimeError when text embedding model is None (line 1532)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.config.num_perturbations = 4
+    explainer.config.model_name = "test"
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.text_distance_type = DistanceType.WASSERSTEIN
+
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = MagicMock()
+    explainer.state.text_perturbator.generate.return_value = (
+        ["p1", "p2"],
+        [[1], [0]],
+    )
+    explainer.state.text_embedding_model = None
+    explainer._prepare_environment = MagicMock()
+    explainer._generate_images = MagicMock(
+        side_effect=[
+            [(True, "/tmp/base.png")],
+            [(True, "/tmp/1.png"), (True, "/tmp/2.png")],
+        ]
+    )
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(np.array([0.5, 0.6]), [])
+    )
+
+    msg = "Text embedding model is not initialized"
+    with pytest.raises(RuntimeError, match=msg):
+        ImageGenerationAndEditingExplainer.explain(
+            explainer, instance="a short descriptive prompt here"
+        )
+
+
+@patch("xwhy.explainers.image.SegmentationFactory")
+@patch("xwhy.explainers.image.TextPerturbation")
+@patch("xwhy.explainers.image.EmbeddingFactory")
+def test_generation_init_fill_norms_true_branch(
+    mock_embed_factory: MagicMock,
+    mock_text_pert: MagicMock,
+    mock_seg_factory: MagicMock,
+) -> None:
+    """Call fill_norms during real _initialize when model supports it.
+
+    Covers the True branch of ``hasattr(embedder.model, "fill_norms")``
+    at lines 1031-1032.
+    """
+
+    class _ModelWithNorms:
+        """Stub model that exposes fill_norms."""
+
+        def __init__(self) -> None:
+            self.fill_norms = MagicMock()
+
+    mock_embedder = MagicMock()
+    model = _ModelWithNorms()
+    mock_embedder.model = model
+    mock_embed_factory.create.return_value = mock_embedder
+
+    exp = ImageGenerationAndEditingExplainer(
+        engine=DummyEngine(),
+        use_image_embedding_model=False,
+        use_segmentation_model=False,
+        text_embedding_type=EmbeddingType.WORD2VEC,
+    )
+
+    model.fill_norms.assert_called_with(force=True)
+    assert exp.state.text_embedding_model is mock_embedder

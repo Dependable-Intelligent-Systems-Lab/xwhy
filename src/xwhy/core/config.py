@@ -24,6 +24,7 @@ class ExplainerConfig(BaseModel):
     ridge_alpha: float = Field(default=1.0, ge=0.0)
 
     num_perturbations: int = Field(default=50, gt=0)
+    min_valid_ratio: float = Field(default=0.5, gt=0.0, le=1.0)
     surrogate_type: SurrogateType | str = SurrogateType.LIME
     use_best_surrogate: bool = True
 
@@ -46,7 +47,10 @@ class LLMConfig(ExplainerConfig):
     delay: float | None = Field(default=None, ge=0.0)
     normalization_method: Literal["linear", "inverse"] = "linear"
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    sanitize_distances: bool = False
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class ImageClassificationConfig(ExplainerConfig):
@@ -88,6 +92,9 @@ class ImageClassificationConfig(ExplainerConfig):
     num_top_features: int = Field(default=4, gt=0)
     num_top_predictions: int = Field(default=5, gt=0)
 
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
+
 
 class TabularConfig(ExplainerConfig):
     """Configuration for the Tabular explainer."""
@@ -106,6 +113,8 @@ class TabularConfig(ExplainerConfig):
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     device: str = "cpu"
     validate_normalization: bool = True
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class ImageGenerationAndEditingConfig(ExplainerConfig):
@@ -145,10 +154,11 @@ class ImageGenerationAndEditingConfig(ExplainerConfig):
     output_dir: str = "outputs"
     device: str = "cpu"  # or "cuda"
     normalization_method: Literal["linear", "inverse"] = "linear"
-    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+    text_distance_type: DistanceType | str = DistanceType.WASSERSTEIN
 
-    # Surrogate & Perturbation Fine-tuning Parameters
-    normalization_mode: Literal["linear", "inverse"] = "linear"
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class TextConfig(ExplainerConfig):
@@ -165,7 +175,10 @@ class TextConfig(ExplainerConfig):
     model: Any = None
     predict_fn: Callable[..., Any] | None = None
     embedding_type: EmbeddingType | str = EmbeddingType.WORD2VEC
-    sanitize_distances: bool = True
+    distance_type: DistanceType | str = DistanceType.WASSERSTEIN
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)
 
 
 class PointCloudConfig(ExplainerConfig):
@@ -190,3 +203,6 @@ class PointCloudConfig(ExplainerConfig):
     clustering_mode: Literal["kmeans", "precomputed"] = "kmeans"
     distance_type: DistanceType | str = DistanceType.WASSERSTEIN
     distance_mode: Literal["mask", "spatial", "latent"] = "mask"
+
+    return_p_value: bool = False
+    n_bootstrap: int = Field(default=100, gt=0)

@@ -14,9 +14,9 @@ from xwhy.distance.distances import (
     KSDistance,
     KuiperDistance,
     WassersteinDistance,
+    WMDDistance,
 )
 from xwhy.distance.types import DistanceType
-from xwhy.distance.wmd import WMDDistance
 
 _DISTANCE_MAP = {
     DistanceType.COSINE: CosineDistance,
@@ -25,8 +25,8 @@ _DISTANCE_MAP = {
     DistanceType.CRAMER_VON_MISES: CvMDistance,
     DistanceType.ANDERSON_DARLING: AndersonDarlingDistance,
     DistanceType.KUIPER: KuiperDistance,
-    DistanceType.WMD: WMDDistance,
     DistanceType.DTS: DTSDistance,
+    DistanceType.WMD: WMDDistance,
 }
 
 
@@ -34,12 +34,23 @@ def calculate_distance(
     metric: str | DistanceType,
     source: Any,  # noqa: ANN401
     target: Any,  # noqa: ANN401
+    return_p_value: bool = False,
     **kwargs: Any,  # noqa: ANN401
-) -> float:
+) -> float | tuple[float, float]:
     """Compute the distance between source and target arrays/texts.
 
     Includes automatic validation to ensure Text data only uses text metrics
     and Image/Tabular data uses numeric metrics.
+
+    Args:
+        metric: The distance metric to use.
+        source: Source data (numpy array or string).
+        target: Target data (numpy array or string).
+        return_p_value: If True, calculates statistical significance using bootstrap.
+            Returns (p_value, distance_value).
+        **kwargs: Additional arguments passed to the underlying compute methods
+            (e.g., `mode`, `n_bootstrap`, `model`).
+
     """
     metric_type = DistanceType.from_str(metric)
 
@@ -74,5 +85,9 @@ def calculate_distance(
 
     # Dispatch
     distance_class = _DISTANCE_MAP[metric_type]
-    calculator = distance_class()  # type: ignore[abstract]
+    calculator = distance_class()
+
+    if return_p_value:
+        return calculator.compute_with_p_value(source=source, target=target, **kwargs)  # type: ignore[no-any-return, attr-defined]
+
     return calculator.compute(source=source, target=target, **kwargs)

@@ -14,13 +14,13 @@ This page is the authoritative capability map for the current documentation rele
 | [LLM](llm/index.md) | Prompt and generated response | Local prompt influence on response behaviour | **Available** |
 | [Tabular](tabular.md) | Structured features | Feature influence on classification and regression | **Available** |
 | [Text](text.md) | Text input | Word-level influence on conventional text-model predictions | **Available** |
-| [Point Cloud](point-cloud.md) | 3D points or point groups | Local influence on 3D prediction | **Under construction** |
+| [Point Cloud](point-cloud.md) | 3D points or point groups | Local influence on 3D prediction | **Available** |
 | [Time Series](time-series.md) | Ordered observations | Influence of observations, windows, and temporal patterns | **Coming soon** |
 | [Multimodal](multimodal.md) | Two or more modalities | Modality-specific and cross-modal contributions | **Coming soon** |
 | [Agentic AI](agentic-ai.md) | Agent trajectory including plans, retrieval, memory, tools, states, and actions | Explain decisions, actions, state transitions, and uncertainty or failure propagation within an autonomous agent | **Coming soon** |
 | [Multi-Agent AI](multi-agent-ai.md) | Interacting agents, messages, roles, dependencies, and shared state | Explain agent contribution, communication, coordination, disagreement, and uncertainty or failure propagation across agents | **Coming soon** |
 
-The current generative-image API is `ImageGenerationAndEditingExplainer`. The [Pix2Pix page](image-generation/pix2pix-models.md) describes Pix2Pix-style models as one conditional image-to-image model family that can be considered within the broader generation and editing capability.
+The current generative-image API is `ImageGenerationAndEditingExplainer`. The [Image Generation and Editing Examples](image-generation/image-generation-editing-examples.md) page describes comprehensive examples for generating and editing images using OpenAI, ByteDance, Gemini, and other compatible providers.
 
 Agentic AI and Multi-Agent AI are currently research-roadmap areas rather than exported explainers. Their documentation defines intended explanation targets and evaluation principles without implying that executable implementations already exist.
 

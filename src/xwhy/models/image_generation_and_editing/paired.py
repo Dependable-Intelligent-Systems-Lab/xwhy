@@ -4,8 +4,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from img2img_turbo import run_inference_paired
-
 from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.logger import logger
 
@@ -65,9 +63,13 @@ class PairedInferenceModel(BaseImageGenerationAndEditing):
         """
         try:
             logger.debug("Running paired inference for '%s'...", self.model_name)
+            from img2img_turbo import run_inference_paired
 
-            # Strip model_name from kwargs to prevent keyword collision
+            # Strip model_name, max_retries, and delay from kwargs to prevent
+            # keyword collision
             kwargs.pop("model_name", None)
+            kwargs.pop("max_retries", None)
+            kwargs.pop("delay", None)
 
             # Execute the local paired inference function
             run_inference_paired(

@@ -31,7 +31,6 @@ from xwhy.core.types import BaseImageGenerationAndEditing
 from xwhy.distance.calculator import calculate_distance
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
-from xwhy.distance.wmd import WMDDistance
 from xwhy.logger import logger
 from xwhy.metrics.image import ImageCoverageMetrics
 from xwhy.metrics.regression import RegressionMetrics
@@ -94,11 +93,14 @@ class ImageClassificationExplainer(BaseExplainer):
         ratio: float = 0.2,
         num_perturbations: int = 150,
         keep_probability: float = 0.5,
+        min_valid_ratio: float = 0.5,
         distance_type: str | DistanceType = DistanceType.WASSERSTEIN,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
         num_top_features: int = 4,
         num_top_predictions: int = 5,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
     ) -> None:
         """Initialize the Image Classification explainer.
 
@@ -129,10 +131,15 @@ class ImageClassificationExplainer(BaseExplainer):
             num_perturbations: Number of perturbed samples.
             keep_probability: Probability of keeping a superpixel (value = 1).
             distance_type: Distance metric name.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
             num_top_features: Number of important regions to highlight.
             num_top_predictions: Number of predictions to explain.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
 
         """
         distance_type = DistanceType.from_str(distance_type)
@@ -170,11 +177,14 @@ class ImageClassificationExplainer(BaseExplainer):
                 ratio=ratio,
                 num_perturbations=num_perturbations,
                 keep_probability=keep_probability,
+                min_valid_ratio=min_valid_ratio,
                 distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
                 num_top_features=num_top_features,
                 num_top_predictions=num_top_predictions,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         if config.device is None:
@@ -284,7 +294,7 @@ class ImageClassificationExplainer(BaseExplainer):
         original_image: np.ndarray,
         superpixels: np.ndarray,
         perturbation_masks: np.ndarray,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, list[float]]:
         """Iterate perturbations, compute model predictions, and calculate distances.
 
         Args:
@@ -294,17 +304,21 @@ class ImageClassificationExplainer(BaseExplainer):
                 superpixels for each perturbation.
 
         Returns:
-            tuple[np.ndarray, np.ndarray]:
+            tuple[np.ndarray, np.ndarray, list[float]]:
                 - predictions: Model output probabilities for each perturbation.
                 - distances: Calculated distances for each perturbation.
+                - p_values: Computed p-values if return_p_value is True, else empty.
 
         """
         batch_predictions = []
         distances = []
+        p_values = []
 
         device = self.state.device
         use_embedding = self.config.use_embedding_model  # type: ignore[union-attr]
         dist_type = self.config.distance_type  # type: ignore[union-attr]
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
 
         # 1. Pre-calculate original representation (Optimization: do this once)
         base_representation = original_image
@@ -344,16 +358,23 @@ class ImageClassificationExplainer(BaseExplainer):
                 )
                 current_representation = np.asarray(perturbed_embedding)
 
-            dist = calculate_distance(
+            res = calculate_distance(
                 metric=dist_type,
                 source=base_representation,
                 target=current_representation,
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
             )
-            distances.append(dist)
+            if isinstance(res, tuple):
+                p_val, dist = res
+                p_values.append(p_val)
+                distances.append(dist)
+            else:
+                distances.append(res)
 
         final_predictions = np.concatenate(batch_predictions, axis=0)
 
-        return final_predictions, np.array(distances)
+        return final_predictions, np.array(distances), p_values
 
     def explain(
         self,
@@ -441,7 +462,7 @@ class ImageClassificationExplainer(BaseExplainer):
         )
 
         # Run Main SMILE Loop (Inference & Distance)
-        predictions, distances = self._run_perturbation_loop(
+        predictions, distances, p_values = self._run_perturbation_loop(
             original_image=base_image_numpy,
             superpixels=superpixels,
             perturbation_masks=x_matrix,
@@ -452,31 +473,49 @@ class ImageClassificationExplainer(BaseExplainer):
         y_target = predictions[:, int(class_to_explain)]
 
         # ---------------------------------------------------------
-        # Distance Validation & Imputation setup:
-        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # Distance Validation & Filtering setup:
+        # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
         distances_raw = np.array(distances, dtype=float)
 
-        # Filter out non-finite values to determine the maximum valid distance
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
-        # all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite/NaN values with the dynamically calculated maximum penalty
-        distances = np.where(np.isfinite(distances_raw), distances_raw, max_penalty)
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
+
+        # Filter arrays to drop failed evaluations cleanly
+        x_valid = x_matrix[valid_mask]
+        y_valid = y_target[valid_mask]
+        distances_valid = distances_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info("Searching for the optimal surrogate model...")
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=distances,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=self.config.seed,  # type: ignore[union-attr]
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -484,37 +523,43 @@ class ImageClassificationExplainer(BaseExplainer):
                 normalize_distances=True,
             )
             logger.info(
-                "Optimization complete. Selected surrogate model:"
-                " '%s' (Best Score: %.4f)",
+                "Optimization complete. Selected surrogate model: "
+                "'%s' (Best Score: %.4f)",
                 method.value,
                 score,
             )
         else:
             method = self.config.surrogate_type  # type: ignore[assignment, union-attr]
-            logger.info("Skipping surrogate search. Using default: '%s'", method.value)
+            logger.info(
+                "Skipping surrogate search. Using default: '%s'",
+                method.value,
+            )
 
+        # Compute weights using ONLY the valid distances
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=distances,
+            distances=distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=True,
         )
 
-        logger.info(f"Training surrogate model ({method.value})...")
+        logger.info("Training surrogate model (%s)...", method.value)
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_matrix, y_target, weights)
+
+        # Fit the surrogate using strictly valid data
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -591,10 +636,15 @@ class ImageClassificationExplainer(BaseExplainer):
             "predictions": predictions,
             "distances": distances,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
-            "x_matrix": x_matrix,
+            "x_matrix": x_valid,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
         }
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method
@@ -671,9 +721,13 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         device: str = "cpu",  # or "cuda",
         normalization_method: Literal["linear", "inverse"] = "linear",
         num_perturbations: int = 64,
-        distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        min_valid_ratio: float = 0.5,
+        image_distance_type: DistanceType | str = DistanceType.WASSERSTEIN,
+        text_distance_type: DistanceType | str = DistanceType.WMD,
         surrogate_type: SurrogateType | str = SurrogateType.LIME,
         use_best_surrogate: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
         **provider_kwargs: Any,  # noqa: ANN401
     ) -> None:
         """Initialize the image generation and editing explainer.
@@ -702,22 +756,29 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             device: Device to run local models on ('cpu' or 'cuda').
             normalization_method : Method used to normalize text similarities.
             num_perturbations: Number of text perturbations to generate.
-            distance_type: Metric used to compute distance between images.
+            min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
+                perturbation evaluations required for reliable surrogate training.
+            image_distance_type: Metric used to compute distance between images.
+            text_distance_type: Metric used to compute distance between texts.
             surrogate_type: Type of surrogate model to train for explanation.
             use_best_surrogate: Flag to automatically find the best surrogate model.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
             **provider_kwargs: Additional keyword arguments for the model provider.
 
         Raises:
-            ValueError: If an invalid distance metric is provided.
+            ValueError: If an invalid distance metric is provided for images.
 
         """
         self._action: Literal["generate", "edit"] = "generate"
-        distance_type = DistanceType.from_str(distance_type)
+        image_distance_type = DistanceType.from_str(image_distance_type)
+        text_distance_type = DistanceType.from_str(text_distance_type)
 
-        if not distance_type.is_numeric_metric:
+        if not image_distance_type.is_numeric_metric:
             raise ValueError(
-                f"Invalid distance metric '{distance_type}' "
-                "for ImageClassificationExplainer. Must be a numeric distance."
+                f"Invalid image distance metric '{image_distance_type}' "
+                "for ImageGenerationAndEditingExplainer. Must be a numeric distance."
             )
 
         self._provider_kwargs = provider_kwargs
@@ -784,10 +845,14 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             # Instance or Subclass
             if not is_resolved_as_standard_provider:
                 engine_type = "custom"
-                if hasattr(engine, "__class__") and "BaseImageGenerationAndEditing" in [
+                mro_names = [
                     b.__name__
                     for b in engine.__class__.__mro__  # type: ignore[union-attr]
-                ]:
+                ]
+                if (
+                    hasattr(engine, "__class__")
+                    and "BaseImageGenerationAndEditing" in mro_names
+                ):
                     # Pre-instantiated custom engine instance
                     self.state.engine = engine  # type: ignore[assignment]
                 elif isinstance(engine, type):
@@ -803,8 +868,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
 
                         self.state.engine = PairedInferenceModel(model_name=model_name)
                     else:
-                        # String passed but has no specific resolver (e.g.,
-                        # unrecognized)
+                        # String passed but has no specific resolver
                         if custom_model is None:
                             custom_model = engine
 
@@ -844,9 +908,13 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 device=resolved_device,
                 normalization_method=normalization_method,
                 num_perturbations=num_perturbations,
-                distance_type=distance_type,
+                min_valid_ratio=min_valid_ratio,
+                image_distance_type=image_distance_type,
+                text_distance_type=text_distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         super().__init__(config)
@@ -879,7 +947,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                     "Initializing %s Model Adapter...", engine_type.capitalize()
                 )
                 self.state.engine = CustomImageGenerationAndEditingModel(
-                    generate_fn=self.config.custom_generate_fn,  # type: ignore[union-attr]
+                    generate_fn=(
+                        self.config.custom_generate_fn  # type: ignore[union-attr]
+                    ),
                     model=self.config.custom_model,  # type: ignore[union-attr]
                     **self._provider_kwargs,
                 )
@@ -952,11 +1022,16 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "Loading text embedding model: %s",
             self.config.text_embedding_type,  # type: ignore[union-attr]
         )
-        embedding_factory_result = EmbeddingFactory.create(
+        embedder = EmbeddingFactory.create(
             embedding=self.config.text_embedding_type,  # type: ignore[union-attr]
         )
-        self.state.text_embedding_model = embedding_factory_result.load()
-        self.state.text_embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+        embedder.load()
+
+        # Apply norms if the underlying model supports it (e.g., Gensim)
+        if hasattr(embedder.model, "fill_norms"):
+            embedder.model.fill_norms(force=True)
+
+        self.state.text_embedding_model = embedder
 
         # 4. Load Segmentation Model (if enabled)
         if self.config.use_segmentation_model:  # type: ignore[union-attr]
@@ -1071,10 +1146,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         generated_paths: list[tuple[bool, str]] = []
         engine = self.state.engine
 
-        # Merge provider kwargs (from __init__) with current method kwargs
+        # Merge current method kwargs with provider extras
         provider_kwargs_extras = self._get_provider_specific_kwargs()
         generation_kwargs = {
-            **self._provider_kwargs,
             **kwargs,
             **provider_kwargs_extras,
             # Added here, because we get it from init as parameter not kwargs
@@ -1173,7 +1247,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         prompts: list[str],
         display_image: bool = False,
         output_dir: str = "outputs",
-    ) -> np.ndarray:
+    ) -> tuple[np.ndarray, list[float]]:
         """Compute distances between the original image and perturbations.
 
         Args:
@@ -1184,16 +1258,20 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             output_dir: Directory to save the distance metrics array.
 
         Returns:
-            An array of computed distance metrics for each perturbation.
+            A tuple of (computed distance metrics array, p-values list).
 
         Raises:
             ValueError: If embedding extraction fails or representations are empty.
 
         """
         distances = []
+        p_values = []
 
         use_embedding = self.config.use_image_embedding_model  # type: ignore[union-attr]
-        dist_type = self.config.distance_type  # type: ignore[union-attr]
+        dist_type = self.config.image_distance_type  # type: ignore[union-attr]
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+
         if input_image_path:
             self._action = "edit"
 
@@ -1201,9 +1279,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         _, original_image = load_image_as_tensor(image_path=input_image_path)
         base_representation = original_image
         if use_embedding:
-            original_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
-                original_image
-            )
+            img_model = self.state.image_embedding_model
+            if img_model is None:
+                raise ValueError("Image embedding model is not initialized.")
+            original_embedding = img_model.encode_image(original_image)  # type: ignore[attr-defined]
             if original_embedding is None:
                 raise ValueError("Original embedding extraction failed.")
             base_representation = np.asarray(original_embedding)  # type: ignore[assignment]
@@ -1218,20 +1297,25 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         ):
             if success is not None and not success:
                 distances.append(float("inf"))
+                if return_p_val:
+                    p_values.append(float("nan"))
                 continue
 
             if not os.path.exists(img_path):
                 logger.warning("Generated image path not found: %s", img_path)
                 distances.append(float("inf"))
+                if return_p_val:
+                    p_values.append(float("nan"))
                 continue
 
             _, current_image = load_image_as_tensor(image_path=img_path)
             current_representation = current_image
 
             if use_embedding:
-                current_embedding = self.state.image_embedding_model.encode_image(  # type: ignore[union-attr]
-                    current_representation
-                )
+                img_model = self.state.image_embedding_model
+                if img_model is None:
+                    raise ValueError("Image embedding model is not initialized.")
+                current_embedding = img_model.encode_image(current_representation)  # type: ignore[attr-defined]
                 if current_embedding is None:
                     raise ValueError(
                         f"Embedding extraction failed for image: {img_path}"
@@ -1246,16 +1330,26 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             current_representation = np.asarray(current_representation)  # type: ignore[assignment]
             base_representation = np.asarray(base_representation)  # type: ignore[assignment]
 
-            if current_representation.size == 0 or base_representation.size == 0:  # type: ignore[comparison-overlap]
+            if (
+                current_representation.size == 0 or base_representation.size == 0  # type: ignore[comparison-overlap]
+            ):
                 raise ValueError("Representations are empty. Cannot compute distance.")
 
             # Compute distance metric
-            dist = calculate_distance(
+            res = calculate_distance(
                 metric=dist_type,
                 source=base_representation,
                 target=current_representation,
+                return_p_value=return_p_val,
+                n_bootstrap=n_bootstrap,
             )
-            distances.append(dist)
+            if isinstance(res, tuple):
+                p_val, dist = res
+                p_values.append(p_val)
+                distances.append(dist)
+            else:
+                dist = res
+                distances.append(res)
 
             if display_image:
                 gen_img = Image.open(img_path)
@@ -1275,7 +1369,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         np.save(save_path, distances_array)
         logger.debug("All generated embeddings and distances saved.")
 
-        return distances_array
+        return distances_array, p_values
 
     def explain(
         self,
@@ -1308,7 +1402,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             FileNotFoundError: If the provided image path does not exist.
             TypeError: If the prompt is not a string.
             ValueError: If the prompt is empty or too short.
-            RuntimeError: If base image generation fails.
+            RuntimeError: If base image generation fails or models not loaded.
 
         """
         prompt = instance
@@ -1330,14 +1424,21 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             else normalization_method
         )
 
+        # Handle backwards compatibility for 'normalization_mode'
+        if "normalization_mode" in kwargs:
+            normalization_method = kwargs.pop("normalization_mode")
+
         # Extract batch flag from kwargs if provided, defaulting to False
         batch = kwargs.pop("batch", False)
 
         self._prepare_environment(output_dir=output_dir, seed=seed)
 
+        if self.state.text_perturbator is None:
+            raise RuntimeError("Text perturbator is not initialized.")
+
         if seed != self.config.seed:  # type: ignore[union-attr]
             logger.debug("Updating perturbator RNG with new seed: %d", seed)
-            self.state.text_perturbator.set_seed(seed)  # type: ignore[union-attr]
+            self.state.text_perturbator.set_seed(seed)
 
         if input_image_path is not None and not os.path.exists(input_image_path):
             raise FileNotFoundError(f"Input image not found at {input_image_path}")
@@ -1363,19 +1464,22 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 "Please use a more descriptive prompt (at least 18-20 chars)."
             )
 
-        if self.config.num_perturbations < (2 * prompt_word_count):  # type: ignore[union-attr]
+        cfg_num_perturbations = (
+            self.config.num_perturbations  # type: ignore[union-attr]
+        )
+        if cfg_num_perturbations < (2 * prompt_word_count):
             logger.warning(
                 "The 'num_perturbations' (%d) is relatively small for a prompt "
                 "with %d words. This may lead to inaccurate fidelity metrics "
                 "(e.g., R-squared). Consider increasing it for better stability.",
-                self.config.num_perturbations,  # type: ignore[union-attr]
+                cfg_num_perturbations,
                 prompt_word_count,
             )
 
         logger.info("Generating text perturbations...")
-        perturbed_texts, binary_masks = self.state.text_perturbator.generate(  # type: ignore[union-attr]
+        perturbed_texts, binary_masks = self.state.text_perturbator.generate(
             text=normalized_prompt,
-            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=cfg_num_perturbations,
         )
 
         logger.info("Starting unified image generation/editing step...")
@@ -1408,9 +1512,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
 
         logger.info(
             "Computing %s distances between images...",
-            self.config.distance_type,  # type: ignore[union-attr]
+            self.config.image_distance_type,  # type: ignore[union-attr]
         )
-        image_distances = self._compute_perturbation_distances(
+        image_distances, p_values = self._compute_perturbation_distances(
             input_image_path=base_image_path,
             generated_images=generated_images,
             prompts=perturbed_texts,
@@ -1418,53 +1522,113 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             output_dir=output_dir,
         )
 
-        logger.info("Computing WMD scores...")
-        wmd_distance = WMDDistance()
-        wmd_scores = wmd_distance.compute_batch(
-            model=self.state.text_embedding_model,
-            original=normalized_prompt,
-            perturbed_texts=perturbed_texts,
+        logger.info(
+            "Computing %s distances between texts...",
+            self.config.text_distance_type,  # type: ignore[union-attr]
         )
+
+        text_embedder = self.state.text_embedding_model
+        if text_embedder is None:
+            raise RuntimeError("Text embedding model is not initialized.")
+
+        text_distances: list[tuple[str, float]] = []
+        text_p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+        is_wmd = (
+            self.config.text_distance_type  # type: ignore[union-attr]
+            == DistanceType.WMD
+        )
+
+        base_text_representation = np.empty(0)
+        if not is_wmd:
+            base_text_representation = text_embedder.encode(normalized_prompt)  # type: ignore[assignment]
+
+        for text in perturbed_texts:
+            if is_wmd:
+                res = calculate_distance(
+                    metric=DistanceType.WMD,
+                    source=normalized_prompt,
+                    target=text,
+                    model=text_embedder.model,
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+            else:
+                current_text_representation = text_embedder.encode(text)
+
+                if (
+                    base_text_representation.size == 0
+                    or current_text_representation.size == 0  # type: ignore[attr-defined]
+                ):
+                    text_distances.append((text, 1.0))
+                    if return_p_val:
+                        text_p_values.append(float("nan"))
+                    continue
+
+                res = calculate_distance(
+                    metric=self.config.text_distance_type,  # type: ignore[union-attr]
+                    source=base_text_representation,
+                    target=current_text_representation,
+                    mode="spatial",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+
+            if isinstance(res, tuple):
+                p_val, dist_val = res
+                text_p_values.append(p_val)
+                text_distances.append((text, float(dist_val)))
+            else:
+                text_distances.append((text, float(res)))
 
         logger.info("Normalizing similarities...")
         sims = DistanceNormalizer.min_max(
-            scores=wmd_scores,
+            scores=text_distances,
             mode=normalization_method,
         )
-
-        # masks_as_arrays: list[np.ndarray] = [
-        #     np.array(m, dtype=int) for m in binary_masks
-        # ]
 
         # ---------------------------------------------------------
         # Surrogate Model Training Inputs & Targets setup:
         # X: Matrix indicating word presence/absence in perturbations.
         # Y: The change/distance in the generated output images.
-        # Weights: Derived from textual distance (WMD/sims).
+        # Weights: Derived from textual distance (text_distances/sims).
         # ---------------------------------------------------------
         x_features = np.vstack([np.array(m, dtype=int) for m in binary_masks])
-
-        # TODO: Modify this maximum distance imputation strategy later.
-        # Currently using a hardcoded large number (1000.0). Consider updating to
-        # dynamically calculate the max penalty based on valid distances.
-        # DO it for all the explainers.
-
-        # Convert image_distances to a numpy array for vectorized imputation
         y_target_raw = np.array(image_distances, dtype=float)
+        text_distances_raw = np.array([d for _, d in text_distances])
 
-        # Filter out infinite values to find the actual maximum valid distance
-        valid_distances = y_target_raw[np.isfinite(y_target_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(y_target_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(y_target_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or just 1000 if all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite values with the dynamically calculated maximum penalty
-        y_target = np.where(np.isinf(y_target_raw), max_penalty, y_target_raw)
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid images). Cannot fit the surrogate "
+                "model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
 
-        text_distances_array = np.array([d for _, d in wmd_scores])
+        # Filter all arrays to drop failed evaluations cleanly
+        x_valid = x_features[valid_mask]
+        y_valid = y_target_raw[valid_mask]
+        text_distances_valid = text_distances_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info(
@@ -1472,9 +1636,9 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 "candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                x=x_features,
-                y=y_target,
-                distances=text_distances_array,
+                x=x_valid,
+                y=y_valid,
+                distances=text_distances_valid,
                 seed=seed,
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -1493,9 +1657,10 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
                 method.value,
             )
 
+        # Compute weights using ONLY the valid text distances
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=text_distances_array,
+            distances=text_distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
@@ -1505,33 +1670,37 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_features, y_target, weights)
+
+        # Fit the surrogate using strictly valid data
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_features)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
+
+        cfg_model_name = self.config.model_name  # type: ignore[union-attr]
 
         logger.info("Save variables data to pickle file...")
         save_data_to_pickle(
             output_path=os.path.join(
                 output_dir,
-                f"{self.config.model_name.replace('/', '_')}.pkl",  # type: ignore[union-attr]
+                f"{cfg_model_name.replace('/', '_')}.pkl",
             ),
             responses=perturbed_texts,
             perturbations=binary_masks,
             image_distances=image_distances,
-            wmd_scores=wmd_scores,
+            text_distances=text_distances,
             sims=sims,
             normalization_method=normalization_method,
             normalized_prompt=normalized_prompt,
-            num_perturbations=self.config.num_perturbations,  # type: ignore[union-attr]
+            num_perturbations=cfg_num_perturbations,
             seed=seed,
         )
 
@@ -1539,7 +1708,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         csv_path = save_perturbation_data_to_csv(
             perturbations=binary_masks,  # type: ignore[arg-type]
             similarities=sims,
-            wmd_scores=wmd_scores,
+            text_distances=text_distances,
             output_path=os.path.join(output_dir, f"perturbation_data_{method}.csv"),
         )
 
@@ -1547,12 +1716,20 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
             "prompt": normalized_prompt,
             "csv_output_path": csv_path,
             "perturbed_texts": perturbed_texts,
-            "wmd_scores": wmd_scores,
+            "text_distances": text_distances,
             "similarities": sims,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
         }
+
+        if return_p_val:
+            if p_values:
+                p_values_raw = np.array(p_values, dtype=float)
+                raw_data["image_p_values"] = p_values_raw[valid_mask]
+            if text_p_values:
+                text_p_values_raw = np.array(text_p_values, dtype=float)
+                raw_data["text_p_values"] = text_p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method

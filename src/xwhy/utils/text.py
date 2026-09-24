@@ -1,5 +1,6 @@
 """Text utility functions."""
 
+import re
 from typing import Literal
 
 
@@ -55,3 +56,20 @@ def inject_text_at_position(
         raise ValueError("Position must be 'start', 'middle', or 'end'.")
 
     return " ".join(words)
+
+
+def clean_text(text: str) -> str:
+    """Normalize text before processing or embedding.
+
+    The normalization removes punctuation, converts text to lowercase,
+    and trims surrounding whitespace.
+
+    Args:
+        text: Input text to be normalized.
+
+    Returns:
+        Cleaned and normalized text string.
+
+    """
+    cleaned = re.sub(r"[^\w\s]", "", text.lower())
+    return cleaned.strip()

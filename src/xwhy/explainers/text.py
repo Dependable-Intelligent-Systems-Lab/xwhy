@@ -1,5 +1,7 @@
 """Text explainer."""
 
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
 from typing import Any, cast
 
@@ -9,7 +11,8 @@ from xwhy.core.config import ExplainerConfig, TextConfig
 from xwhy.core.explainer import BaseExplainer
 from xwhy.core.result import TextXWhyResult
 from xwhy.core.states import TextState
-from xwhy.distance.wmd import WMDDistance
+from xwhy.distance.calculator import calculate_distance
+from xwhy.distance.types import DistanceType
 from xwhy.logger import logger
 from xwhy.metrics.regression import RegressionMetrics
 from xwhy.models.embeddings.factory import EmbeddingFactory
@@ -34,9 +37,11 @@ class TextExplainer(BaseExplainer):
         ridge_alpha: float = 1.0,
         num_perturbations: int = 64,
         embedding_type: str | EmbeddingType = EmbeddingType.WORD2VEC,
+        distance_type: str | DistanceType = DistanceType.WMD,
         surrogate_type: str | SurrogateType = SurrogateType.LIME,
         use_best_surrogate: bool = True,
-        sanitize_distances: bool = True,
+        return_p_value: bool = False,
+        n_bootstrap: int = 1000,
     ) -> None:
         """Initialize the text explainer.
 
@@ -49,17 +54,20 @@ class TextExplainer(BaseExplainer):
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
             num_perturbations: Default number of perturbed text samples to generate.
-            embedding_type: Embedding method used for Word Mover's Distance.
+            embedding_type: Embedding method to extract text representations.
+            distance_type: Metric used to compute distance between texts.
             surrogate_type: Default surrogate method to use if search is disabled.
             use_best_surrogate: If True, search for the best surrogate model.
-            sanitize_distances: If True, applies sanitize_distances to clean non-finite
-                values.
+            return_p_value: Whether to compute statistical significance
+                (p-values) for computed distances using bootstrap sampling.
+            n_bootstrap: Number of bootstrap iterations for p-value estimation.
 
         Raises:
             ValueError: If the embedding type is invalid for text explanation.
 
         """
         embedding_type = EmbeddingType.from_str(embedding_type)
+        distance_type = DistanceType.from_str(distance_type)
 
         if not embedding_type.is_text_embedding:
             raise ValueError(
@@ -81,9 +89,11 @@ class TextExplainer(BaseExplainer):
                 ridge_alpha=ridge_alpha,
                 num_perturbations=num_perturbations,
                 embedding_type=embedding_type,
+                distance_type=distance_type,
                 surrogate_type=surrogate_type,
                 use_best_surrogate=use_best_surrogate,
-                sanitize_distances=sanitize_distances,
+                return_p_value=return_p_value,
+                n_bootstrap=n_bootstrap,
             )
 
         if (
@@ -165,11 +175,16 @@ class TextExplainer(BaseExplainer):
             "Loading text embedding model: %s",
             self.config.embedding_type,  # type: ignore[union-attr]
         )
-        embedding_factory_result = EmbeddingFactory.create(
+        embedder = EmbeddingFactory.create(
             embedding=self.config.embedding_type,  # type: ignore[union-attr]
         )
-        self.state.embedding_model = embedding_factory_result.load()
-        self.state.embedding_model.fill_norms(force=True)  # type: ignore[union-attr]
+        embedder.load()
+
+        # Apply norms if the underlying model supports it (e.g., Gensim)
+        if hasattr(embedder.model, "fill_norms"):
+            embedder.model.fill_norms(force=True)
+
+        self.state.embedding_model = embedder
 
         logger.info("Initializing text perturbator...")
         self.state.perturbator = TextPerturbation(
@@ -203,6 +218,7 @@ class TextExplainer(BaseExplainer):
         Raises:
             TypeError: If instance is not a string.
             ValueError: If no prediction method or model is available.
+            RuntimeError: If embedding model or perturbator state is not initialized.
 
         """
         if not isinstance(instance, str):
@@ -245,61 +261,122 @@ class TextExplainer(BaseExplainer):
         else:
             y_target = predictions_arr[:, class_index]
 
-        logger.info("Computing WMD scores in the INPUT space...")
-        wmd_distance = WMDDistance()
+        logger.info(
+            "Computing %s distances in the INPUT space...",
+            self.config.distance_type,  # type: ignore[union-attr]
+        )
 
-        if self.state.embedding_model is None:
+        text_embedder = self.state.embedding_model
+        if text_embedder is None:
             raise RuntimeError("Embedding model state is not initialized.")
 
-        raw_wmd_scores = wmd_distance.compute_batch(
-            model=self.state.embedding_model,
-            original=instance,
-            perturbed_texts=perturbed_texts,
-            sanitize=self.config.sanitize_distances,  # type: ignore[union-attr]
-        )
+        text_distances: list[tuple[str, float]] = []
+        p_values: list[float] = []
+
+        return_p_val = getattr(self.config, "return_p_value", False)
+        n_bootstrap = getattr(self.config, "n_bootstrap", 1000)
+        is_wmd = self.config.distance_type == DistanceType.WMD  # type: ignore[union-attr]
+
+        base_text_representation = np.empty(0)
+        if not is_wmd:
+            base_text_representation = text_embedder.encode(instance)  # type: ignore[assignment]
+
+        for text in perturbed_texts:
+            if is_wmd:
+                res = calculate_distance(
+                    metric=DistanceType.WMD,
+                    source=instance,
+                    target=text,
+                    model=text_embedder.model,
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+            else:
+                current_text_representation = text_embedder.encode(text)
+
+                if (
+                    base_text_representation.size == 0
+                    or current_text_representation.size == 0  # type: ignore[attr-defined]
+                ):
+                    text_distances.append((text, 1.0))
+                    if return_p_val:
+                        p_values.append(float("nan"))
+                    continue
+
+                res = calculate_distance(
+                    metric=self.config.distance_type,  # type: ignore[union-attr]
+                    source=base_text_representation,
+                    target=current_text_representation,
+                    mode="spatial",
+                    return_p_value=return_p_val,
+                    n_bootstrap=n_bootstrap,
+                )
+
+            if isinstance(res, tuple):
+                p_val, dist_val = res
+                p_values.append(p_val)
+                text_distances.append((text, float(dist_val)))
+            else:
+                text_distances.append((text, float(res)))
 
         # ---------------------------------------------------------
-        # Distance Validation & Imputation setup:
-        # Convert distances to numpy array and impute non-finite (inf/NaN) values.
+        # Distance Validation & Filtering setup:
+        # Convert distances to numpy array and drop non-finite (inf/NaN) values.
         # ---------------------------------------------------------
         logger.info("Validating perturbation distances...")
-        distances_raw = np.array([d for _, d in raw_wmd_scores], dtype=float)
+        distances_raw = np.array([d for _, d in text_distances], dtype=float)
 
-        # Filter out non-finite values to determine the maximum valid distance
-        valid_distances = distances_raw[np.isfinite(distances_raw)]
+        # Identify valid (non-infinite, non-NaN) distances
+        valid_mask = np.isfinite(distances_raw)
+        valid_count = int(np.sum(valid_mask))
+        total_count = len(distances_raw)
+        valid_ratio = valid_count / total_count
 
-        # Calculate max_penalty: max valid distance + 1000, or default 1000 if
-        # all failed
-        if len(valid_distances) > 0:
-            max_penalty = np.max(valid_distances) + 1000.0
-        else:
-            max_penalty = 1000.0
+        # Check validity threshold and warn if insufficient
+        min_valid_ratio = self.config.min_valid_ratio  # type: ignore[union-attr]
 
-        # Impute infinite/NaN values with the dynamically calculated maximum penalty
-        distances_array = np.where(
-            np.isfinite(distances_raw), distances_raw, max_penalty
-        )
+        if valid_count == 0:
+            error_msg = (
+                "All perturbations failed (0 valid distances). Cannot fit the "
+                "surrogate model with an empty dataset. Aborting explanation."
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        elif valid_ratio < min_valid_ratio:
+            logger.warning(
+                "Low valid perturbation ratio. Only %.1f%% succeeded (%d/%d). "
+                "Training surrogate model with reduced sample size, which may "
+                "lead to unstable explanations.",
+                valid_ratio * 100,
+                valid_count,
+                total_count,
+            )
 
-        # Reconstruct wmd_scores with imputed values for downstream consistency
-        wmd_scores = [
-            (text, float(dist))
-            for (text, _), dist in zip(raw_wmd_scores, distances_array, strict=False)
-        ]
+        # Filter arrays and lists to drop failed evaluations cleanly
+        valid_indices = np.where(valid_mask)[0]
+        distances_valid = distances_raw[valid_mask]
+        valid_text_distances = [text_distances[i] for i in valid_indices]
 
         masks_as_arrays: list[np.ndarray] = [
-            np.array(m, dtype=int) for m in binary_masks
+            np.array(binary_masks[i], dtype=int) for i in valid_indices
         ]
-        x_matrix = np.vstack(masks_as_arrays)
+        x_valid = np.vstack(masks_as_arrays)
+        y_valid = (
+            y_target[valid_mask]
+            if isinstance(y_target, np.ndarray)
+            else np.array(y_target)[valid_mask]
+        )
 
+        # Surrogate selection and weight calculation
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             logger.info(
-                "Searching for the optimal surrogate model among available"
-                " candidates..."
+                "Searching for the optimal surrogate model among available "
+                "candidates..."
             )
             method, score = SurrogateTrainer.find_best(
-                x=x_matrix,
-                y=y_target,
-                distances=distances_array,
+                x=x_valid,
+                y=y_valid,
+                distances=distances_valid,
                 seed=self.config.seed,  # type: ignore[union-attr]
                 epsilon=self.config.epsilon,  # type: ignore[union-attr]
                 kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
@@ -307,8 +384,8 @@ class TextExplainer(BaseExplainer):
                 normalize_distances=False,
             )
             logger.info(
-                "Optimization complete. Selected surrogate model:"
-                " '%s' (Best Score: %.4f)",
+                "Optimization complete. Selected surrogate model: "
+                "'%s' (Best Score: %.4f)",
                 method.value,
                 score,
             )
@@ -321,25 +398,26 @@ class TextExplainer(BaseExplainer):
 
         weights = SurrogateTrainer.compute_weights(
             method=method,
-            distances=distances_array,
+            distances=distances_valid,
             kernel_width=self.config.kernel_width,  # type: ignore[union-attr]
             epsilon=self.config.epsilon,  # type: ignore[union-attr]
             normalize_distances=False,
         )
 
+        # Fit surrogate model
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
         )
-        surrogate.fit(x_matrix, y_target, weights)
+        surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
-        y_pred = surrogate.predict(x_matrix)
+        y_pred_valid = surrogate.predict(x_valid)
 
         logger.info("Computing regression metrics...")
         metrics = RegressionMetrics.calculate(
-            y_true=y_target,
-            y_pred=y_pred,
+            y_true=y_valid,
+            y_pred=y_pred_valid,
             weights=weights,
             num_features=len(coeffs),
         )
@@ -348,13 +426,17 @@ class TextExplainer(BaseExplainer):
             "instance": instance,
             "perturbed_texts": perturbed_texts,
             "binary_masks": binary_masks,
-            "wmd_scores": wmd_scores,
-            "distances": distances_array,
+            "text_distances": valid_text_distances,
+            "distances": distances_valid,
             "weights": weights,
-            "y_target": y_target,
-            "y_pred": y_pred,
+            "y_target": y_valid,
+            "y_pred": y_pred_valid,
             "class_index": class_index,
         }
+
+        if return_p_val and p_values:
+            p_values_raw = np.array(p_values, dtype=float)
+            raw_data["p_values"] = p_values_raw[valid_mask]
 
         if self.config.use_best_surrogate:  # type: ignore[union-attr]
             raw_data["best_surrogate_method"] = method

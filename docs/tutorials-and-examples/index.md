@@ -12,7 +12,7 @@ Use this directory to select a complete learning path. Where a worked example is
 | [Image Classification Explainer](../image_classification_explainer.md) | Image | Tutorial | **Available** | Built-in and custom PyTorch classifiers, segmentation, distances, and image plots. |
 | [LLM Example](../llm_explainer.md) | LLM | Worked example | **Available** | Provider setup, prompt perturbation, embeddings, executed outputs, fidelity metrics, plot interpretation, and embedding comparison. |
 | [Image Examples](../examples/image.md) | Image | Example collection | **Coming soon** | Reproducible image-classification examples with stored outputs. |
-| [Image Editing and Pix2Pix Models](../explainers/image-generation/pix2pix-models.md) | Image generation | Planned example | **Under construction** | Conditional image-to-image explanation and Pix2Pix-style model analysis. |
+| [Image Editing and Image Generation and Editing Examples](../explainers/image-generation/image-generation-editing-examples.md) | Image generation | Planned example | **Under construction** | Conditional image-to-image explanation and generation analysis. |
 | [Tabular Examples](../examples/tabular.md) | Tabular | Example collection | **Under construction** | Classification, regression, mixed features, and stability comparisons. |
 | [Text Examples](../examples/text.md) | Text | Example collection | **Under construction** | Token- and phrase-level explanations for conventional text models. |
 | [Point-Cloud Examples](../examples/point-cloud.md) | Point cloud | Example collection | **Under construction** | Point grouping, perturbation comparison, and 3D attribution. |

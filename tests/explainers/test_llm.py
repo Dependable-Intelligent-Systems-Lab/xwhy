@@ -24,15 +24,41 @@ def mock_provider() -> MagicMock:
 @pytest.fixture
 def explainer(mock_provider: MagicMock) -> LLMExplainer:
     """Initialize an LLM explainer with a mocked provider for fast testing."""
+
+    class _ModelNoNorms:
+        """Stub embedding backend without fill_norms."""
+
+    mock_embedder = MagicMock()
+    mock_embedder.model = _ModelNoNorms()
+
     with (
         patch(
             "xwhy.explainers.llm.ProviderResolver.resolve",
             return_value=mock_provider,
         ),
-        patch("xwhy.explainers.llm.EmbeddingFactory"),
+        patch(
+            "xwhy.explainers.llm.EmbeddingFactory.create",
+            return_value=mock_embedder,
+        ),
         patch("xwhy.explainers.llm.TextPerturbation"),
     ):
         return LLMExplainer(provider="openai", use_best_surrogate=True)
+
+
+def _wire_embedding_encode(mock_embedding_factory: MagicMock) -> MagicMock:
+    """Attach a finite encode stub to the embedding factory mock.
+
+    Args:
+        mock_embedding_factory: Patched EmbeddingFactory class.
+
+    Returns:
+        MagicMock: The embedding model instance with encode configured.
+
+    """
+    embed_model = MagicMock()
+    embed_model.encode.return_value = np.array([0.1, 0.2, 0.3])
+    mock_embedding_factory.create.return_value.load.return_value = embed_model
+    return embed_model
 
 
 # ==========================================
@@ -118,9 +144,22 @@ def test_init_with_provider_enum(
     mock_pert: MagicMock, mock_emb: MagicMock, mock_resolve: MagicMock
 ) -> None:
     """Test init using a direct ProviderType Enum."""
+
+    class _ModelWithNorms:
+        """Stub model with fill_norms."""
+
+        def __init__(self) -> None:
+            self.fill_norms = MagicMock()
+
+    model = _ModelWithNorms()
+    mock_embedder = MagicMock()
+    mock_embedder.model = model
+    mock_emb.create.return_value = mock_embedder
+
     explainer = LLMExplainer(provider=ProviderType.OPENAI)
     assert explainer.config.provider_type == ProviderType.OPENAI  # type: ignore[union-attr]
     mock_resolve.assert_called_once()
+    model.fill_norms.assert_called_with(force=True)
 
 
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
@@ -172,7 +211,7 @@ def test_explain_raises_runtime_error_if_resources_missing(
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
 @patch("xwhy.explainers.llm.TextPerturbation")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
-@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.calculate_distance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
 @patch("xwhy.explainers.llm.SurrogateTrainer")
 @patch("xwhy.explainers.llm.SurrogateFactory")
@@ -182,7 +221,7 @@ def test_explain_success_best_surrogate(
     mock_surrogate_factory: MagicMock,
     mock_trainer: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_embedding_factory: MagicMock,
     mock_perturbation: MagicMock,
     mock_resolve: MagicMock,
@@ -196,8 +235,8 @@ def test_explain_success_best_surrogate(
         ["res1"],
         [np.array([1, 0])],
     )
-    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
-    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
+    _wire_embedding_encode(mock_embedding_factory)
+    mock_calc_dist.return_value = 0.5
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     mock_trainer.find_best.return_value = (SurrogateType.LIME, 0.9)
@@ -219,7 +258,7 @@ def test_explain_success_best_surrogate(
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
 @patch("xwhy.explainers.llm.TextPerturbation")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
-@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.calculate_distance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
 @patch("xwhy.explainers.llm.SurrogateTrainer")
 @patch("xwhy.explainers.llm.SurrogateFactory")
@@ -229,7 +268,7 @@ def test_explain_success_default_surrogate(
     mock_surrogate_factory: MagicMock,
     mock_trainer: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_embedding_factory: MagicMock,
     mock_perturbation: MagicMock,
     mock_resolve: MagicMock,
@@ -237,16 +276,20 @@ def test_explain_success_default_surrogate(
 ) -> None:
     """Test the full explain pipeline when using a default surrogate model."""
     mock_resolve.return_value = mock_provider
+
     explainer = LLMExplainer(
-        provider="openai", use_best_surrogate=False, surrogate_type=SurrogateType.LIME
+        provider="openai",
+        use_best_surrogate=False,
+        surrogate_type=SurrogateType.LIME,
+        distance_type="wasserstein",
     )
 
     mock_perturbation.return_value.generate.return_value = (
         ["res1"],
         [np.array([1, 0])],
     )
-    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
-    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
+    _wire_embedding_encode(mock_embedding_factory)
+    mock_calc_dist.return_value = 0.5
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     mock_trainer.compute_weights.return_value = np.array([1.0])
@@ -267,7 +310,7 @@ def test_explain_success_default_surrogate(
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
 @patch("xwhy.explainers.llm.TextPerturbation")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
-@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.calculate_distance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
 @patch("xwhy.explainers.llm.SurrogateTrainer")
 @patch("xwhy.explainers.llm.SurrogateFactory")
@@ -277,7 +320,7 @@ def test_explain_fidelity_plot_flag(
     mock_surrogate_factory: MagicMock,
     mock_trainer: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_embedding_factory: MagicMock,
     mock_perturbation: MagicMock,
     mock_resolve: MagicMock,
@@ -292,18 +335,16 @@ def test_explain_fidelity_plot_flag(
         ["res1"],
         [np.array([1, 0])],
     )
-    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
-    mock_wmd.return_value.compute_batch.return_value = [("res1", 0.5)]
+    _wire_embedding_encode(mock_embedding_factory)
+    mock_calc_dist.return_value = 0.5
     mock_normalizer.min_max.return_value = [("val", 0.5)]
 
     mock_trainer.compute_weights.return_value = np.array([1.0])
     mock_surrogate_factory.create.return_value = MagicMock()
 
-    # Test True
     explainer.explain("test prompt", fidelity_plot=True)
     mock_plot.assert_called_once_with(show=True)
 
-    # Test False / Default
     mock_plot.reset_mock()
     explainer.explain("test prompt")
     mock_plot.assert_not_called()
@@ -312,39 +353,23 @@ def test_explain_fidelity_plot_flag(
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
 @patch("xwhy.explainers.llm.TextPerturbation")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
-@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.calculate_distance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
 @patch("xwhy.explainers.llm.SurrogateTrainer")
 @patch("xwhy.explainers.llm.SurrogateFactory")
 @patch("xwhy.explainers.llm.RegressionMetrics")
-def test_llm_explain_impute_when_some_distances_valid(
+def test_llm_explain_filters_non_finite_distances(
     mock_metrics: MagicMock,
     mock_surrogate_factory: MagicMock,
     mock_trainer: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_embedding_factory: MagicMock,
     mock_perturbation: MagicMock,
     mock_resolve: MagicMock,
     mock_provider: MagicMock,
 ) -> None:
-    """Cover the branch where at least one WMD distance is finite.
-
-    ``max_penalty`` must become ``max(valid) + 1000.0`` and every non-finite
-    value is replaced by that penalty.
-
-    Args:
-        mock_metrics: Mock for RegressionMetrics.
-        mock_surrogate_factory: Mock for SurrogateFactory.
-        mock_trainer: Mock for SurrogateTrainer.
-        mock_normalizer: Mock for DistanceNormalizer.
-        mock_wmd: Mock for WMDDistance.
-        mock_embedding_factory: Mock for EmbeddingFactory.
-        mock_perturbation: Mock for TextPerturbation.
-        mock_resolve: Mock for ProviderResolver.resolve.
-        mock_provider: Fixture providing a mock BaseProvider.
-
-    """
+    """Filter non-finite distances and train only on valid rows."""
     mock_resolve.return_value = mock_provider
     explainer = LLMExplainer(provider="openai", use_best_surrogate=False)
 
@@ -352,71 +377,49 @@ def test_llm_explain_impute_when_some_distances_valid(
         ["res1", "res2", "res3"],
         [np.array([1, 0]), np.array([0, 1]), np.array([1, 1])],
     )
-    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
+    _wire_embedding_encode(mock_embedding_factory)
 
-    # Two finite distances + one non-finite => valid branch is taken.
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("res1", 0.5),
-        ("res2", np.inf),
-        ("res3", 1.5),
-    ]
+    mock_calc_dist.side_effect = [0.5, np.inf, 1.5]
     mock_normalizer.min_max.return_value = [
         ("val", 0.5),
-        ("val", 0.0),
         ("val", 1.0),
     ]
 
-    mock_trainer.compute_weights.return_value = np.array([1.0, 1.0, 1.0])
+    mock_trainer.compute_weights.return_value = np.array([1.0, 1.0])
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
     mock_surrogate_factory.create.return_value = mock_surrogate
 
     result = explainer.explain("test prompt")
 
-    # max(0.5, 1.5) + 1000 = 1001.5 must have been used for the inf entry
-    distances_used = result.raw_data["wmd_scores"]
+    distances_used = result.raw_data["text_distances"]
+    assert len(distances_used) == 2
     assert distances_used[0][1] == pytest.approx(0.5)
-    assert distances_used[1][1] == pytest.approx(1001.5)
-    assert distances_used[2][1] == pytest.approx(1.5)
+    assert distances_used[1][1] == pytest.approx(1.5)
     assert isinstance(result, TextXWhyResult)
 
 
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
 @patch("xwhy.explainers.llm.TextPerturbation")
 @patch("xwhy.explainers.llm.EmbeddingFactory")
-@patch("xwhy.explainers.llm.WMDDistance")
+@patch("xwhy.explainers.llm.calculate_distance")
 @patch("xwhy.explainers.llm.DistanceNormalizer")
 @patch("xwhy.explainers.llm.SurrogateTrainer")
 @patch("xwhy.explainers.llm.SurrogateFactory")
 @patch("xwhy.explainers.llm.RegressionMetrics")
-def test_llm_explain_impute_when_all_distances_non_finite(
+def test_llm_explain_raises_when_all_distances_non_finite(
     mock_metrics: MagicMock,
     mock_surrogate_factory: MagicMock,
     mock_trainer: MagicMock,
     mock_normalizer: MagicMock,
-    mock_wmd: MagicMock,
+    mock_calc_dist: MagicMock,
     mock_embedding_factory: MagicMock,
     mock_perturbation: MagicMock,
     mock_resolve: MagicMock,
     mock_provider: MagicMock,
 ) -> None:
-    """Cover the branch where every WMD distance is non-finite.
-
-    ``max_penalty`` must fall back to the constant ``1000.0``.
-
-    Args:
-        mock_metrics: Mock for RegressionMetrics.
-        mock_surrogate_factory: Mock for SurrogateFactory.
-        mock_trainer: Mock for SurrogateTrainer.
-        mock_normalizer: Mock for DistanceNormalizer.
-        mock_wmd: Mock for WMDDistance.
-        mock_embedding_factory: Mock for EmbeddingFactory.
-        mock_perturbation: Mock for TextPerturbation.
-        mock_resolve: Mock for ProviderResolver.resolve.
-        mock_provider: Fixture providing a mock BaseProvider.
-
-    """
+    """Raise ValueError when every distance is non-finite."""
     mock_resolve.return_value = mock_provider
     explainer = LLMExplainer(provider="openai", use_best_surrogate=False)
 
@@ -424,27 +427,212 @@ def test_llm_explain_impute_when_all_distances_non_finite(
         ["res1", "res2"],
         [np.array([1, 0]), np.array([0, 1])],
     )
-    mock_embedding_factory.create.return_value.load.return_value = MagicMock()
+    _wire_embedding_encode(mock_embedding_factory)
 
-    # All non-finite => else branch (max_penalty = 1000.0)
-    mock_wmd.return_value.compute_batch.return_value = [
-        ("res1", np.inf),
-        ("res2", np.nan),
-    ]
-    mock_normalizer.min_max.return_value = [
-        ("val", 0.0),
-        ("val", 0.0),
-    ]
+    mock_calc_dist.side_effect = [np.inf, np.nan]
 
+    with pytest.raises(
+        ValueError,
+        match="All perturbations failed \\(0 valid distances\\)",
+    ):
+        explainer.explain("test prompt")
+
+
+@patch("xwhy.explainers.llm.ProviderResolver.resolve")
+@patch("xwhy.explainers.llm.TextPerturbation")
+@patch("xwhy.explainers.llm.EmbeddingFactory")
+@patch("xwhy.explainers.llm.calculate_distance")
+@patch("xwhy.explainers.llm.DistanceNormalizer")
+@patch("xwhy.explainers.llm.SurrogateTrainer")
+@patch("xwhy.explainers.llm.SurrogateFactory")
+@patch("xwhy.explainers.llm.RegressionMetrics")
+@patch("xwhy.explainers.llm.logger")
+def test_llm_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_metrics: MagicMock,
+    mock_surrogate_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_embedding_factory: MagicMock,
+    mock_perturbation: MagicMock,
+    mock_resolve: MagicMock,
+    mock_provider: MagicMock,
+) -> None:
+    """Log a warning when valid ratio is below ``min_valid_ratio``."""
+    mock_resolve.return_value = mock_provider
+    explainer = LLMExplainer(
+        provider="openai",
+        use_best_surrogate=False,
+        min_valid_ratio=0.5,
+    )
+
+    mock_perturbation.return_value.generate.return_value = (
+        ["res1", "res2", "res3"],
+        [np.array([1, 0]), np.array([0, 1]), np.array([1, 1])],
+    )
+    _wire_embedding_encode(mock_embedding_factory)
+
+    mock_calc_dist.side_effect = [0.5, np.inf, np.nan]
+    mock_normalizer.min_max.return_value = [("val", 0.5)]
+
+    mock_trainer.compute_weights.return_value = np.array([1.0])
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5])
+    mock_surrogate_factory.create.return_value = mock_surrogate
+
+    result = explainer.explain("test prompt")
+    assert isinstance(result, TextXWhyResult)
+    assert len(result.raw_data["text_distances"]) == 1
+
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.llm.ProviderResolver.resolve")
+@patch("xwhy.explainers.llm.TextPerturbation")
+@patch("xwhy.explainers.llm.EmbeddingFactory")
+@patch("xwhy.explainers.llm.calculate_distance")
+@patch("xwhy.explainers.llm.DistanceNormalizer")
+@patch("xwhy.explainers.llm.SurrogateTrainer")
+@patch("xwhy.explainers.llm.SurrogateFactory")
+@patch("xwhy.explainers.llm.RegressionMetrics")
+def test_llm_explain_includes_p_values(
+    mock_metrics: MagicMock,
+    mock_surrogate_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_embedding_factory: MagicMock,
+    mock_perturbation: MagicMock,
+    mock_resolve: MagicMock,
+    mock_provider: MagicMock,
+) -> None:
+    """Store filtered p-values when return_p_value is enabled."""
+    mock_resolve.return_value = mock_provider
+    explainer = LLMExplainer(
+        provider="openai",
+        use_best_surrogate=False,
+        return_p_value=True,
+        n_bootstrap=10,
+    )
+
+    mock_perturbation.return_value.generate.return_value = (
+        ["res1", "res2"],
+        [np.array([1, 0]), np.array([0, 1])],
+    )
+    _wire_embedding_encode(mock_embedding_factory)
+
+    mock_calc_dist.return_value = (0.03, 0.5)
+    mock_normalizer.min_max.return_value = [("val", 0.5), ("val", 0.6)]
     mock_trainer.compute_weights.return_value = np.array([1.0, 1.0])
     mock_surrogate = MagicMock()
-    mock_surrogate.coefficients.return_value = np.array([0.1])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
     mock_surrogate_factory.create.return_value = mock_surrogate
 
     result = explainer.explain("test prompt")
 
-    distances_used = result.raw_data["wmd_scores"]
-    assert distances_used[0][1] == pytest.approx(1000.0)
-    assert distances_used[1][1] == pytest.approx(1000.0)
-    assert isinstance(result, TextXWhyResult)
+    assert "p_values" in result.raw_data
+    assert list(result.raw_data["p_values"]) == pytest.approx([0.03, 0.03])
+
+
+@patch("xwhy.explainers.llm.ProviderResolver.resolve")
+@patch("xwhy.explainers.llm.TextPerturbation")
+@patch("xwhy.explainers.llm.EmbeddingFactory")
+@patch("xwhy.explainers.llm.calculate_distance")
+@patch("xwhy.explainers.llm.DistanceNormalizer")
+@patch("xwhy.explainers.llm.SurrogateTrainer")
+@patch("xwhy.explainers.llm.SurrogateFactory")
+@patch("xwhy.explainers.llm.RegressionMetrics")
+def test_llm_explain_empty_embedding_fallback(
+    mock_metrics: MagicMock,
+    mock_surrogate_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_embedding_factory: MagicMock,
+    mock_perturbation: MagicMock,
+    mock_resolve: MagicMock,
+    mock_provider: MagicMock,
+) -> None:
+    """Use distance 1.0 when embeddings are empty arrays."""
+    mock_resolve.return_value = mock_provider
+    explainer = LLMExplainer(
+        provider="openai", distance_type="wasserstein", use_best_surrogate=False
+    )
+
+    mock_perturbation.return_value.generate.return_value = (
+        ["res1", "res2"],
+        [np.array([1, 0]), np.array([0, 1])],
+    )
+    # Override the already-bound runtime embedding model
+    embed_model = MagicMock()
+    embed_model.encode.return_value = np.array([])
+    explainer.state.embedding_model = embed_model
+
+    mock_normalizer.min_max.return_value = [("val", 0.5), ("val", 0.6)]
+    mock_trainer.compute_weights.return_value = np.array([1.0, 1.0])
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_surrogate_factory.create.return_value = mock_surrogate
+
+    result = explainer.explain("test prompt")
+
+    distances_used = result.raw_data["text_distances"]
+    assert len(distances_used) == 2
+    assert distances_used[0][1] == pytest.approx(1.0)
+    assert distances_used[1][1] == pytest.approx(1.0)
+    mock_calc_dist.assert_not_called()
+
+
+@patch("xwhy.explainers.llm.ProviderResolver.resolve")
+@patch("xwhy.explainers.llm.TextPerturbation")
+@patch("xwhy.explainers.llm.EmbeddingFactory")
+@patch("xwhy.explainers.llm.calculate_distance")
+@patch("xwhy.explainers.llm.DistanceNormalizer")
+@patch("xwhy.explainers.llm.SurrogateTrainer")
+@patch("xwhy.explainers.llm.SurrogateFactory")
+@patch("xwhy.explainers.llm.RegressionMetrics")
+def test_llm_explain_empty_embedding_with_p_values(
+    mock_metrics: MagicMock,
+    mock_surrogate_factory: MagicMock,
+    mock_trainer: MagicMock,
+    mock_normalizer: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_embedding_factory: MagicMock,
+    mock_perturbation: MagicMock,
+    mock_resolve: MagicMock,
+    mock_provider: MagicMock,
+) -> None:
+    """Append NaN p-values when embeddings are empty and return_p_value."""
+    mock_resolve.return_value = mock_provider
+    explainer = LLMExplainer(
+        provider="openai",
+        distance_type="wasserstein",
+        use_best_surrogate=False,
+        return_p_value=True,
+    )
+
+    mock_perturbation.return_value.generate.return_value = (
+        ["res1"],
+        [np.array([1, 0])],
+    )
+    # Override the already-bound runtime embedding model
+    embed_model = MagicMock()
+    embed_model.encode.return_value = np.array([])
+    explainer.state.embedding_model = embed_model
+
+    mock_normalizer.min_max.return_value = [("val", 0.5)]
+    mock_trainer.compute_weights.return_value = np.array([1.0])
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1])
+    mock_surrogate.predict.return_value = np.array([0.5])
+    mock_surrogate_factory.create.return_value = mock_surrogate
+
+    result = explainer.explain("test prompt")
+
+    assert "p_values" in result.raw_data
+    assert np.isnan(result.raw_data["p_values"][0])

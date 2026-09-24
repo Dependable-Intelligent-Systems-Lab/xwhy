@@ -92,6 +92,9 @@ test-metrics:
 test-plots:
     uv run pytest tests/plots
 
+test-plots-visualisation:
+    uv run pytest tests/plots/visualisation
+
 test-explainers:
     uv run pytest tests/explainers
 
@@ -178,6 +181,8 @@ clean:
     rm -rf .pytest_cache
     rm -rf .ruff_cache
     rm -rf .mypy_cache
+    rm -rf .cache
+    rm -rf .nox
     rm -rf htmlcov
     rm -rf site
     rm -f coverage.xml

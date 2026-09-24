@@ -6,10 +6,12 @@ import random
 from typing import Any, cast
 
 import numpy as np
+from gensim.models import KeyedVectors
 from scipy.spatial.distance import cosine
 
 from xwhy.distance.base import BaseDistance
 from xwhy.logger import logger
+from xwhy.utils.text import clean_text
 
 
 class BaseNumericDistance(BaseDistance):
@@ -109,7 +111,11 @@ class BaseNumericDistance(BaseDistance):
         return self._compute_1d(source.flatten(), target.flatten())
 
     def compute_with_p_value(
-        self, source: np.ndarray, target: np.ndarray, n_bootstrap: int = 1000
+        self,
+        source: np.ndarray,
+        target: np.ndarray,
+        mode: str = "latent",
+        n_bootstrap: int = 1000,
     ) -> tuple[float, float]:
         """Compute distance with bootstrap-based p-value.
 
@@ -119,13 +125,15 @@ class BaseNumericDistance(BaseDistance):
         Args:
             source (np.ndarray): First sample.
             target (np.ndarray): Second sample.
+            mode (str): Computation mode, e.g., 'latent' (flattened) or 'spatial'
+                (axis-wise). Default is 'latent'.
             n_bootstrap (int): Number of bootstrap iterations. Default is 1000.
 
         Returns:
             tuple: (p_value, distance_value)
 
         """
-        dist_val = self.compute(source, target)
+        dist_val = self.compute(source, target, mode=mode)
 
         na = len(source)
         nb = len(target)
@@ -136,8 +144,7 @@ class BaseNumericDistance(BaseDistance):
         for _ in range(1, n_bootstrap):
             idx_a = random.sample(range(n), na)
             idx_b = random.sample(range(n), nb)
-            # Direct calculation on 1D subsets for efficiency
-            boost_dist = self._compute_1d(combined[idx_a], combined[idx_b])
+            boost_dist = self.compute(combined[idx_a], combined[idx_b], mode=mode)
             if boost_dist > dist_val:
                 bigger += 1
 
@@ -294,3 +301,41 @@ class WassersteinDistance(BaseNumericDistance):
             res += (height**power) * width
 
         return float(res)
+
+
+class WMDDistance(BaseDistance):
+    """Word Mover's Distance metric for raw text strings."""
+
+    def compute(
+        self,
+        source: str,
+        target: str,
+        **kwargs: Any,  # noqa: ANN401
+    ) -> float:
+        """Compute Word Mover's Distance between two text instances.
+
+        Args:
+            source: Source text string.
+            target: Target text string.
+            **kwargs: Must contain 'model' (loaded Word2Vec KeyedVectors).
+
+        Returns:
+            float: Calculated Word Mover's Distance value.
+
+        Raises:
+            ValueError: If 'model' is missing or not an instance of KeyedVectors.
+
+        """
+        model = kwargs.get("model")
+        if not isinstance(model, KeyedVectors):
+            raise ValueError(
+                "WMDDistance requires a gensim KeyedVectors 'model' passed via kwargs."
+            )
+
+        words1 = [word for word in clean_text(text=source).split() if word in model]
+        words2 = [word for word in clean_text(text=target).split() if word in model]
+
+        if not words1 or not words2:
+            return 1.0
+
+        return float(model.wmdistance(words1, words2))

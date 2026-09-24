@@ -10,10 +10,10 @@ from xwhy.distance.distances import (
     KSDistance,
     KuiperDistance,
     WassersteinDistance,
+    WMDDistance,
 )
 from xwhy.distance.normalization import DistanceNormalizer
 from xwhy.distance.types import DistanceType
-from xwhy.distance.wmd import WMDDistance
 
 __all__ = [
     "AndersonDarlingDistance",

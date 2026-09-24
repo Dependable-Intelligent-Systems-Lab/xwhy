@@ -21,7 +21,7 @@ def test_generate_image_raises_not_implemented() -> None:
         model.generate_image(prompt="test", output_dir="dummy")
 
 
-@patch("xwhy.models.image_generation_and_editing.paired.run_inference_paired")
+@patch("img2img_turbo.run_inference_paired")
 def test_edit_image_success(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN401
     """Test successful image editing with paired inference."""
     output_dir = tmp_path / "output"
@@ -48,7 +48,7 @@ def test_edit_image_success(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN
     mock_run.assert_called_once()
 
 
-@patch("xwhy.models.image_generation_and_editing.paired.run_inference_paired")
+@patch("img2img_turbo.run_inference_paired")
 def test_edit_image_output_dir_missing(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN401
     """Test edit_image handles non-existent output directory after execution."""
     output_dir = tmp_path / "nonexistent"
@@ -66,7 +66,7 @@ def test_edit_image_output_dir_missing(mock_run: Any, tmp_path: Path) -> None:  
     assert path == ""
 
 
-@patch("xwhy.models.image_generation_and_editing.paired.run_inference_paired")
+@patch("img2img_turbo.run_inference_paired")
 def test_edit_image_output_dir_is_file(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN401
     """Test edit_image handles output_dir being a file instead of a directory."""
     output_file = tmp_path / "file_as_dir"
@@ -85,7 +85,7 @@ def test_edit_image_output_dir_is_file(mock_run: Any, tmp_path: Path) -> None:  
     assert path == ""
 
 
-@patch("xwhy.models.image_generation_and_editing.paired.run_inference_paired")
+@patch("img2img_turbo.run_inference_paired")
 def test_edit_image_no_files_found(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN401
     """Test edit_image handles empty output directory."""
     output_dir = tmp_path / "output"
@@ -108,7 +108,7 @@ def test_edit_image_no_files_found(mock_run: Any, tmp_path: Path) -> None:  # no
     assert path == ""
 
 
-@patch("xwhy.models.image_generation_and_editing.paired.run_inference_paired")
+@patch("img2img_turbo.run_inference_paired")
 def test_edit_image_exception_handling(mock_run: Any, tmp_path: Path) -> None:  # noqa: ANN401
     """Test edit_image handles exceptions raised by run_inference_paired."""
     input_path = tmp_path / "input.png"

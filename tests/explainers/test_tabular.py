@@ -192,13 +192,13 @@ def test_tabular_explainer_explain_regression_and_default_surrogate(
 @patch("xwhy.explainers.tabular.SurrogateFactory")
 @patch("xwhy.explainers.tabular.RegressionMetrics")
 @patch("xwhy.explainers.tabular.calculate_distance")
-def test_tabular_explain_impute_when_some_distances_valid(
+def test_tabular_explain_filters_non_finite_distances(
     mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Cover the branch where at least one scaled distance is finite."""
+    """Filter non-finite distances and train only on valid rows."""
     model = MagicMock()
     model.predict.return_value = np.array([0, 1, 0])
 
@@ -209,16 +209,17 @@ def test_tabular_explain_impute_when_some_distances_valid(
         use_best_surrogate=False,
         seed=42,
         validate_normalization=False,
+        min_valid_ratio=0.5,
     )
 
-    # Force some non-finite distances inside the loop
-    # by making calculate_distance return mixed values
+    # Per-feature distances summed per perturbation (2 features):
+    # pert0: 0.5+0.5=1.0 (finite), pert1: inf+0.5=inf, pert2: 1.5+1.5=3.0
     mock_calc_dist.side_effect = [0.5, 0.5, np.inf, 0.5, 1.5, 1.5] * 10
 
-    mock_trainer.compute_weights.return_value = np.ones(3)
+    mock_trainer.compute_weights.return_value = np.ones(2)
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.6, 0.7])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
     mock_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
 
@@ -226,22 +227,22 @@ def test_tabular_explain_impute_when_some_distances_valid(
     result = explainer.explain(instance)
 
     distances = result.raw_data["distances"]
-    # At least one entry must have been imputed with max+1000
-    assert np.any(distances > 1000.0)
+    assert len(distances) == 2
     assert np.all(np.isfinite(distances))
+    assert np.allclose(sorted(distances), [1.0, 3.0])
 
 
 @patch("xwhy.explainers.tabular.SurrogateTrainer")
 @patch("xwhy.explainers.tabular.SurrogateFactory")
 @patch("xwhy.explainers.tabular.RegressionMetrics")
 @patch("xwhy.explainers.tabular.calculate_distance")
-def test_tabular_explain_impute_when_all_distances_non_finite(
+def test_tabular_explain_raises_when_all_distances_non_finite(
     mock_calc_dist: MagicMock,
     mock_metrics: MagicMock,
     mock_factory: MagicMock,
     mock_trainer: MagicMock,
 ) -> None:
-    """Cover the branch where every scaled distance is non-finite."""
+    """Raise ValueError when every perturbation distance is non-finite."""
     model = MagicMock()
     model.predict.return_value = np.array([0, 1, 0])
 
@@ -252,19 +253,144 @@ def test_tabular_explain_impute_when_all_distances_non_finite(
         use_best_surrogate=False,
         seed=42,
         validate_normalization=False,
+        min_valid_ratio=0.5,
     )
 
     mock_calc_dist.return_value = np.inf
 
-    mock_trainer.compute_weights.return_value = np.ones(2)
+    instance = np.array([0.0, 0.0])
+    with pytest.raises(
+        ValueError,
+        match=re.escape("All perturbations failed (0 valid distances)"),
+    ):
+        explainer.explain(instance)
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+@patch("xwhy.explainers.tabular.logger")
+def test_tabular_explain_warns_on_low_valid_ratio(
+    mock_logger: MagicMock,
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Log a warning when valid_ratio is below ``min_valid_ratio``."""
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=3,
+        num_distribution_samples=5,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+        min_valid_ratio=0.5,
+    )
+
+    # 1 finite of 3: pert0 finite, pert1+2 non-finite
+    # 2 features each: f,f | inf,inf | inf,inf
+    mock_calc_dist.side_effect = [0.5, 0.5, np.inf, np.inf, np.nan, np.nan] * 5
+
+    mock_trainer.compute_weights.return_value = np.ones(1)
     mock_surrogate = MagicMock()
     mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
-    mock_surrogate.predict.return_value = np.array([0.5, 0.5])
+    mock_surrogate.predict.return_value = np.array([0.5])
     mock_factory.create.return_value = mock_surrogate
     mock_metrics.calculate.return_value = MagicMock()
 
-    instance = np.array([0.0, 0.0])
-    result = explainer.explain(instance)
+    result = explainer.explain(np.array([0.1, -0.2]))
+    assert len(result.raw_data["distances"]) == 1
 
-    distances = result.raw_data["distances"]
-    assert np.allclose(distances, 1000.0)
+    warning_calls = [str(c) for c in mock_logger.warning.call_args_list]
+    assert any("Low valid perturbation ratio" in c for c in warning_calls)
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_includes_p_values(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Store per-feature p-values when return_p_value is enabled."""
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=2,
+        num_distribution_samples=3,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+        return_p_value=True,
+        n_bootstrap=10,
+    )
+
+    mock_calc_dist.return_value = (0.05, 0.5)
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain(np.array([0.1, -0.2]))
+
+    assert "p_values" in result.raw_data
+    p_vals = result.raw_data["p_values"]
+    assert p_vals.shape == (2, 2)
+    assert np.allclose(p_vals, 0.05)
+    assert mock_calc_dist.call_args.kwargs["return_p_value"] is True
+
+
+@patch("xwhy.explainers.tabular.SurrogateTrainer")
+@patch("xwhy.explainers.tabular.SurrogateFactory")
+@patch("xwhy.explainers.tabular.RegressionMetrics")
+@patch("xwhy.explainers.tabular.calculate_distance")
+def test_tabular_explain_tuple_distance_without_p_value_matrix(
+    mock_calc_dist: MagicMock,
+    mock_metrics: MagicMock,
+    mock_factory: MagicMock,
+    mock_trainer: MagicMock,
+) -> None:
+    """Unpack tuple distances when return_p_value is False.
+
+    Covers the branch where ``isinstance(res, tuple)`` is True but
+    ``p_values_matrix`` is None, so the inner assignment is skipped.
+    """
+    model = MagicMock()
+    model.predict.return_value = np.array([0, 1, 0])
+
+    explainer = TabularExplainer(
+        model=model,
+        num_perturbations=2,
+        num_distribution_samples=3,
+        use_best_surrogate=False,
+        seed=42,
+        validate_normalization=False,
+        return_p_value=False,
+    )
+
+    # calculate_distance still returns a tuple even though p-values are off
+    mock_calc_dist.return_value = (0.05, 0.5)
+    mock_trainer.compute_weights.return_value = np.ones(2)
+    mock_surrogate = MagicMock()
+    mock_surrogate.coefficients.return_value = np.array([0.1, 0.2])
+    mock_surrogate.predict.return_value = np.array([0.5, 0.6])
+    mock_factory.create.return_value = mock_surrogate
+    mock_metrics.calculate.return_value = MagicMock()
+
+    result = explainer.explain(np.array([0.1, -0.2]))
+
+    assert "p_values" not in result.raw_data
+    # 2 features summed => distance per perturbation is 0.5 + 0.5 = 1.0
+    assert np.allclose(result.raw_data["distances"], 1.0)

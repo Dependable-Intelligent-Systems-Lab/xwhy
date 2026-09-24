@@ -46,8 +46,8 @@ plugins:
       markdown_description: >-
         XWhy: eXplain Why is a Python library for model-agnostic local
         explainability using SMILE. Image Classification, Image Generation &
-        Editing, LLM, Tabular, and Text explainers are currently available.
-        Point Cloud remains under construction, while Time Series, Multimodal,
+        Editing, LLM, Tabular, Text, and Point Cloud explainers are currently available.
+        Point Cloud is available. Time Series, Multimodal,
         Agentic AI, and Multi-Agent AI are documented research-roadmap
         capabilities.
       full_output: llms-full.txt
@@ -62,7 +62,7 @@ plugins:
           - explainers/image/index.md: Image-classification explainability
           - explainers/image-generation/index.md: Image-generation and editing explainability
           - explainers/image-generation/image-editing.md: Image-editing explainability
-          - explainers/image-generation/pix2pix-models.md: Pix2Pix-style models as an image-editing model family
+          - explainers/image-generation/image-generation-editing-examples.md: Image generation and editing model examples
           - explainers/llm/index.md: LLM prompt-response explainability
           - explainers/tabular.md: Tabular explainability
           - explainers/text.md: Text explainability
@@ -126,7 +126,7 @@ nav:
       - Image Generation:
           - Overview: explainers/image-generation/index.md
           - Image Editing: explainers/image-generation/image-editing.md
-          - Pix2Pix Models: explainers/image-generation/pix2pix-models.md
+          - Image Generation and Editing Examples: explainers/image-generation/image-generation-editing-examples.md
       - LLM: explainers/llm/index.md
       - Tabular: explainers/tabular.md
       - Text: explainers/text.md

@@ -14,8 +14,8 @@ class DistanceType(StrEnum):
     CRAMER_VON_MISES = "cramer_von_mises"
     ANDERSON_DARLING = "anderson_darling"
     KUIPER = "kuiper"
-    WMD = "wmd"
     DTS = "dts"
+    WMD = "wmd"
 
     @property
     def is_text_metric(self) -> bool:
