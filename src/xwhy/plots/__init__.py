@@ -2,7 +2,14 @@
 
 from xwhy.plots.base import BaseTextPlotter
 from xwhy.plots.factory import TextPlotterFactory
-from xwhy.plots.image import image_heatmap, plot_image
+from xwhy.plots.image import (
+    get_image_and_mask,
+    image_boundaries,
+    image_heatmap,
+    image_regions,
+    image_regions_side_by_side,
+    plot_image,
+)
 from xwhy.plots.plots import (
     bar,
     beeswarm,
@@ -60,10 +67,14 @@ __all__ = [
     "display_plotly_figure",
     "embedding",
     "force",
+    "get_image_and_mask",
     "group_difference",
     "heatmap",
     "image",
+    "image_boundaries",
     "image_heatmap",
+    "image_regions",
+    "image_regions_side_by_side",
     "image_to_text",
     "initjs",
     "monitoring",
