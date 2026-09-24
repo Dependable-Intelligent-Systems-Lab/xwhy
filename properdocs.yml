@@ -95,8 +95,6 @@ plugins:
           - research/reddit/blogs.md: Research blogs and XWhy explainers
           - research/reddit/blogs/image-editing-smile.md: Explaining image-editing instructions
           - research/reddit/blogs/fairness-skin-cancer-ai.md: Fairness in skin cancer AI
-          - research/reddit/blogs/responsible-ai-chennai.md: Responsible AI in healthcare research visit
-          - research/reddit/blogs/digital-twins-chennai.md: Digital twin research visit
           - research/reddit/blogs/how-smile-works.md: How SMILE works
           - research/reddit/blogs/reading-local-explanations.md: Interpreting local explanations
           - research/reddit/blogs/explaining-llm-responses.md: Explaining LLM responses
