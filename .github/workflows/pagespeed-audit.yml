@@ -18,7 +18,9 @@ permissions:
 
 jobs:
   mobile-audit:
-    if: github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy'
+    if: >-
+      github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy' &&
+      github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for GitHub Pages propagation
