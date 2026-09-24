@@ -35,8 +35,8 @@ Neither view replaces the other. A token heatmap can tell you that *Dallas* matt
 ## Step 1: Decide what you want from the graph
 
 <figure markdown>
-  ![Step 1: an intervention graph for the prompt "the capital of the state containing Dallas is". Embedding nodes for capital and state feed intermediate concepts, which lead to the target node Say Austin. Intervention labels such as 2x and -2x are marked as not being token importance.](../../../assets/images/blogs/circuit-tracing/step-1-intervention-graph.png){ loading=lazy }
-  <figcaption>Step 1. The graph has three kinds of node: input embeddings (purple), internal concepts (blue) and the target output (green). The goal is to measure how much each input token contributed to predicting <em>Austin</em>.</figcaption>
+  ![Step 1 diagram titled "What exactly do we want from this figure?". It shows an intervention graph for the prompt "Fact: the capital of the state containing Dallas is". Purple input-representation nodes (Emb: capital, Emb: state, Emb: Dallas) feed blue internal-concept nodes (capital, state, Say a capital, Texas), which lead to the green target node Say Austin. Nearby are Say Victoria and a British Columbia node, with intervention labels 2x and minus 2x and activation percentages (100%, 102%, 25%, 0%). A callout explains that these interventions are not token importance. The example top outputs are: the 8%, Albany 6%, not 6%, Harrisburg 5% and Hartford 4%. The banner reads: "Our goal is to understand how much each input token contributed to predicting Austin."](../../../assets/images/blogs/circuit-tracing/step-1-intervention-graph.webp){ loading=lazy width="1672" height="941" }
+  <figcaption>Step 1: read the intervention graph. Purple nodes are input embeddings, blue nodes are internal concepts and the green node is the target, <em>Say Austin</em>. The 2× / −2× labels are interventions, not importance. The goal is to measure how much each prompt token contributed to predicting <em>Austin</em>.</figcaption>
 </figure>
 
 The figure is an **intervention graph** for the Dallas prompt. Read it from the bottom up:
@@ -50,8 +50,8 @@ The labels **2×** and **−2×** and the percentages are *interventions*. In th
 ## Step 2: Find where the inputs enter the graph
 
 <figure markdown>
-  ![Step 2: the embedding nodes Emb: capital, Emb: state and Emb: Dallas are highlighted as source nodes at the bottom of the graph, with reasoning nodes grouped above them near the target.](../../../assets/images/blogs/circuit-tracing/step-2-source-nodes.png){ loading=lazy }
-  <figcaption>Step 2. Embedding nodes are the graph's <strong>source nodes</strong>. Every contribution to the output must eventually be traced back to one of them.</figcaption>
+  ![Step 2 diagram titled "Where do the inputs enter the graph?". A dashed blue box at the bottom groups the source nodes Emb: capital, Emb: state and Emb: Dallas. Upward arrows connect them to a dashed orange box of target-side reasoning nodes (capital, state, Say a capital, Texas, Say Austin), which leads to Say Victoria and British Columbia. A colour guide shows blue as input or source nodes, grey as intermediate nodes and yellow as the target output. A callout reads: "To obtain Input Token Importance, we must eventually trace the contribution back to the input embeddings."](../../../assets/images/blogs/circuit-tracing/step-2-source-nodes.webp){ loading=lazy width="1672" height="941" }
+  <figcaption>Step 2: find the source nodes. Every contribution to the answer enters the graph through an embedding node, so token importance must be traced all the way back to <code>Emb: capital</code>, <code>Emb: state</code> and <code>Emb: Dallas</code>, not just to the reasoning nodes near the target.</figcaption>
 </figure>
 
 In an attribution graph, information flows from sources to the target. The **source nodes** are the embedding nodes, one for each prompt position. The reasoning nodes near the target sit in the middle. They are the most interesting part of the circuit, but they are not the inputs.
@@ -63,8 +63,8 @@ In the `circuit-tracer` implementation, the adjacency matrix stores nodes in a f
 ## Step 3: Trace every path back from the target
 
 <figure markdown>
-  ![Step 3: three coloured paths run backwards from Say Austin. The green path for capital runs through Say a capital. The blue path for state and the red path for Dallas run through Texas.](../../../assets/images/blogs/circuit-tracing/step-3-trace-paths.png){ loading=lazy }
-  <figcaption>Step 3. Each input token reaches the target through one or more paths. <em>Dallas</em> reaches it only indirectly, via <em>Texas</em>.</figcaption>
+  ![Step 3 diagram titled "Trace the paths back from Austin". Three colour-coded paths lead back from the Say Austin node to the inputs. The green path for capital runs Emb: capital, capital, Say a capital, Say Austin. The blue path for state runs Emb: state, state, Texas, Say Austin. The red path for Dallas runs Emb: Dallas, Texas, Say Austin. Say Victoria and British Columbia are faded. The banner reads: "Token Importance is not obtained from a single edge or a single number in the figure; it is obtained from the sum of all traced paths back to the inputs."](../../../assets/images/blogs/circuit-tracing/step-3-trace-paths.webp){ loading=lazy width="1672" height="941" }
+  <figcaption>Step 3: trace every path from the target back to the inputs. <em>capital</em> works through <em>Say a capital</em>, while <em>state</em> and <em>Dallas</em> both work through <em>Texas</em>. A token's importance is the sum over all of its paths, not any single edge.</figcaption>
 </figure>
 
 To score a token, consider **every path** from the target node (*Say Austin*) back to that token's embedding:
@@ -84,8 +84,8 @@ This is the same *indirect influence* computation that Anthropic uses to [prune 
 ## Step 4: Add up each input's contribution, and keep the error separate
 
 <figure markdown>
-  ![Step 4: dashed contribution paths flow down into summation nodes below Emb: capital, Emb: state and Emb: Dallas. A red panel labelled "Error share" explains that the unexplained part is kept separate and not assigned to tokens.](../../../assets/images/blogs/circuit-tracing/step-4-sum-contributions.png){ loading=lazy }
-  <figcaption>Step 4. For each embedding, add every contribution that reaches it. Whatever the replacement model cannot explain goes to a separate <strong>error share</strong>.</figcaption>
+  ![Step 4 diagram titled "Sum the contribution of each input". The graph and interventions are faded in the background. Dashed contribution paths in blue, orange and green converge on three summation nodes below Emb: capital, Emb: state and Emb: Dallas, labelled "Sum of contributions for capital", "for state" and "for Dallas". A side panel gives the formula: I sub i is proportional to the sum of contributions from the paths ending at token i. A red Error share panel reads: "We keep the unexplained part separate and do not assign it to the tokens." The banner says that for each input embedding we add all contributions from the paths that reach it to obtain its final share in the prediction.](../../../assets/images/blogs/circuit-tracing/step-4-sum-contributions.webp){ loading=lazy width="1672" height="941" }
+  <figcaption>Step 4: add up everything that reaches each embedding. Each token gets the sum of the contributions from all paths ending at it. The part the replacement model cannot explain is kept as a separate <strong>error share</strong> and is not assigned to any token.</figcaption>
 </figure>
 
 Weight the output logits by their probabilities, propagate that weight through **B** and read off the embedding columns. This gives the raw importance of each token:
@@ -97,8 +97,8 @@ The **error share** is where this method differs from most token heatmaps. Circu
 ## Step 5: Normalise to get input-token importance
 
 <figure markdown>
-  ![Step 5: a bar chart of relative input-token importance. The values are: the 0.032, capital 0.271, of 0.024, the 0.028, state 0.118, containing 0.137, Dallas 0.181, is 0.021.](../../../assets/images/blogs/circuit-tracing/step-5-token-importance.png){ loading=lazy }
-  <figcaption>Step 5. After normalisation, <em>capital</em>, <em>Dallas</em>, <em>containing</em> and <em>state</em> carry most of the weight. Input-token importance is the projection of the model's internal graph onto the input tokens.</figcaption>
+  ![Step 5 bar chart titled "Normalization and Construction of Input Token Importance", showing the relative importance of each input token: the 0.032, capital 0.271 (highlighted in orange as the largest), of 0.024, the 0.028, state 0.118, containing 0.137, Dallas 0.181 and is 0.021. The captions read: "After summing the contributions, we normalize them to obtain the relative importance of each token" and "Thus, Input Token Importance is the projection of the model's internal graph onto the input tokens."](../../../assets/images/blogs/circuit-tracing/step-5-token-importance.webp){ loading=lazy width="1672" height="941" }
+  <figcaption>Step 5: normalise to get input-token importance. <em>capital</em> (0.271), <em>Dallas</em> (0.181), <em>containing</em> (0.137) and <em>state</em> (0.118) carry most of the weight, and function words stay near zero. The bars sum to 0.812, and the remainder is the error share.</figcaption>
 </figure>
 
 Finally, divide by the total influence that reaches the inputs, *including the error nodes*:
@@ -206,7 +206,7 @@ circuit-tracer supports open-weight models that have released transcoders, inclu
       "@type": "TechArticle",
       "headline": "From Circuit Tracing to Input-Token Importance",
       "description": "How to convert an attribution graph from circuit tracing into input-token explainability, with the Dallas → Texas → Austin example and a comparison with SMILE, SHAP, LIME and Integrated Gradients.",
-      "image": "https://dependable-intelligent-systems-lab.github.io/xwhy/assets/images/blogs/circuit-tracing/step-5-token-importance.png",
+      "image": "https://dependable-intelligent-systems-lab.github.io/xwhy/assets/images/blogs/circuit-tracing/step-5-token-importance.webp",
       "url": "https://dependable-intelligent-systems-lab.github.io/xwhy/research/reddit/blogs/circuit-tracing-to-token-importance/",
       "author": {"@type": "Organization", "name": "XWhy contributors", "url": "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"},
       "publisher": {"@type": "Organization", "name": "Dependable Intelligent Systems Lab"},
