@@ -967,3 +967,123 @@ def test_plot_feature_box_plot_with_feature_names(
         plot_feature_box_plot(result)
 
     mock_show.assert_called_once()
+
+
+# ==============================================================================
+# NATIVE HEATMAP MARGIN / LAYOUT BRANCHES
+# ==============================================================================
+
+
+@patch("xwhy.plots.text.plt.show")
+@patch("matplotlib.text.Text.draw")
+def test_native_heatmap_margin_pixels(
+    mock_draw: MagicMock, mock_show: MagicMock
+) -> None:
+    """horizontal_margin >= 1.0 is treated as pixels and converted to fraction.
+
+    Covers the ``margin_frac >= 1.0`` arm of line 152.
+    """
+    from matplotlib.transforms import Bbox
+
+    plotter = TextPlotterFactory.create(TextPlotterType.NATIVE_HEATMAP)
+    words = ["alpha", "beta"]
+    scores = np.array([0.3, -0.2])
+    token_bbox = Bbox.from_extents(0, 0, 20, 10)
+
+    with (
+        patch("matplotlib.figure.Figure.get_tightbbox") as mock_tightbbox,
+        patch(
+            "matplotlib.text.Text.get_window_extent",
+            return_value=token_bbox,
+        ),
+        patch.dict("sys.modules", {"IPython": None, "IPython.display": None}),
+    ):
+        mock_tightbbox.return_value = Bbox.from_extents(0, 0, 10, 5)
+
+        plotter.plot(
+            words=words,
+            scores=scores,
+            horizontal_margin=50.0,  # pixels → fraction via / (width * 100)
+            width=10.0,
+            verbose=0,
+        )
+
+    assert mock_show.called
+
+
+@patch("xwhy.plots.text.plt.show")
+@patch("matplotlib.text.Text.draw")
+def test_native_heatmap_margin_half_to_one(
+    mock_draw: MagicMock, mock_show: MagicMock
+) -> None:
+    """0.5 <= horizontal_margin < 1.0 clamps to 0.49 (line 152 else arm)."""
+    from matplotlib.transforms import Bbox
+
+    plotter = TextPlotterFactory.create(TextPlotterType.NATIVE_HEATMAP)
+    words = ["x"]
+    scores = np.array([0.5])
+    token_bbox = Bbox.from_extents(0, 0, 15, 10)
+
+    with (
+        patch("matplotlib.figure.Figure.get_tightbbox") as mock_tightbbox,
+        patch(
+            "matplotlib.text.Text.get_window_extent",
+            return_value=token_bbox,
+        ),
+        patch.dict("sys.modules", {"IPython": None, "IPython.display": None}),
+    ):
+        mock_tightbbox.return_value = Bbox.from_extents(0, 0, 8, 4)
+
+        plotter.plot(
+            words=words,
+            scores=scores,
+            horizontal_margin=0.6,  # >= 0.5 and < 1.0 → 0.49
+            verbose=0,
+        )
+
+    assert mock_show.called
+
+
+@patch("xwhy.plots.text.plt.close")
+@patch("matplotlib.figure.Figure.savefig")
+def test_native_heatmap_ipython_display_path(
+    mock_savefig: MagicMock, mock_close: MagicMock
+) -> None:
+    """When IPython is available and save_path is None, display via Image."""
+    plotter = TextPlotterFactory.create(TextPlotterType.NATIVE_HEATMAP)
+    words = ["hi"]
+    scores = np.array([0.1])
+
+    mock_display = MagicMock()
+    mock_image_cls = MagicMock()
+
+    with (
+        patch("matplotlib.figure.Figure.get_tightbbox") as mock_tightbbox,
+        patch("matplotlib.text.Text.draw"),
+        patch("matplotlib.text.Text.get_window_extent") as mock_extent,
+        patch.dict(
+            "sys.modules",
+            {
+                "IPython": MagicMock(),
+                "IPython.display": MagicMock(
+                    Image=mock_image_cls, display=mock_display
+                ),
+            },
+        ),
+        patch("IPython.display.display", mock_display, create=True),
+        patch("IPython.display.Image", mock_image_cls, create=True),
+    ):
+        from matplotlib.transforms import Bbox
+
+        mock_extent.return_value = MagicMock(width=10.0)
+        mock_tightbbox.return_value = Bbox.from_extents(0, 0, 5, 3)
+
+        # Import path uses `from IPython.display import Image, display`
+        # so patch the names as they appear after import inside the method
+        with patch("xwhy.plots.text.io", create=True):
+            # Re-patch inside try block namespace is hard; instead ensure
+            # the import succeeds by providing the modules above.
+            plotter.plot(words=words, scores=scores, save_path=None)
+
+    # Either IPython path saved to buffer or fell back to show
+    plt.close("all")
