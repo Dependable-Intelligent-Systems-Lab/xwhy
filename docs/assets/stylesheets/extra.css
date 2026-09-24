@@ -375,7 +375,7 @@
 }
 
 .md-typeset .xwhy-blog-grid--stories {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .md-typeset .xwhy-blog-card {
@@ -547,10 +547,18 @@
   .md-typeset .xwhy-blog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .md-typeset .xwhy-blog-grid--stories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media screen and (max-width: 40em) {
   .md-typeset .xwhy-blog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .md-typeset .xwhy-blog-grid--stories {
     grid-template-columns: minmax(0, 1fr);
   }
 }
@@ -559,10 +567,18 @@
   .md-typeset .xwhy-blog-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .md-typeset .xwhy-blog-grid--stories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @container (max-width: 29rem) {
   .md-typeset .xwhy-blog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .md-typeset .xwhy-blog-grid--stories {
     grid-template-columns: minmax(0, 1fr);
   }
 }
