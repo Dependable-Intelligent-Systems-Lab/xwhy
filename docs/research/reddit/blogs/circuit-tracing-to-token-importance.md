@@ -7,7 +7,7 @@ description: How to turn an Anthropic-style attribution graph from circuit traci
 
 # From circuit tracing to input-token importance
 
-![An original illustration of an attribution graph whose paths are collapsed onto the input tokens of a prompt](../../../assets/images/blogs/circuit-tracing.svg)
+![From circuit-level reasoning to token-level explainability. Top panel, labelled Anthropic Research: an attribution graph for the prompt "Fact: the capital of the state containing Dallas is", which the model completes with Austin. The input tokens capital and state activate the concepts capital and state, which feed "say a capital"; the input token Dallas activates Dallas, then Texas. Both routes combine in "say Austin", which produces the answer Austin. A middle banner reads "Circuit-level reasoning → token-level explainability". Bottom panel, labelled SMILE Explainability: a text heatmap of token scores. The -0.06, capital -0.04, of -0.06, the 0.06, state -0.02, containing 0.07, Dallas 0.40 (highlighted as the strongest) and is 0.06.](../../../assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp){ width="1672" height="941" fetchpriority="high" }
 
 *LLM interpretability · XWhy explainer · Circuit tracing, attribution graphs and token attribution*
 
@@ -206,7 +206,7 @@ circuit-tracer supports open-weight models that have released transcoders, inclu
       "@type": "TechArticle",
       "headline": "From Circuit Tracing to Input-Token Importance",
       "description": "How to convert an attribution graph from circuit tracing into input-token explainability, with the Dallas → Texas → Austin example and a comparison with SMILE, SHAP, LIME and Integrated Gradients.",
-      "image": "https://dependable-intelligent-systems-lab.github.io/xwhy/assets/images/blogs/circuit-tracing/step-5-token-importance.webp",
+      "image": ["https://dependable-intelligent-systems-lab.github.io/xwhy/assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp", "https://dependable-intelligent-systems-lab.github.io/xwhy/assets/images/blogs/circuit-tracing/step-5-token-importance.webp"],
       "url": "https://dependable-intelligent-systems-lab.github.io/xwhy/research/reddit/blogs/circuit-tracing-to-token-importance/",
       "author": {"@type": "Organization", "name": "XWhy contributors", "url": "https://github.com/Dependable-Intelligent-Systems-Lab/xwhy"},
       "publisher": {"@type": "Organization", "name": "Dependable Intelligent Systems Lab"},
