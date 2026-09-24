@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   mobile-audit:
+    if: github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy'
     runs-on: ubuntu-latest
     steps:
       - name: Wait for GitHub Pages propagation

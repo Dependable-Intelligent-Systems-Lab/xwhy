@@ -8,6 +8,7 @@ on:
 jobs:
   pypi-publish:
     name: Build, Publish, and Release
+    if: github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy'
     runs-on: ubuntu-latest
 
     environment:
