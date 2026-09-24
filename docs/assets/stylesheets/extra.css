@@ -471,7 +471,8 @@
   margin-bottom: 0.8rem;
 }
 
-/* Featured article: spans the full grid row and places the illustration beside the text. */
+/* Featured article: spans the full grid row. The illustration stays full width
+   (not beside the text) so the labels inside it remain large enough to read. */
 .md-typeset .xwhy-blog-card--feature {
   grid-column: 1 / -1;
 }
@@ -479,22 +480,12 @@
 .md-typeset .xwhy-blog-card--feature img {
   aspect-ratio: 16 / 9;
   background: #0f2a55;
+  object-fit: contain;
 }
 
 @container (min-width: 40rem) {
-  .md-typeset .xwhy-blog-card--feature > a {
-    flex-direction: row;
-  }
-
-  .md-typeset .xwhy-blog-card--feature img {
-    flex: 0 0 46%;
-    height: auto;
-    max-width: 46%;
-  }
-
   .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__body {
-    justify-content: center;
-    padding: 1rem 1.25rem;
+    padding: 0.9rem 1.25rem 1rem;
   }
 
   .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__title {
@@ -503,10 +494,7 @@
 
   .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__description {
     font-size: 0.76rem;
-  }
-
-  .md-typeset .xwhy-blog-card--feature .xwhy-blog-card__read {
-    margin-top: 0.4rem;
+    max-width: 48rem;
   }
 }
 
@@ -526,6 +514,23 @@
   color: var(--md-default-fg-color--light);
   font-size: 0.72rem;
   max-width: 40rem;
+}
+
+.md-typeset .xwhy-blog-hero {
+  cursor: zoom-in;
+  display: block;
+}
+
+.md-typeset .xwhy-blog-hero img {
+  border-radius: 0.38rem;
+  display: block;
+  width: 100%;
+}
+
+.md-typeset .xwhy-blog-hero-note {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.68rem;
+  margin-top: 0.35rem;
 }
 
 .md-typeset .xwhy-formula {

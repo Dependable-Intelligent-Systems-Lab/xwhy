@@ -7,7 +7,10 @@ description: How to turn an Anthropic-style attribution graph from circuit traci
 
 # From circuit tracing to input-token importance
 
-![From circuit-level reasoning to token-level explainability. Top panel, labelled Anthropic Research: an attribution graph for the prompt "Fact: the capital of the state containing Dallas is", which the model completes with Austin. The input tokens capital and state activate the concepts capital and state, which feed "say a capital"; the input token Dallas activates Dallas, then Texas. Both routes combine in "say Austin", which produces the answer Austin. A middle banner reads "Circuit-level reasoning → token-level explainability". Bottom panel, labelled SMILE Explainability: a text heatmap of token scores. The -0.06, capital -0.04, of -0.06, the 0.06, state -0.02, containing 0.07, Dallas 0.40 (highlighted as the strongest) and is 0.06.](../../../assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp){ width="1672" height="941" fetchpriority="high" }
+[![From circuit-level reasoning to token-level explainability. Top panel, labelled Anthropic Research: an attribution graph for the prompt "Fact: the capital of the state containing Dallas is", which the model completes with Austin. The input tokens capital and state activate the concepts capital and state, which feed "say a capital"; the input token Dallas activates Dallas, then Texas. Both routes combine in "say Austin", which produces the answer Austin. A middle banner reads "Circuit-level reasoning → token-level explainability". Bottom panel, labelled SMILE Explainability: a text heatmap of token scores. The -0.06, capital -0.04, of -0.06, the 0.06, state -0.02, containing 0.07, Dallas 0.40 (highlighted as the strongest) and is 0.06.](../../../assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp){ width="1672" height="941" fetchpriority="high" }](../../../assets/images/blogs/circuit-tracing/hero-circuit-to-token-heatmap.webp){ .xwhy-blog-hero title="Open the full-resolution image" }
+
+Select the image to open it at full resolution.
+{ .xwhy-blog-hero-note }
 
 *LLM interpretability · XWhy explainer · Circuit tracing, attribution graphs and token attribution*
 
