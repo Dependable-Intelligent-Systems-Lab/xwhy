@@ -92,6 +92,7 @@ plugins:
           - evaluation/attribution-faithfulness.md: ATT faithfulness under interventions
         Research:
           - research/index.md: Research and reproducibility entry point
+          - research/blogs.md: Research blogs and XWhy explainers
           - research/citation.md: How to cite XWhy
         Releases:
           - release-notes.md: Version history and detailed release notes
@@ -159,6 +160,7 @@ nav:
   - Research:
       - Overview: research/index.md
       - Publications: research/publications.md
+      - Blogs: research/blogs.md
       - Citation: research/citation.md
   - API Reference: reference/index.md
   - Release Notes: release-notes.md

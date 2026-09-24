@@ -17,6 +17,7 @@ This catalogue connects the SMILE research family to the systems each publicatio
 | 2025 | gSMILE | Large language models | arXiv preprint | [arXiv:2505.21657](https://arxiv.org/abs/2505.21657) |
 | 2025 | KG-SMILE | Knowledge-graph and GraphRAG systems | arXiv preprint | [arXiv:2509.03626](https://arxiv.org/abs/2509.03626) |
 | 2026 | ConceptSMILE | Concept-based explainable AI | arXiv preprint | [arXiv:2607.09649](https://arxiv.org/abs/2607.09649) |
+| 2026 | ConceptSMILE thesis | Retinal-image explainability and trustworthy visual concepts | MSc thesis | [University of Hull repository](https://hull-repository.worktribe.com/output/5763337) |
 | 2026/2027 | Financial-sentiment local perturbation study | LLM financial-sentiment reasoning | NLDB 2026 conference chapter; 2027 volume | [DOI](https://doi.org/10.1007/978-3-032-29532-3_19) |
 | 2025 | Generative-AI SMILE thesis | LLM and image-editing explainability | MSc thesis | [arXiv:2602.01206](https://arxiv.org/abs/2602.01206) |
 
@@ -225,6 +226,28 @@ ConceptSMILE audits whether higher-level, human-understandable concepts provide 
     ```
 
 ## Related thesis
+
+### ConceptSMILE: Towards A Framework for Trustworthy Concept-Based Explainable Artificial Intelligence using SMILE
+
+**Mohadeseh Mollapour.** “ConceptSMILE: Towards A Framework for Trustworthy Concept-Based Explainable Artificial Intelligence using SMILE.” MSc thesis, University of Hull, 2026. Supervised by Koorosh Aslansefat and Bhupesh Mishra.
+
+This thesis studies concept-based explanations for retinal-image AI and evaluates their trustworthiness. It is a separate academic record from the [ConceptSMILE arXiv preprint](https://arxiv.org/abs/2607.09649) listed above.
+
+[Thesis record](https://hull-repository.worktribe.com/output/5763337)
+
+??? note "BibTeX"
+
+    ```bibtex
+    @mastersthesis{mollapour2026conceptsmilethesis,
+      author = {Mohadeseh Mollapour},
+      title  = {{ConceptSMILE}: Towards A Framework for Trustworthy
+                Concept-Based Explainable Artificial Intelligence using {SMILE}},
+      school = {University of Hull},
+      type   = {{MSc} thesis},
+      year   = {2026},
+      url    = {https://hull-repository.worktribe.com/output/5763337}
+    }
+    ```
 
 ### Addressing Explainability of Generative AI Using SMILE
 
