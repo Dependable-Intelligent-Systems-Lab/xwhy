@@ -13,6 +13,12 @@ description: How changing a few words in an image-editing instruction can help e
 
 An image-editing model can follow an instruction such as “replace the cloudy sky with a clear blue sky,” but a convincing result does not tell us how strongly each part of the instruction shaped the edit. That question matters when a visual change could hide something important, particularly in applications involving medical or safety-related images.
 
+The diagram below traces one example: a street image and a request for snowy weather go into an image editor, which produces a winter version. SMILE then tests changes to the instruction and estimates how much individual words matter to this particular edit.
+
+![A street image and a request for snowy weather enter an image-editing model; the snowy result is compared with edits from changed instructions to estimate local word contributions. The highlighted words are illustrative, not measured values.](../../../assets/images/blogs/image-editing-smile-concept.svg)
+
+*Schematic example. Word emphasis illustrates a possible explanation, not measured results.*
+
 ## Change the instruction and watch the output
 
 The image-editing SMILE approach makes controlled changes to the text instruction. It removes or changes selected words, runs the editor again, and compares each result with the reference edit. A local model then estimates which parts of the instruction are associated with the largest changes. The explanation can be shown as contributions for individual terms rather than a single score for the whole prompt.
