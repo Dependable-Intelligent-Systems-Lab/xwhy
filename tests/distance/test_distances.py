@@ -181,3 +181,47 @@ def test_compute_higher_ndim_fallback() -> None:
     vol1 = np.zeros((2, 3, 4, 5), dtype=np.float64)
     vol2 = np.zeros((2, 3, 4, 5), dtype=np.float64)
     assert dist.compute(vol1, vol2) == 1.0
+
+
+def test_wmd_distance_requires_keyed_vectors() -> None:
+    """Raise ValueError when model is missing or not KeyedVectors."""
+    from xwhy.distance.distances import WMDDistance
+
+    wmd = WMDDistance()
+    with pytest.raises(ValueError, match="KeyedVectors"):
+        wmd.compute("hello world", "foo bar")
+
+    with pytest.raises(ValueError, match="KeyedVectors"):
+        wmd.compute("hello world", "foo bar", model="not-a-model")
+
+
+def test_wmd_distance_empty_vocab_returns_one() -> None:
+    """Return 1.0 when no words remain after vocab filtering."""
+    from gensim.models import KeyedVectors
+
+    from xwhy.distance.distances import WMDDistance
+
+    # Must pass isinstance(..., KeyedVectors); membership always False
+    model = MagicMock(spec=KeyedVectors)
+    model.__contains__ = MagicMock(return_value=False)
+
+    wmd = WMDDistance()
+    result = wmd.compute("hello world", "foo bar", model=model)
+    assert result == 1.0
+
+
+def test_wmd_distance_success_path() -> None:
+    """Call model.wmdistance when both sides have in-vocab words."""
+    from gensim.models import KeyedVectors
+
+    from xwhy.distance.distances import WMDDistance
+
+    model = MagicMock(spec=KeyedVectors)
+    model.__contains__ = MagicMock(return_value=True)
+    model.wmdistance.return_value = 0.42
+
+    wmd = WMDDistance()
+    result = wmd.compute("hello world", "foo bar", model=model)
+
+    assert result == 0.42
+    model.wmdistance.assert_called_once()

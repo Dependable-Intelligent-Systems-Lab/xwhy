@@ -144,3 +144,22 @@ def test_calculate_distance_wasserstein_dispatch(mock_compute: MagicMock) -> Non
 
     assert result == 0.33
     mock_compute.assert_called_once_with(source=arr, target=arr, mode="spatial")
+
+
+def test_calculate_distance_text_with_numeric_metric() -> None:
+    """Raise ValueError when text data uses a non-text metric."""
+    with pytest.raises(
+        ValueError,
+        match="Text data requires a text-based metric",
+    ):
+        calculate_distance("cosine", "hello", "world")
+
+
+def test_calculate_distance_numeric_with_text_metric() -> None:
+    """Raise ValueError when numeric data uses a text metric."""
+    arr = np.array([1.0, 2.0, 3.0])
+    with pytest.raises(
+        ValueError,
+        match="cannot use text-based metrics",
+    ):
+        calculate_distance("wmd", arr, arr)
