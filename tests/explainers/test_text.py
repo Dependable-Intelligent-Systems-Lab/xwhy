@@ -50,9 +50,19 @@ def dummy_predict_fn(texts: Sequence[str]) -> np.ndarray:
 @pytest.fixture
 def base_explainer() -> TextExplainer:
     """Fixture providing a baseline TextExplainer with mocked internals."""
+
+    class _ModelNoNorms:
+        """Stub embedding backend without fill_norms."""
+
+    mock_embedder = MagicMock()
+    mock_embedder.model = _ModelNoNorms()
+
     with (
         patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
-        patch("xwhy.explainers.text.EmbeddingFactory"),
+        patch(
+            "xwhy.explainers.text.EmbeddingFactory.create",
+            return_value=mock_embedder,
+        ),
         patch("xwhy.explainers.text.TextPerturbation"),
     ):
         mock_config = MagicMock()
@@ -68,6 +78,8 @@ def base_explainer() -> TextExplainer:
         mock_config.ridge_alpha = 1.0
         mock_config.return_p_value = False
         mock_config.n_bootstrap = 1000
+        mock_config.model = None
+        mock_config.predict_fn = dummy_predict_fn
         mock_config_cls.return_value = mock_config
 
         return TextExplainer(predict_fn=dummy_predict_fn)
@@ -156,9 +168,23 @@ def test_init_no_warning_for_linear_surrogate() -> None:
 
 def test_init_creates_default_config() -> None:
     """Test passing parameters directly to __init__ instantiates a TextConfig."""
+
+    class _ModelWithNorms:
+        """Stub model with fill_norms."""
+
+        def __init__(self) -> None:
+            self.fill_norms = MagicMock()
+
+    mock_embedder = MagicMock()
+    model = _ModelWithNorms()
+    mock_embedder.model = model
+
     with (
         patch("xwhy.explainers.text.TextConfig") as mock_config_cls,
-        patch("xwhy.explainers.text.EmbeddingFactory"),
+        patch(
+            "xwhy.explainers.text.EmbeddingFactory.create",
+            return_value=mock_embedder,
+        ),
         patch("xwhy.explainers.text.TextPerturbation"),
     ):
         mock_config = MagicMock()
@@ -192,6 +218,7 @@ def test_init_creates_default_config() -> None:
             n_bootstrap=1000,
         )
         assert explainer.config is mock_config
+        model.fill_norms.assert_called_with(force=True)
 
 
 def test_init_with_explicit_config() -> None:
@@ -757,3 +784,42 @@ def test_text_explain_empty_embedding_with_p_values(
 
     assert "p_values" in result.raw_data
     assert np.isnan(result.raw_data["p_values"][0])
+
+
+@patch("xwhy.explainers.text.calculate_distance")
+@patch("xwhy.explainers.text.SurrogateTrainer")
+@patch("xwhy.explainers.text.SurrogateFactory")
+@patch("xwhy.explainers.text.RegressionMetrics")
+def test_text_explain_wmd_distance_path(
+    mock_metrics: MagicMock,
+    mock_surr_factory: MagicMock,
+    mock_surr_trainer: MagicMock,
+    mock_calc_dist: MagicMock,
+    base_explainer: TextExplainer,
+) -> None:
+    """Exercise WMD distance path."""
+    base_explainer.config.distance_type = DistanceType.WMD  # type: ignore[union-attr]
+    _wire_text_explain_mocks(
+        base_explainer,
+        mock_calc_dist,
+        mock_surr_trainer,
+        mock_surr_factory,
+        mock_metrics,
+        distance=0.4,
+        n_samples=2,
+    )
+
+    def mock_predict(texts: Sequence[str]) -> np.ndarray:
+        return np.array([1.0] * len(texts))
+
+    result = base_explainer.explain(instance="hello world", predict_fn=mock_predict)
+
+    assert isinstance(result, TextXWhyResult)
+    # WMD path must not call encode for base representation
+    # (base_text_representation stays empty; is_wmd skips encode)
+    assert mock_calc_dist.called
+    # First positional/keyword should request WMD metric
+    for call in mock_calc_dist.call_args_list:
+        kwargs = call.kwargs
+        if "metric" in kwargs:
+            assert kwargs["metric"] == DistanceType.WMD

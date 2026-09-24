@@ -1468,10 +1468,28 @@ def test_init_device_resolution_cpu(
     mock_cuda: Mock,
     mock_dependencies: Any,  # noqa: ANN401
 ) -> None:
-    """Test device defaults to cpu when config is None and cuda missing."""
-    explainer = ImageGenerationAndEditingExplainer(device=None)  # type: ignore[arg-type]
+    """Test device defaults to cpu when config is None and cuda missing.
+
+    Also covers the False branch of ``hasattr(embedder.model, "fill_norms")``
+    (line 1031→1034) by giving the text embedder a plain object model.
+    """
+
+    class _ModelNoNorms:
+        """Stub model without fill_norms."""
+
+    mock_embedder = MagicMock()
+    mock_embedder.model = _ModelNoNorms()
+
+    with patch(
+        "xwhy.explainers.image.EmbeddingFactory.create",
+        return_value=mock_embedder,
+    ):
+        explainer = ImageGenerationAndEditingExplainer(
+            device=None,  # type: ignore[arg-type]
+        )
     assert str(explainer.state.device) == "cpu"
     assert explainer.config.device == "cpu"  # type: ignore[union-attr]
+    assert explainer.state.text_embedding_model is mock_embedder
 
 
 def test_init_pipeline_resolution(mock_dependencies: Any) -> None:  # noqa: ANN401
@@ -3016,3 +3034,273 @@ def test_image_generation_return_p_value_without_text_p_values(
 
     assert "image_p_values" in result.raw_data
     assert "text_p_values" not in result.raw_data
+
+
+@patch("xwhy.explainers.image.DistanceType.from_str")
+def test_init_non_numeric_distance_metric(mock_from_str: MagicMock) -> None:
+    """Raise ValueError when distance metric is not numeric (line 148)."""
+    mock_dist = MagicMock()
+    mock_dist.is_numeric_metric = False
+    mock_from_str.return_value = mock_dist
+
+    with pytest.raises(ValueError, match="Must be a numeric distance"):
+        ImageClassificationExplainer(
+            distance_type="mock_non_numeric",
+            use_embedding_model=False,
+            use_segmentation_model=False,
+        )
+
+
+@patch("xwhy.explainers.image.DistanceType.from_str")
+def test_generation_init_non_numeric_image_distance(
+    mock_from_str: MagicMock,
+) -> None:
+    """Raise ValueError for non-numeric image distance (line 779)."""
+    mock_dist = MagicMock()
+    mock_dist.is_numeric_metric = False
+    mock_from_str.return_value = mock_dist
+
+    with pytest.raises(ValueError, match="Must be a numeric distance"):
+        ImageGenerationAndEditingExplainer(
+            image_distance_type="mock_non_numeric",
+        )
+
+
+@patch("xwhy.explainers.image.load_image_as_tensor")
+def test_compute_distances_embedding_model_none_original(
+    mock_load: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Raise when image embedding is enabled but model is None (line 1284)."""
+    mock_load.return_value = (None, np.zeros((8, 8, 3)))
+
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.use_image_embedding_model = True
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+    explainer.config.n_bootstrap = 10
+    explainer.state = MagicMock()
+    explainer.state.image_embedding_model = None
+    explainer._action = "generate"
+
+    p1 = tmp_path / "img.png"
+    Image.new("RGB", (8, 8), color="red").save(p1)
+
+    msg = "Image embedding model is not initialized"
+    with pytest.raises(ValueError, match=msg):
+        ImageGenerationAndEditingExplainer._compute_perturbation_distances(
+            explainer,
+            input_image_path=str(p1),
+            generated_images=[(True, str(p1))],
+            prompts=["prompt"],
+            display_image=False,
+            output_dir=str(tmp_path),
+        )
+
+
+@patch("xwhy.explainers.image.load_image_as_tensor")
+def test_compute_distances_embedding_model_none_current(
+    mock_load: MagicMock,
+    tmp_path: Path,
+) -> None:
+    """Raise when embedding model is None for current image (line 1317)."""
+    mock_load.return_value = (None, np.zeros((8, 8, 3)))
+
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.use_image_embedding_model = True
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+    explainer.config.n_bootstrap = 10
+    explainer.state = MagicMock()
+    explainer._action = "generate"
+
+    mock_embed = MagicMock()
+
+    def _encode_then_clear(img: object) -> np.ndarray:
+        explainer.state.image_embedding_model = None
+        return np.array([0.1, 0.2, 0.3])
+
+    mock_embed.encode_image.side_effect = _encode_then_clear
+    explainer.state.image_embedding_model = mock_embed
+
+    p1 = tmp_path / "img.png"
+    Image.new("RGB", (8, 8), color="green").save(p1)
+
+    msg = "Image embedding model is not initialized"
+    with pytest.raises(ValueError, match=msg):
+        ImageGenerationAndEditingExplainer._compute_perturbation_distances(
+            explainer,
+            input_image_path=str(p1),
+            generated_images=[(True, str(p1))],
+            prompts=["prompt"],
+            display_image=False,
+            output_dir=str(tmp_path),
+        )
+
+
+def test_explain_normalization_mode_kwarg() -> None:
+    """Accept legacy normalization_mode kwarg (line 1429)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.config.num_perturbations = 4
+    explainer.config.model_name = "test"
+    explainer.config.use_best_surrogate = False
+    explainer.config.surrogate_type = SurrogateType.LIME
+    explainer.config.epsilon = 0.0
+    explainer.config.kernel_width = 0.25
+    explainer.config.ridge_alpha = 1.0
+    explainer.config.min_valid_ratio = 0.5
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.text_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.return_p_value = False
+
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = MagicMock()
+    explainer.state.text_perturbator.generate.return_value = (
+        ["p1", "p2"],
+        [[1], [0]],
+    )
+    embed = MagicMock()
+    embed.encode.return_value = np.array([0.1, 0.2])
+    explainer.state.text_embedding_model = embed
+    explainer._prepare_environment = MagicMock()
+    explainer._generate_images = MagicMock(
+        side_effect=[
+            [(True, "/tmp/base.png")],
+            [(True, "/tmp/1.png"), (True, "/tmp/2.png")],
+        ]
+    )
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(np.array([0.5, 0.6]), [])
+    )
+
+    with (
+        patch("xwhy.explainers.image.calculate_distance", return_value=0.2),
+        patch(
+            "xwhy.explainers.image.DistanceNormalizer.min_max",
+            return_value=[("v", 0.5)] * 2,
+        ),
+        patch("xwhy.explainers.image.SurrogateTrainer") as mock_trainer,
+        patch("xwhy.explainers.image.SurrogateFactory") as mock_factory,
+        patch("xwhy.explainers.image.RegressionMetrics") as mock_metrics,
+        patch("xwhy.explainers.image.save_data_to_pickle"),
+        patch(
+            "xwhy.explainers.image.save_perturbation_data_to_csv",
+            return_value="/tmp/out.csv",
+        ),
+    ):
+        mock_trainer.compute_weights.return_value = np.ones(2)
+        mock_s = MagicMock()
+        mock_s.coefficients.return_value = np.array([0.1])
+        mock_s.predict.return_value = np.array([0.5, 0.6])
+        mock_factory.create.return_value = mock_s
+        mock_metrics.calculate.return_value = MagicMock()
+
+        result = ImageGenerationAndEditingExplainer.explain(
+            explainer,
+            instance="a short descriptive prompt here",
+            normalization_mode="inverse",
+        )
+    assert result is not None
+
+
+def test_explain_text_perturbator_none() -> None:
+    """Raise RuntimeError when text perturbator is None (line 1437)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = None
+    explainer._prepare_environment = MagicMock()
+
+    msg = "Text perturbator is not initialized"
+    with pytest.raises(RuntimeError, match=msg):
+        ImageGenerationAndEditingExplainer.explain(
+            explainer, instance="a valid descriptive prompt"
+        )
+
+
+def test_explain_text_embedding_model_none() -> None:
+    """Raise RuntimeError when text embedding model is None (line 1532)."""
+    explainer = MagicMock(spec=ImageGenerationAndEditingExplainer)
+    explainer.config = MagicMock()
+    explainer.config.output_dir = "/tmp"
+    explainer.config.seed = 42
+    explainer.config.max_retries = 1
+    explainer.config.delay = None
+    explainer.config.normalization_method = "linear"
+    explainer.config.num_perturbations = 4
+    explainer.config.model_name = "test"
+    explainer.config.image_distance_type = DistanceType.WASSERSTEIN
+    explainer.config.text_distance_type = DistanceType.WASSERSTEIN
+
+    explainer.state = MagicMock()
+    explainer.state.text_perturbator = MagicMock()
+    explainer.state.text_perturbator.generate.return_value = (
+        ["p1", "p2"],
+        [[1], [0]],
+    )
+    explainer.state.text_embedding_model = None
+    explainer._prepare_environment = MagicMock()
+    explainer._generate_images = MagicMock(
+        side_effect=[
+            [(True, "/tmp/base.png")],
+            [(True, "/tmp/1.png"), (True, "/tmp/2.png")],
+        ]
+    )
+    explainer._compute_perturbation_distances = MagicMock(
+        return_value=(np.array([0.5, 0.6]), [])
+    )
+
+    msg = "Text embedding model is not initialized"
+    with pytest.raises(RuntimeError, match=msg):
+        ImageGenerationAndEditingExplainer.explain(
+            explainer, instance="a short descriptive prompt here"
+        )
+
+
+@patch("xwhy.explainers.image.SegmentationFactory")
+@patch("xwhy.explainers.image.TextPerturbation")
+@patch("xwhy.explainers.image.EmbeddingFactory")
+def test_generation_init_fill_norms_true_branch(
+    mock_embed_factory: MagicMock,
+    mock_text_pert: MagicMock,
+    mock_seg_factory: MagicMock,
+) -> None:
+    """Call fill_norms during real _initialize when model supports it.
+
+    Covers the True branch of ``hasattr(embedder.model, "fill_norms")``
+    at lines 1031-1032.
+    """
+
+    class _ModelWithNorms:
+        """Stub model that exposes fill_norms."""
+
+        def __init__(self) -> None:
+            self.fill_norms = MagicMock()
+
+    mock_embedder = MagicMock()
+    model = _ModelWithNorms()
+    mock_embedder.model = model
+    mock_embed_factory.create.return_value = mock_embedder
+
+    exp = ImageGenerationAndEditingExplainer(
+        engine=DummyEngine(),
+        use_image_embedding_model=False,
+        use_segmentation_model=False,
+        text_embedding_type=EmbeddingType.WORD2VEC,
+    )
+
+    model.fill_norms.assert_called_with(force=True)
+    assert exp.state.text_embedding_model is mock_embedder

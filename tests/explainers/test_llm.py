@@ -24,12 +24,22 @@ def mock_provider() -> MagicMock:
 @pytest.fixture
 def explainer(mock_provider: MagicMock) -> LLMExplainer:
     """Initialize an LLM explainer with a mocked provider for fast testing."""
+
+    class _ModelNoNorms:
+        """Stub embedding backend without fill_norms."""
+
+    mock_embedder = MagicMock()
+    mock_embedder.model = _ModelNoNorms()
+
     with (
         patch(
             "xwhy.explainers.llm.ProviderResolver.resolve",
             return_value=mock_provider,
         ),
-        patch("xwhy.explainers.llm.EmbeddingFactory"),
+        patch(
+            "xwhy.explainers.llm.EmbeddingFactory.create",
+            return_value=mock_embedder,
+        ),
         patch("xwhy.explainers.llm.TextPerturbation"),
     ):
         return LLMExplainer(provider="openai", use_best_surrogate=True)
@@ -134,9 +144,22 @@ def test_init_with_provider_enum(
     mock_pert: MagicMock, mock_emb: MagicMock, mock_resolve: MagicMock
 ) -> None:
     """Test init using a direct ProviderType Enum."""
+
+    class _ModelWithNorms:
+        """Stub model with fill_norms."""
+
+        def __init__(self) -> None:
+            self.fill_norms = MagicMock()
+
+    model = _ModelWithNorms()
+    mock_embedder = MagicMock()
+    mock_embedder.model = model
+    mock_emb.create.return_value = mock_embedder
+
     explainer = LLMExplainer(provider=ProviderType.OPENAI)
     assert explainer.config.provider_type == ProviderType.OPENAI  # type: ignore[union-attr]
     mock_resolve.assert_called_once()
+    model.fill_norms.assert_called_with(force=True)
 
 
 @patch("xwhy.explainers.llm.ProviderResolver.resolve")
@@ -253,8 +276,12 @@ def test_explain_success_default_surrogate(
 ) -> None:
     """Test the full explain pipeline when using a default surrogate model."""
     mock_resolve.return_value = mock_provider
+
     explainer = LLMExplainer(
-        provider="openai", use_best_surrogate=False, surrogate_type=SurrogateType.LIME
+        provider="openai",
+        use_best_surrogate=False,
+        surrogate_type=SurrogateType.LIME,
+        distance_type="wasserstein",
     )
 
     mock_perturbation.return_value.generate.return_value = (

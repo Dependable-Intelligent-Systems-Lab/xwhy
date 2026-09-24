@@ -1287,3 +1287,14 @@ def test_explain_p_values_filtered_with_non_finite_distances(
     assert "p_values" in result.raw_data
     assert list(result.raw_data["p_values"]) == pytest.approx([0.01, 0.02, 0.03])
     assert len(result.raw_data["distances"]) == 3
+
+
+@patch("xwhy.explainers.point_cloud.DistanceType.from_str")
+def test_init_non_numeric_distance_metric(mock_from_str: MagicMock) -> None:
+    """Raise ValueError when distance metric is not numeric (line 94)."""
+    mock_dist = MagicMock()
+    mock_dist.is_numeric_metric = False
+    mock_from_str.return_value = mock_dist
+
+    with pytest.raises(ValueError, match="Must be a numeric distance"):
+        PointCloudExplainer(distance_type="mock_non_numeric")
