@@ -478,7 +478,7 @@
 }
 
 .md-typeset .xwhy-blog-card--feature img {
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 2000 / 667;
   background: #0f2a55;
   object-fit: contain;
 }
