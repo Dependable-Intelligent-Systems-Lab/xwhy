@@ -317,7 +317,11 @@ class TabularExplainer(BaseExplainer):
         )
 
         logger.info("Training surrogate model (%s)...", method.value)
-        surrogate = SurrogateFactory.create(method=method, seed=cfg.seed)
+        surrogate = SurrogateFactory.create(
+            method=method,
+            seed=cfg.seed,
+            ridge_alpha=cfg.ridge_alpha,
+        )
         surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()

@@ -407,6 +407,7 @@ class LLMExplainer(BaseExplainer):
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
+            ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
         )
 
         # Fit the surrogate using strictly valid data

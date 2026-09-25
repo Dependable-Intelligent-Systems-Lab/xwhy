@@ -46,6 +46,7 @@ from xwhy.models.segmentation.factory import SegmentationFactory
 from xwhy.models.segmentation.types import SegmentationType
 from xwhy.perturbation.image import ImagePerturbation
 from xwhy.perturbation.text import TextPerturbation
+from xwhy.perturbation.types import SuperpixelType
 from xwhy.providers.base import BaseProvider
 from xwhy.providers.openai import OpenAIProvider
 from xwhy.providers.resolver import ProviderResolver
@@ -88,9 +89,15 @@ class ImageClassificationExplainer(BaseExplainer):
         epsilon: float = 0.0,
         kernel_width: float = 0.5,
         ridge_alpha: float = 1.0,
+        superpixel_type: str | SuperpixelType = SuperpixelType.QUICKSHIFT,
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
+        n_segments: int = 100,
+        compactness: float = 1.0,
+        scale: float = 1.0,
+        min_size: int = 20,
+        sigma: float = 1.0,
         num_perturbations: int = 150,
         keep_probability: float = 0.5,
         min_valid_ratio: float = 0.5,
@@ -107,15 +114,15 @@ class ImageClassificationExplainer(BaseExplainer):
         Args:
             config: Optional configuration for the explainer.
             custom_model: Optional user-defined PyTorch classification
-                          model (nn.Module).
+                model (nn.Module).
             custom_preprocess: Optional preprocessing transform pipeline for
-                               the custom model.
+                the custom model.
             categories: Optional list of human-readable class names corresponding
-                        to model outputs.
+                to model outputs.
             class_of_interest: The label ID of the object to evaluate.
             classification_type: Type of the classification model to explain.
-            use_model_preprocess: Whether to use the classfication model's official
-                                  preprocessing.
+            use_model_preprocess: Whether to use the classification model's
+                official preprocessing.
             use_embedding_model: Whether an image embedding model should be used.
             embedding_type: Embedding method for Image Embedding.
             use_segmentation_model: Whether an image segmentation model should be used.
@@ -125,14 +132,24 @@ class ImageClassificationExplainer(BaseExplainer):
             epsilon: Numerical stability constant.
             kernel_width: Kernel width for similarity weights.
             ridge_alpha: Ridge regularization strength.
+            superpixel_type: Superpixel segmentation algorithm used to partition
+                the image into interpretable regions.
             kernel_size: Kernel size used during superpixel generation.
             max_dist: Maximum superpixel search distance.
             ratio: Sampling ratio used by the superpixel algorithm.
+            n_segments: Approximate number of superpixel segments to generate.
+            compactness: Trade-off between color similarity and spatial proximity
+                for superpixel generation.
+            scale: Observation scale parameter for Felzenszwalb segmentation
+                (higher values produce larger clusters).
+            min_size: Minimum component size (in pixels) enforced for superpixels.
+            sigma: Width (standard deviation) of the Gaussian smoothing kernel
+                applied prior to segmentation.
             num_perturbations: Number of perturbed samples.
             keep_probability: Probability of keeping a superpixel (value = 1).
-            distance_type: Distance metric name.
             min_valid_ratio: Minimum proportion of valid (non-NaN/non-infinite)
                 perturbation evaluations required for reliable surrogate training.
+            distance_type: Distance metric name.
             surrogate_type: Surrogate model name.
             use_best_surrogate: Find best surrogate model dynamically.
             num_top_features: Number of important regions to highlight.
@@ -140,6 +157,9 @@ class ImageClassificationExplainer(BaseExplainer):
             return_p_value: Whether to compute statistical significance
                 (p-values) for computed distances using bootstrap sampling.
             n_bootstrap: Number of bootstrap iterations for p-value estimation.
+
+        Raises:
+            ValueError: If `distance_type` is not a valid numeric distance metric.
 
         """
         distance_type = DistanceType.from_str(distance_type)
@@ -154,6 +174,7 @@ class ImageClassificationExplainer(BaseExplainer):
         embedding_type = EmbeddingType.from_str(embedding_type)
         segmentation_type = SegmentationType.from_str(segmentation_type)
         surrogate_type = SurrogateType.from_str(surrogate_type)
+        superpixel_type = SuperpixelType.from_str(superpixel_type)
 
         if config is None:
             config = ImageClassificationConfig(
@@ -172,9 +193,15 @@ class ImageClassificationExplainer(BaseExplainer):
                 epsilon=epsilon,
                 kernel_width=kernel_width,
                 ridge_alpha=ridge_alpha,
+                superpixel_type=superpixel_type,
                 kernel_size=kernel_size,
                 max_dist=max_dist,
                 ratio=ratio,
+                n_segments=n_segments,
+                compactness=compactness,
+                scale=scale,
+                min_size=min_size,
+                sigma=sigma,
                 num_perturbations=num_perturbations,
                 keep_probability=keep_probability,
                 min_valid_ratio=min_valid_ratio,
@@ -283,9 +310,15 @@ class ImageClassificationExplainer(BaseExplainer):
 
         # 4. Initialize Perturbator ONCE
         self.state.perturbator = ImagePerturbation(
+            superpixel_type=self.config.superpixel_type,  # type: ignore[union-attr]
             kernel_size=self.config.kernel_size,  # type: ignore[union-attr]
             max_dist=self.config.max_dist,  # type: ignore[union-attr]
             ratio=self.config.ratio,  # type: ignore[union-attr]
+            n_segments=self.config.n_segments,  # type: ignore[union-attr]
+            compactness=self.config.compactness,  # type: ignore[union-attr]
+            scale=self.config.scale,  # type: ignore[union-attr]
+            min_size=self.config.min_size,  # type: ignore[union-attr]
+            sigma=self.config.sigma,  # type: ignore[union-attr]
             seed=self.config.seed,  # type: ignore[union-attr]
         )
 
@@ -344,9 +377,10 @@ class ImageClassificationExplainer(BaseExplainer):
                 np_array=perturbed_img, transform_fn=transform
             ).to(device)
 
-            # C. Inference
+            # C. Inference (convert logits to probabilities via softmax)
             with torch.no_grad():
-                prediction = classifier_model(tensor_batch)
+                logits = classifier_model(tensor_batch)
+                prediction = torch.nn.functional.softmax(logits, dim=1)
 
             batch_predictions.append(prediction.detach().cpu().numpy())
 
@@ -548,6 +582,7 @@ class ImageClassificationExplainer(BaseExplainer):
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
+            ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
         )
 
         # Fit the surrogate using strictly valid data
@@ -1669,6 +1704,7 @@ class ImageGenerationAndEditingExplainer(BaseExplainer):
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
+            ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
         )
 
         # Fit the surrogate using strictly valid data

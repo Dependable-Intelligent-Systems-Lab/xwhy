@@ -466,7 +466,11 @@ class PointCloudExplainer(BaseExplainer):
         # Fit surrogate model
         method_name = method.value if hasattr(method, "value") else method
         logger.info("Training surrogate model (%s)...", method_name)
-        surrogate = SurrogateFactory.create(method=method, seed=cfg.seed)  # type: ignore[union-attr]
+        surrogate = SurrogateFactory.create(
+            method=method,
+            seed=cfg.seed,  # type: ignore[union-attr]
+            ridge_alpha=cfg.ridge_alpha,  # type: ignore[union-attr]
+        )
         surrogate.fit(x_valid, y_valid, weights)
 
         coeffs = surrogate.coefficients()
