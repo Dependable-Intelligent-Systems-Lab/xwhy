@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 540" role="img" aria-labelledby="title desc">
+  <title id="title">An image-editing instruction and its local word explanation</title>
+  <desc id="desc">A city street and the instruction Make the weather snowy enter an image-editing model. The edited street is snowy. Below, SMILE compares edits after changing instruction words to estimate local word contributions. The emphasis is illustrative, not a measured result.</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1"><stop stop-color="#123657"/><stop offset="1" stop-color="#34639c"/></linearGradient>
+    <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#668fad"/><stop offset="1" stop-color="#c4d9dd"/></linearGradient>
+    <linearGradient id="winter" x2="0" y2="1"><stop stop-color="#28476e"/><stop offset="1" stop-color="#95b4cc"/></linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#fff" opacity=".12"/></pattern>
+    <clipPath id="before"><rect x="49" y="103" width="252" height="146" rx="5"/></clipPath>
+    <clipPath id="after"><rect x="699" y="103" width="252" height="146" rx="5"/></clipPath>
+  </defs>
+  <rect width="1000" height="540" fill="url(#background)"/>
+  <rect width="1000" height="540" fill="url(#dots)"/>
+  <circle cx="926" cy="-74" r="225" fill="#fff" opacity=".04"/>
+  <circle cx="-58" cy="578" r="220" fill="#fff" opacity=".035"/>
+
+  <rect x="38" y="43" width="274" height="252" rx="15" fill="#071e35" fill-opacity=".52" stroke="#b9e5ff" stroke-opacity=".68"/>
+  <circle cx="58" cy="55" r="18" fill="#47a8d5"/><text x="58" y="62" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">A</text>
+  <text x="81" y="80" fill="#ecf6ff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Input image + instruction</text>
+  <g clip-path="url(#before)">
+    <rect x="49" y="103" width="252" height="146" fill="url(#sky)"/>
+    <path d="M49 171h35v-40h24v40h15v-55h27v55h22v-33h22v33h22v-48h27v48h20v-29h38v107H49Z" fill="#42647d"/>
+    <path d="M49 195h252v54H49Z" fill="#7f94a0"/>
+    <path d="M116 249 164 190h27l64 59Z" fill="#4b6778"/>
+    <path d="M176 201v16m-2 13-2 9" fill="none" stroke="#e5edf0" stroke-width="3" stroke-linecap="round"/>
+    <path d="M107 217h72l9 10v14h-90v-14Z" fill="#263e51"/>
+    <path d="m117 217 6-10h41l10 10" fill="#405d70" stroke="#c1d2d9" stroke-width="2"/>
+    <circle cx="115" cy="240" r="5" fill="#d1dee1"/><circle cx="174" cy="240" r="5" fill="#d1dee1"/>
+    <path d="M269 191v44m0-31-16-20m16 20 16-26" stroke="#294f60" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="261" cy="177" r="17" fill="#4b7777"/><circle cx="281" cy="170" r="20" fill="#527f78"/>
+  </g>
+  <rect x="49" y="103" width="252" height="146" rx="5" fill="none" stroke="#b9e5ff" stroke-opacity=".5"/>
+  <text x="55" y="276" fill="#d6ecf7" font-family="system-ui, sans-serif" font-size="16"><tspan font-weight="700">Prompt:</tspan> Make the weather snowy</text>
+
+  <path d="M326 172h50m-12-12 13 12-13 12" fill="none" stroke="#e9f5ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="395" y="115" width="210" height="137" rx="18" fill="#071e35" fill-opacity=".77" stroke="#b9e5ff" stroke-opacity=".66"/>
+  <circle cx="500" cy="149" r="19" fill="#f0a5a5"/>
+  <path d="m490 149 7 7 14-17" fill="none" stroke="#17354c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="500" y="193" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Image-editing</text>
+  <text x="500" y="217" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">model</text>
+  <circle cx="405" cy="121" r="18" fill="#47a8d5"/><text x="405" y="128" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">B</text>
+  <path d="M624 172h50m-12-12 13 12-13 12" fill="none" stroke="#e9f5ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="688" y="43" width="274" height="252" rx="15" fill="#071e35" fill-opacity=".52" stroke="#b9e5ff" stroke-opacity=".68"/>
+  <circle cx="708" cy="55" r="18" fill="#47a8d5"/><text x="708" y="62" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">C</text>
+  <text x="731" y="80" fill="#ecf6ff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">Edited image</text>
+  <g clip-path="url(#after)">
+    <rect x="699" y="103" width="252" height="146" fill="url(#winter)"/>
+    <circle cx="895" cy="123" r="13" fill="#e2f1f7" opacity=".85"/>
+    <path d="M699 171h35v-40h24v40h15v-55h27v55h22v-33h22v33h22v-48h27v48h20v-29h38v107H699Z" fill="#486279"/>
+    <path d="M699 195h252v54H699Z" fill="#d1e3ed"/>
+    <path d="M766 249 814 190h27l64 59Z" fill="#93b0c1"/>
+    <path d="M826 201v16m-2 13-2 9" fill="none" stroke="#f8feff" stroke-width="3" stroke-linecap="round"/>
+    <path d="M757 217h72l9 10v14h-90v-14Z" fill="#263e51"/>
+    <path d="m767 217 6-10h41l10 10" fill="#405d70" stroke="#d7e7ed" stroke-width="2"/>
+    <path d="M754 218h78" stroke="#f1f8fc" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="765" cy="240" r="5" fill="#d1dee1"/><circle cx="824" cy="240" r="5" fill="#d1dee1"/>
+    <path d="M919 191v44m0-31-16-20m16 20 16-26" stroke="#355b6e" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <circle cx="911" cy="177" r="17" fill="#b2ced9"/><circle cx="931" cy="170" r="20" fill="#bed5df"/>
+    <path d="M699 173h35m24 0h15m27 0h22m22 0h22m27 0h20" stroke="#e8f4f8" stroke-width="3"/>
+    <g fill="#f4fbff" opacity=".9"><circle cx="726" cy="127" r="2"/><circle cx="746" cy="157" r="2"/><circle cx="783" cy="108" r="2"/><circle cx="809" cy="155" r="2"/><circle cx="849" cy="130" r="2"/><circle cx="882" cy="158" r="2"/><circle cx="915" cy="109" r="2"/><circle cx="942" cy="151" r="2"/><circle cx="712" cy="182" r="2"/><circle cx="864" cy="111" r="2"/></g>
+  </g>
+  <rect x="699" y="103" width="252" height="146" rx="5" fill="none" stroke="#b9e5ff" stroke-opacity=".5"/>
+  <text x="705" y="276" fill="#d6ecf7" font-family="system-ui, sans-serif" font-size="16">Same street, snowy weather</text>
+
+  <path d="M500 266v59m-12-13 12 13 12-13" fill="none" stroke="#e9f5ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="38" y="341" width="924" height="166" rx="17" fill="#071e35" fill-opacity=".65" stroke="#b9e5ff" stroke-opacity=".68"/>
+  <circle cx="58" cy="354" r="18" fill="#47a8d5"/><text x="58" y="361" text-anchor="middle" fill="#fff" font-family="system-ui, sans-serif" font-size="18" font-weight="700">D</text>
+  <text x="85" y="373" fill="#f3f9ff" font-family="system-ui, sans-serif" font-size="20" font-weight="700">SMILE estimates which instruction words shaped the edit</text>
+  <text x="85" y="400" fill="#cde3ee" font-family="system-ui, sans-serif" font-size="15">Change selected words, compare the resulting images, then fit a local explanation.</text>
+  <g font-family="system-ui, sans-serif" font-size="18" text-anchor="middle">
+    <rect x="84" y="420" width="185" height="48" rx="10" fill="#6a83a3"/><text x="176" y="450" fill="#fff">Make</text>
+    <rect x="296" y="420" width="185" height="48" rx="10" fill="#6a83a3"/><text x="388" y="450" fill="#fff">the</text>
+    <rect x="508" y="420" width="185" height="48" rx="10" fill="#d887a5"/><text x="600" y="450" fill="#102b47" font-weight="700">weather</text>
+    <rect x="720" y="420" width="185" height="48" rx="10" fill="#f3afb0"/><text x="812" y="450" fill="#102b47" font-weight="700">snowy</text>
+  </g>
+  <text x="500" y="493" text-anchor="middle" fill="#d6e8f2" font-family="system-ui, sans-serif" font-size="13">Illustrative emphasis only · actual contributions depend on the model, image and comparison</text>
+</svg>

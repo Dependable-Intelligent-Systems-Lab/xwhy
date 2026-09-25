@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" role="img" aria-labelledby="title desc">
+  <title id="title">Assessing a closed language model</title>
+  <desc id="desc">A prompt enters an opaque model. A response leads to a local explanation and separate observed behaviour checks.</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#242f5d"/><stop offset="1" stop-color="#514c87"/></linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="#fff" opacity=".11"/></pattern>
+  </defs>
+  <rect width="640" height="220" fill="url(#bg)"/><rect width="640" height="220" fill="url(#dots)"/>
+  <circle cx="577" cy="-47" r="145" fill="#fff" opacity=".045"/>
+  <circle cx="0" cy="265" r="150" fill="#fff" opacity=".035"/>
+  <rect x="33" y="47" width="154" height="128" rx="12" fill="#192648" fill-opacity=".8" stroke="#c7b7ff" stroke-opacity=".65"/>
+  <rect x="51" y="68" width="116" height="16" rx="5" fill="#b6addc"/>
+  <rect x="51" y="94" width="89" height="11" rx="5" fill="#897fb5"/>
+  <rect x="51" y="116" width="105" height="11" rx="5" fill="#897fb5"/>
+  <rect x="51" y="139" width="66" height="11" rx="5" fill="#e8b3bd"/>
+  <path d="M200 111h33m-10-10 11 10-11 10" fill="none" stroke="#e6e4ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="245" y="47" width="150" height="128" rx="13" fill="#172142" stroke="#c7b7ff" stroke-opacity=".7"/>
+  <path d="M288 104V89a32 32 0 0 1 64 0v15" fill="none" stroke="#cbbcf1" stroke-width="8" stroke-linecap="round"/>
+  <rect x="275" y="102" width="90" height="54" rx="9" fill="#7669a9"/>
+  <circle cx="320" cy="124" r="7" fill="#eee7ff"/>
+  <path d="M320 129v13" stroke="#eee7ff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M407 111h32m-10-10 11 10-11 10" fill="none" stroke="#e6e4ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="452" y="47" width="155" height="128" rx="12" fill="#192648" fill-opacity=".8" stroke="#c7b7ff" stroke-opacity=".65"/>
+  <rect x="471" y="67" width="117" height="22" rx="5" fill="#746da5"/>
+  <rect x="471" y="99" width="24" height="12" rx="3" fill="#e6b4cf"/><rect x="500" y="99" width="40" height="12" rx="3" fill="#b4ace0"/><rect x="545" y="99" width="44" height="12" rx="3" fill="#e6b4cf"/>
+  <rect x="471" y="128" width="13" height="27" rx="3" fill="#8d84bc"/><rect x="489" y="119" width="13" height="36" rx="3" fill="#e6b4cf"/><rect x="507" y="136" width="13" height="19" rx="3" fill="#8d84bc"/>
+  <path d="m545 138 10 10 19-22" fill="none" stroke="#a7d5d2" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

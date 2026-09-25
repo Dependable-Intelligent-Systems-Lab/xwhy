@@ -93,6 +93,14 @@ plugins:
         Research:
           - research/index.md: Research and reproducibility entry point
           - research/reddit/blogs.md: Research blogs and XWhy explainers
+          - research/reddit/blogs/image-editing-smile.md: Explaining image-editing instructions
+          - research/reddit/blogs/fairness-skin-cancer-ai.md: Fairness in skin cancer AI
+          - research/reddit/blogs/how-smile-works.md: How SMILE works
+          - research/reddit/blogs/reading-local-explanations.md: Interpreting local explanations
+          - research/reddit/blogs/explaining-llm-responses.md: Explaining LLM responses
+          - research/reddit/blogs/closed-model-assurance.md: XWhy LLM explainability for closed-model assurance
+          - research/reddit/blogs/testing-explanation-fidelity.md: Evaluating explanation fidelity
+          - research/reddit/blogs/circuit-tracing-to-token-importance.md: Converting circuit-tracing attribution graphs into input-token importance
           - research/citation.md: How to cite XWhy
         Releases:
           - release-notes.md: Version history and detailed release notes
@@ -172,6 +180,7 @@ exclude_docs: |
   gen_ref_pages.py
 
 not_in_nav: |
+  research/reddit/blogs/
   concepts/index.md
   concepts/smile.md
   concepts/local-explanations.md
