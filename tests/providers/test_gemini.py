@@ -25,7 +25,9 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
     mock_types.GenerateContentConfig.return_value = mock_config
 
     type(mock_response).text = PropertyMock(return_value="Gemini output")
-    mock_client.models.generate_content.return_value = mock_response
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    mock_client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client=mock_client)
     result = provider.answer(
@@ -36,16 +38,12 @@ def test_gemini_provider_success(mock_types: MagicMock) -> None:
     )
 
     assert result == "Gemini output"
-    mock_types.Part.from_text.assert_called_once_with(text="Test prompt")
+
     mock_types.GenerateContentConfig.assert_called_once_with(
         max_output_tokens=100,
         temperature=0.7,
     )
-    mock_client.models.generate_content.assert_called_once_with(
-        model="gemini-2.5-flash",
-        contents=mock_part,
-        config=mock_config,
-    )
+    mock_chat.send_message.assert_called_once_with("Test prompt")
 
 
 @patch("time.sleep", return_value=None)
@@ -62,7 +60,9 @@ def test_gemini_provider_safety_block_fallback(
         side_effect=ValueError("The `response.text` quick accessor only works...")
     )
 
-    mock_client.models.generate_content.return_value = mock_response
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    mock_client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client=mock_client)
 
@@ -72,9 +72,8 @@ def test_gemini_provider_safety_block_fallback(
         provider.answer(prompt="Blocked prompt test", max_retries=2)
 
     # Asserts retries happened and sleep was called once before failing on 2nd try
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.chats.create.call_count == 2
     mock_sleep.assert_called_once()
-    mock_types.Part.from_text.assert_called_with(text="Blocked prompt test")
 
 
 @patch("time.sleep", return_value=None)
@@ -85,14 +84,16 @@ def test_gemini_provider_api_error(
 ) -> None:
     """Test general exception handling and retries during API calls."""
     mock_client = MagicMock()
-    mock_client.models.generate_content.side_effect = Exception("API error")
+    mock_chat = MagicMock()
+    mock_chat.send_message.side_effect = Exception("API error")
+    mock_client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client=mock_client)
 
     with pytest.raises(RuntimeError, match="API error"):
         provider.answer(prompt="Error prompt test", max_retries=3)
 
-    assert mock_client.models.generate_content.call_count == 3
+    assert mock_client.chats.create.call_count == 3
     assert mock_sleep.call_count == 2
 
 
@@ -107,7 +108,9 @@ def test_gemini_empty_text_response_raises_error(
     mock_response = MagicMock()
 
     type(mock_response).text = PropertyMock(return_value="   ")
-    mock_client.models.generate_content.return_value = mock_response
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    mock_client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client=mock_client)
 
@@ -115,7 +118,7 @@ def test_gemini_empty_text_response_raises_error(
     with pytest.raises(RuntimeError, match=expected_error):
         provider.answer(prompt="Test empty response", max_retries=2)
 
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.chats.create.call_count == 2
     mock_sleep.assert_called_once()
 
 
@@ -138,7 +141,9 @@ def test_gemini_generate_success_after_retries(
     mock_response = MagicMock()
     type(mock_response).text = PropertyMock(return_value="Delayed success")
 
-    mock_client.models.generate_content.side_effect = [
+    mock_chat = MagicMock()
+    mock_client.chats.create.return_value = mock_chat
+    mock_chat.send_message.side_effect = [
         Exception("Temporary failure"),
         mock_response,
     ]
@@ -147,7 +152,7 @@ def test_gemini_generate_success_after_retries(
     result = provider.answer(prompt="Test", max_retries=3, delay=5.5)
 
     assert result == "Delayed success"
-    assert mock_client.models.generate_content.call_count == 2
+    assert mock_client.chats.create.call_count == 2
     mock_sleep.assert_called_once_with(5.5)
 
 
@@ -159,7 +164,9 @@ def test_gemini_generate_exponential_backoff_max(
 ) -> None:
     """Test exponential backoff correctly caps at 30 seconds across retries."""
     mock_client = MagicMock()
-    mock_client.models.generate_content.side_effect = Exception("Fail")
+    mock_chat = MagicMock()
+    mock_chat.send_message.side_effect = Exception("Fail")
+    mock_client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client=mock_client)
 
@@ -191,7 +198,9 @@ def test_generate_image_stream_no_inline_data(
     mock_part2 = MagicMock(inline_data=None)
     mock_chunk2 = MagicMock(parts=[mock_part2])
 
-    client.models.generate_content_stream.return_value = [mock_chunk1, mock_chunk2]
+    mock_chat = MagicMock()
+    mock_chat.send_message_stream.return_value = [mock_chunk1, mock_chunk2]
+    client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value=None)  # type: ignore[method-assign]
@@ -219,7 +228,38 @@ def test_generate_image_no_stream_no_inline_data(
     mock_part = MagicMock(inline_data=None)
     mock_response.parts = [mock_part]
 
-    client.models.generate_content.return_value = mock_response
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    client.chats.create.return_value = mock_chat
+
+    provider = GeminiProvider(client)
+    provider._create_placeholder_image = MagicMock(return_value=None)  # type: ignore[method-assign]
+
+    success, _ = provider.generate_image(
+        prompt="Test", output_dir="fake_dir", stream=False, max_retries=2
+    )
+
+    assert success is False
+    assert mock_sleep.call_count == 1
+    provider._create_placeholder_image.assert_called_once()
+
+
+@patch("time.sleep", return_value=None)
+@patch("xwhy.providers.gemini.Image.open")
+@patch("os.makedirs")
+def test_generate_image_no_stream_no_parts(
+    mock_makedirs: MagicMock,
+    mock_image_open: MagicMock,
+    mock_sleep: MagicMock,
+) -> None:
+    """Test non-stream generation where response parts is empty."""
+    client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.parts = []
+
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value=None)  # type: ignore[method-assign]
@@ -241,7 +281,9 @@ def test_execute_image_request_fallback_not_pil_image(
 ) -> None:
     """Test when fallback image is not a PIL Image instance."""
     client = MagicMock()
-    client.models.generate_content.side_effect = Exception("API error")
+    mock_chat = MagicMock()
+    mock_chat.send_message.side_effect = Exception("API error")
+    client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value=12345)  # type: ignore[method-assign]
@@ -269,7 +311,9 @@ def test_generate_image_stream_success(
     mock_part.inline_data = MagicMock(data=b"img", mime_type="image/jpeg")
     mock_chunk.parts = [mock_part]
 
-    client.models.generate_content_stream.return_value = [mock_chunk]
+    mock_chat = MagicMock()
+    mock_chat.send_message_stream.return_value = [mock_chunk]
+    client.chats.create.return_value = mock_chat
 
     mock_img_instance = MagicMock(spec=Image.Image)
     mock_image_open.return_value = mock_img_instance
@@ -299,7 +343,9 @@ def test_generate_image_no_stream_success(
     mock_part.inline_data = MagicMock(data=b"img", mime_type="image/png")
     mock_response.parts = [mock_part]
 
-    client.models.generate_content.return_value = mock_response
+    mock_chat = MagicMock()
+    mock_chat.send_message.return_value = mock_response
+    client.chats.create.return_value = mock_chat
 
     mock_img_instance = MagicMock(spec=Image.Image)
     mock_image_open.return_value = mock_img_instance
@@ -322,7 +368,9 @@ def test_generate_image_exception_fallback(
 ) -> None:
     """Test exception during API call triggers the placeholder fallback logic."""
     client = MagicMock()
-    client.models.generate_content_stream.side_effect = Exception("Stream fail")
+    mock_chat = MagicMock()
+    mock_chat.send_message_stream.side_effect = Exception("Stream fail")
+    client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client)
     provider._create_placeholder_image = MagicMock(return_value="not_an_image")  # type: ignore[method-assign]
@@ -350,7 +398,9 @@ def test_generate_image_success_after_retry_with_delay(
     mock_part.inline_data = MagicMock(data=b"img", mime_type="image/png")
     mock_response.parts = [mock_part]
 
-    client.models.generate_content.side_effect = [Exception("Fail"), mock_response]
+    mock_chat = MagicMock()
+    client.chats.create.return_value = mock_chat
+    mock_chat.send_message.side_effect = [Exception("Fail"), mock_response]
 
     mock_img_instance = MagicMock(spec=Image.Image)
     mock_image_open.return_value = mock_img_instance
@@ -362,7 +412,7 @@ def test_generate_image_success_after_retry_with_delay(
 
     assert success is True
     mock_sleep.assert_called_once_with(4.2)
-    assert client.models.generate_content.call_count == 2
+    assert client.chats.create.call_count == 2
 
 
 # -------------------------------------------------------------------------
@@ -395,7 +445,9 @@ def test_edit_image_jpg_success(
     mock_part = MagicMock()
     mock_part.inline_data = MagicMock(data=b"img", mime_type="image/jpeg")
     mock_chunk.parts = [mock_part]
-    client.models.generate_content_stream.return_value = [mock_chunk]
+    mock_chat = MagicMock()
+    mock_chat.send_message_stream.return_value = [mock_chunk]
+    client.chats.create.return_value = mock_chat
 
     mock_img_instance = MagicMock(spec=Image.Image)
     mock_image_open.return_value = mock_img_instance
@@ -424,7 +476,9 @@ def test_edit_image_png_success(
     mock_part = MagicMock()
     mock_part.inline_data = MagicMock(data=b"img", mime_type="image/png")
     mock_chunk.parts = [mock_part]
-    client.models.generate_content_stream.return_value = [mock_chunk]
+    mock_chat = MagicMock()
+    mock_chat.send_message_stream.return_value = [mock_chunk]
+    client.chats.create.return_value = mock_chat
 
     mock_img_instance = MagicMock(spec=Image.Image)
     mock_image_open.return_value = mock_img_instance
@@ -666,7 +720,9 @@ def test_execute_image_request_fallback_is_pil_image(
 ) -> None:
     """Test when API fails and fallback image returns a valid PIL Image instance."""
     client = MagicMock()
-    client.models.generate_content.side_effect = Exception("API error")
+    mock_chat = MagicMock()
+    mock_chat.send_message.side_effect = Exception("API error")
+    client.chats.create.return_value = mock_chat
 
     provider = GeminiProvider(client)
     dummy_img = MagicMock(spec=Image.Image)
