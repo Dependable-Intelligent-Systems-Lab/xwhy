@@ -76,7 +76,7 @@ class ImageClassificationExplainer(BaseExplainer):
         custom_model: Any = None,  # noqa: ANN401
         custom_preprocess: Any = None,  # noqa: ANN401
         categories: Any = None,  # noqa: ANN401
-        class_of_interest: int = 1,
+        class_of_interest: int | None = None,
         classification_type: str | ClassificationType = ClassificationType.INCEPTION_V3,
         use_model_preprocess: bool = True,
         use_embedding_model: bool = False,
@@ -468,7 +468,11 @@ class ImageClassificationExplainer(BaseExplainer):
 
         num_top = self.config.num_top_predictions  # type: ignore[union-attr]
         top_preds = probs.topk(k=num_top)
-        class_to_explain = top_preds.indices[0].item()
+        class_to_explain = (
+            class_of_interest
+            if class_of_interest is not None
+            else top_preds.indices[0].item()
+        )
 
         # Log top predictions
         categories = self.state.classification_model.weights.meta["categories"]
@@ -658,7 +662,7 @@ class ImageClassificationExplainer(BaseExplainer):
             cov, w_cov = ImageCoverageMetrics.evaluate_all(
                 explanation_image=explanation_image,
                 semantic_mask=sem_mask,
-                class_of_interest=class_of_interest,
+                class_of_interest=class_to_explain,  # type: ignore[arg-type]
             )
 
             logger.info("--- Evaluation Metrics ---")

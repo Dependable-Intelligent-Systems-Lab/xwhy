@@ -76,7 +76,7 @@ class ImageClassificationConfig(ExplainerConfig):
     custom_preprocess: Callable[..., Any] | None = None
     categories: Any = None
 
-    class_of_interest: int = 1
+    class_of_interest: int | None = None
 
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
