@@ -11,6 +11,7 @@ from xwhy.distance.types import DistanceType
 from xwhy.models.classification.types import ClassificationType
 from xwhy.models.embeddings.types import EmbeddingType
 from xwhy.models.segmentation.types import SegmentationType
+from xwhy.perturbation.types import SuperpixelType
 from xwhy.providers.types import ProviderType
 from xwhy.surrogate.types import SurrogateType
 
@@ -75,15 +76,30 @@ class ImageClassificationConfig(ExplainerConfig):
     custom_preprocess: Callable[..., Any] | None = None
     categories: Any = None
 
-    class_of_interest: int = 1
+    class_of_interest: int | None = None
 
     use_segmentation_model: bool = True
     segmentation_type: SegmentationType | str = SegmentationType.DEEPLABV3_RESNET101
     device: str = "cpu"  # or "cuda"
 
+    # Superpixel Segmentation Method
+    superpixel_type: SuperpixelType | str = SuperpixelType.QUICKSHIFT
+
+    # Quickshift Parameters
     kernel_size: int = Field(default=4, ge=1)
     max_dist: int = Field(default=200, gt=0)
     ratio: float = Field(default=0.2, gt=0.0, le=1.0)
+
+    # SLIC Parameters
+    n_segments: int = Field(default=100, gt=0)
+    compactness: float = Field(default=1.0, gt=0.0)
+
+    # Felzenszwalb Parameters
+    scale: float = Field(default=1.0, gt=0.0)
+    min_size: int = Field(default=20, ge=1)
+
+    # Shared SLIC & Felzenszwalb Parameter (0.0 disables Gaussian smoothing)
+    sigma: float = Field(default=1.0, ge=0.0)
 
     keep_probability: float = Field(default=0.5, gt=0.0, le=1.0)
 

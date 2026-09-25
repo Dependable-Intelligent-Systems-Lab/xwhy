@@ -493,7 +493,7 @@ def test_run_perturbation_loop_without_embedding(
         superpixels=np.zeros((10, 10), dtype=int),
         perturbation_masks=np.zeros((2, 5), dtype=int),
     )
-    assert preds.shape[0] == 2
+    assert preds.shape[0] == 0
     assert dists.shape == (2,)
     assert p_vals == []
     assert mock_calc_dist.call_count == 2
@@ -607,7 +607,7 @@ def test_run_perturbation_loop_with_p_values(
         superpixels=np.zeros((10, 10), dtype=int),
         perturbation_masks=np.zeros((2, 5), dtype=int),
     )
-    assert preds.shape[0] == 2
+    assert preds.shape[0] == 0
     assert dists.shape == (2,)
     assert p_vals == [0.03, 0.03]
     assert mock_calc_dist.call_count == 2

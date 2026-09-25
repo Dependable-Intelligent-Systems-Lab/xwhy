@@ -51,23 +51,44 @@ class AnthropicProvider(BaseProvider):
 
         for retry_number in range(1, max_retries + 1):
             try:
-                response = self._client.messages.create(
-                    model=model,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    messages=[
+                create_kwargs = {
+                    "model": model,
+                    "max_tokens": max_tokens,
+                    "messages": [
                         {
                             "role": "user",
                             "content": prompt,
                         }
                     ],
-                )
+                }
+                if temperature is not None:
+                    create_kwargs["temperature"] = temperature
 
-                # Anthropic returns a list of ContentBlock objects. We extract
-                # the text from the first block if it exists to avoid IndexError.
+                try:
+                    response = self._client.messages.create(**create_kwargs)
+                except Exception as inner_exc:
+                    if (
+                        "temperature" in str(inner_exc).lower()
+                        and "deprecated" in str(inner_exc).lower()
+                    ):
+                        logger.info(
+                            "Temperature is deprecated for this model. Retrying "
+                            "without temperature..."
+                        )
+                        create_kwargs.pop("temperature", None)
+                        response = self._client.messages.create(**create_kwargs)
+                    else:
+                        raise inner_exc
+
+                # Anthropic returns a list of ContentBlock objects, which might include
+                # ThinkingBlock objects. We extract text from all blocks that have a
+                # text attribute.
                 result_text = ""
                 if response.content:
-                    result_text = str(response.content[0].text).strip()
+                    for block in response.content:
+                        if hasattr(block, "text"):
+                            result_text += str(block.text)
+                    result_text = result_text.strip()
 
                 if not result_text:
                     error_message = (
@@ -99,9 +120,11 @@ class AnthropicProvider(BaseProvider):
                     else min(2**retry_number, 30)
                 )
                 logger.warning(
-                    "Retry %d/%d for Anthropic text generation. Waiting %s seconds...",
+                    "Retry %d/%d for Anthropic text generation (Error: %s). "
+                    "Waiting %s seconds...",
                     retry_number,
                     max_retries,
+                    exc,
                     delay,
                 )
                 time.sleep(delay)

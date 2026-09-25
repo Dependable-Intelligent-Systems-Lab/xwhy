@@ -408,6 +408,7 @@ class TextExplainer(BaseExplainer):
         surrogate = SurrogateFactory.create(
             method=method,
             seed=self.config.seed,  # type: ignore[union-attr]
+            ridge_alpha=self.config.ridge_alpha,  # type: ignore[union-attr]
         )
         surrogate.fit(x_valid, y_valid, weights)
 

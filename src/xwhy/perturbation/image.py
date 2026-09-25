@@ -1,4 +1,4 @@
-"""Image perturbation strategy using Quickshift superpixels."""
+"""Image perturbation strategy using Quickshift, SLIC, or Felzenszwalb superpixels."""
 
 from typing import Any, cast
 
@@ -7,6 +7,7 @@ import skimage.segmentation
 import torch
 
 from xwhy.perturbation.base import BasePerturbation
+from xwhy.perturbation.types import SuperpixelType
 
 
 class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
@@ -14,15 +15,47 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
 
     def __init__(
         self,
+        superpixel_type: str | SuperpixelType = SuperpixelType.QUICKSHIFT,
+        # Quickshift parameters
         kernel_size: int = 4,
         max_dist: int = 200,
         ratio: float = 0.2,
+        # SLIC parameters
+        n_segments: int = 100,
+        compactness: float = 1.0,
+        # Felzenszwalb parameters
+        scale: float = 1.0,
+        min_size: int = 20,
+        # Shared SLIC & Felzenszwalb parameter
+        sigma: float = 1.0,
+        # General parameters
         seed: int = 42,
     ) -> None:
-        """Initialize the image perturbation strategy with default parameters."""
+        """Initialize the image perturbation strategy with default parameters.
+
+        Args:
+            superpixel_type: Superpixel segmentation algorithm
+                ('quickshift', 'slic', or 'felzenszwalb').
+            kernel_size: Quickshift kernel size used during superpixel generation.
+            max_dist: Quickshift maximum superpixel search distance.
+            ratio: Quickshift sampling ratio between color-space and image-space.
+            n_segments: SLIC approximate number of superpixels to generate.
+            compactness: SLIC balance between color proximity and space proximity.
+            scale: Felzenszwalb free parameter (higher means larger clusters).
+            min_size: Felzenszwalb minimum component size in pixels.
+            sigma: Width of Gaussian smoothing kernel for SLIC and Felzenszwalb.
+            seed: Random seed for reproducibility.
+
+        """
+        self.superpixel_type = SuperpixelType.from_str(superpixel_type)
         self.kernel_size = kernel_size
         self.max_dist = max_dist
         self.ratio = ratio
+        self.n_segments = n_segments
+        self.compactness = compactness
+        self.scale = scale
+        self.min_size = min_size
+        self.sigma = sigma
         self.seed = seed
         self._rng = np.random.default_rng(seed)
 
@@ -34,17 +67,18 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
     def generate_superpixels(
         self, image: torch.Tensor | np.ndarray
     ) -> tuple[np.ndarray, int]:
-        """Generate superpixels using the Quickshift algorithm.
+        """Generate superpixels using Quickshift, SLIC, or Felzenszwalb.
 
         Args:
             image: Input image in either CHW or HWC format.
 
         Returns:
-            tuple[np.ndarray, int]: The superpixel label map (H, W) and the number
-                of unique superpixel regions.
+            tuple[np.ndarray, int]: The contiguous 0-indexed superpixel label map
+                (H, W) and the number of unique superpixel regions.
 
         Raises:
-            ValueError: If a PyTorch tensor has an unexpected shape.
+            ValueError: If a PyTorch tensor has an unexpected shape or if
+                `superpixel_type` is unsupported.
             TypeError: If the image is neither a Tensor nor an ndarray.
 
         """
@@ -60,18 +94,38 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
         else:
             raise TypeError("image must be a torch.Tensor or np.ndarray")
 
-        superpixels = skimage.segmentation.quickshift(
-            img_np,
-            kernel_size=self.kernel_size,
-            max_dist=self.max_dist,
-            ratio=self.ratio,
-            rng=self.seed,
-        )  # type: ignore[no-untyped-call]
+        if self.superpixel_type == SuperpixelType.QUICKSHIFT:
+            superpixels = skimage.segmentation.quickshift(
+                img_np,
+                kernel_size=self.kernel_size,
+                max_dist=self.max_dist,
+                ratio=self.ratio,
+                rng=self.seed,
+            )  # type: ignore[no-untyped-call]
+        elif self.superpixel_type == SuperpixelType.SLIC:
+            superpixels = skimage.segmentation.slic(
+                img_np,
+                n_segments=self.n_segments,
+                compactness=self.compactness,
+                sigma=self.sigma,
+                start_label=0,
+            )
+        elif self.superpixel_type == SuperpixelType.FELZENSZWALB:
+            superpixels = skimage.segmentation.felzenszwalb(
+                img_np,
+                scale=self.scale,
+                sigma=self.sigma,
+                min_size=self.min_size,
+            )
+        else:
+            raise ValueError(f"Unsupported superpixel_type '{self.superpixel_type}'.")
 
-        superpixels_np = cast(np.ndarray, superpixels)
+        # Ensure contiguous 0-indexed labels (0, 1, ..., num_superpixels - 1)
+        _, superpixels_contiguous = np.unique(superpixels, return_inverse=True)
+        superpixels_np = superpixels_contiguous.reshape(superpixels.shape)
         num_superpixels = int(np.unique(superpixels_np).shape[0])
 
-        return superpixels_np, num_superpixels
+        return cast(np.ndarray, superpixels_np), num_superpixels
 
     def generate(
         self,
@@ -99,6 +153,9 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
             p=keep_probability,
             size=(num_perturbations, num_superpixels),
         )
+        # Always set row 0 to all 1s (original unperturbed image anchor)
+        if num_perturbations > 0:
+            masks[0, :] = 1
         return cast(np.ndarray, masks)
 
     def apply_mask(
@@ -136,13 +193,8 @@ class ImagePerturbation(BasePerturbation[np.ndarray, np.ndarray, np.ndarray]):
                 "as a positional or keyword argument."
             )
 
-        active_pixels = np.where(mask == 1)[0]
-        binary_mask = np.zeros_like(segments, dtype=float)
+        # Fast vectorized mask lookup that preserves item.dtype (matches hide_color=0)
+        binary_mask = (mask[segments] == 1)[..., np.newaxis]
+        perturbed_image = np.where(binary_mask, item, 0).astype(item.dtype)
 
-        for active in active_pixels:
-            binary_mask[segments == active] = 1.0
-
-        perturbed_image = item.copy()
-        perturbed_image = perturbed_image * binary_mask[..., np.newaxis]
-
-        return cast(np.ndarray, perturbed_image)
+        return cast(np.ndarray, perturbed_image)  # type: ignore[redundant-cast]

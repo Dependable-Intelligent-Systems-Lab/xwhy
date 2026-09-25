@@ -14,7 +14,12 @@ from xwhy.providers.anthropic import AnthropicProvider
 
 
 def test_anthropic_provider_success() -> None:
-    """Test successful text generation with Anthropic."""
+    """Test successful text generation with Anthropic.
+
+    Verifies that a normal API response with a text content block is
+    returned and that the client is called with the expected arguments
+    including temperature.
+    """
     mock_client = MagicMock()
     mock_response = MagicMock()
 
@@ -42,11 +47,45 @@ def test_anthropic_provider_success() -> None:
     )
 
 
+def test_anthropic_provider_success_without_temperature() -> None:
+    """Test successful generation when temperature is explicitly None.
+
+    Covers the branch where temperature is not added to create_kwargs
+    because the value is None.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_content_block = MagicMock()
+    mock_content_block.text = "Response without temperature"
+    mock_response.content = [mock_content_block]
+    mock_client.messages.create.return_value = mock_response
+
+    provider = AnthropicProvider(client=mock_client)
+    result = provider.answer(
+        prompt="Hello Claude",
+        model="claude-opus-4-8",
+        max_tokens=500,
+        temperature=None,  # type: ignore[arg-type]
+    )
+
+    assert result == "Response without temperature"
+    mock_client.messages.create.assert_called_once_with(
+        model="claude-opus-4-8",
+        max_tokens=500,
+        messages=[{"role": "user", "content": "Hello Claude"}],
+    )
+
+
 @patch("time.sleep", return_value=None)
 def test_anthropic_provider_api_error_max_retries(
     mock_sleep: MagicMock,
 ) -> None:
-    """Test generic exception handling during Anthropic API calls with retries."""
+    """Test generic exception handling during Anthropic API calls with retries.
+
+    Ensures that a non-retryable number of failures raises RuntimeError
+    after the configured max_retries and that sleep is called between
+    attempts.
+    """
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = Exception("Invalid API Key or Limit")
 
@@ -63,7 +102,11 @@ def test_anthropic_provider_api_error_max_retries(
 
 @patch("time.sleep", return_value=None)
 def test_anthropic_retry_then_success(mock_sleep: MagicMock) -> None:
-    """Test retry logic when API fails transiently before succeeding."""
+    """Test retry logic when API fails transiently before succeeding.
+
+    Verifies that a temporary exception is retried and a subsequent
+    successful response is returned, with the expected sleep delay.
+    """
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_content_block = MagicMock()
@@ -87,7 +130,11 @@ def test_anthropic_retry_then_success(mock_sleep: MagicMock) -> None:
 def test_anthropic_direct_runtime_error_raises_immediately(
     mock_sleep: MagicMock,
 ) -> None:
-    """RuntimeError raised during API execution should re-raise without retrying."""
+    """RuntimeError raised during API execution should re-raise without retrying.
+
+    Ensures that RuntimeError (e.g. empty response) is not caught by the
+    generic retry handler and propagates immediately.
+    """
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = RuntimeError("Direct RuntimeError")
 
@@ -112,7 +159,11 @@ def test_anthropic_empty_response_content_raises_error(
     mock_sleep: MagicMock,
     empty_content: Any,  # noqa: ANN401
 ) -> None:
-    """Test RuntimeError is raised immediately when Anthropic returns empty content."""
+    """Test RuntimeError is raised immediately when Anthropic returns empty content.
+
+    Covers both an empty content list and a content list whose text
+    blocks are whitespace-only after stripping.
+    """
     mock_client = MagicMock()
     mock_response = MagicMock()
     mock_response.content = empty_content
@@ -130,7 +181,10 @@ def test_anthropic_empty_response_content_raises_error(
 
 @patch("time.sleep", return_value=None)
 def test_anthropic_exponential_backoff(mock_sleep: MagicMock) -> None:
-    """Ensure retries respect exponential backoff capped at 30s."""
+    """Ensure retries respect exponential backoff capped at 30s.
+
+    Verifies the delay sequence 2, 4, 8, 16, 30 for six attempts.
+    """
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = Exception("API Error")
 
@@ -145,7 +199,10 @@ def test_anthropic_exponential_backoff(mock_sleep: MagicMock) -> None:
 
 @patch("time.sleep", return_value=None)
 def test_anthropic_custom_delay(mock_sleep: MagicMock) -> None:
-    """Ensure custom delay overrides exponential backoff."""
+    """Ensure custom delay overrides exponential backoff.
+
+    When delay is supplied, every retry waits exactly that value.
+    """
     mock_client = MagicMock()
     mock_client.messages.create.side_effect = Exception("API Error")
 
@@ -159,7 +216,11 @@ def test_anthropic_custom_delay(mock_sleep: MagicMock) -> None:
 
 
 def test_anthropic_zero_retries_raises_fallback() -> None:
-    """Hit the end-of-function fallback RuntimeError by supplying max_retries=0."""
+    """Hit the end-of-function fallback RuntimeError by supplying max_retries=0.
+
+    With zero allowed attempts the for-loop body never runs and the
+    final raise is executed.
+    """
     mock_client = MagicMock()
     provider = AnthropicProvider(mock_client)
 
@@ -168,3 +229,90 @@ def test_anthropic_zero_retries_raises_fallback() -> None:
         match=re.escape("Anthropic text generation failed after max retries."),
     ):
         provider.answer("prompt", max_retries=0)
+
+
+def test_anthropic_temperature_deprecated_retries_without_temperature() -> None:
+    """Test handling of temperature-deprecated API error.
+
+    When the first messages.create call fails with a temperature
+    deprecation message, the provider retries the same request after
+    removing the temperature parameter and returns the successful
+    response.
+    """
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_content_block = MagicMock()
+    mock_content_block.text = "Success after dropping temperature"
+    mock_response.content = [mock_content_block]
+
+    deprecated_error = Exception("Parameter temperature is deprecated for this model")
+    mock_client.messages.create.side_effect = [deprecated_error, mock_response]
+
+    provider = AnthropicProvider(client=mock_client)
+    result = provider.answer(
+        prompt="Test deprecated temperature",
+        model="claude-opus-4-8",
+        max_tokens=256,
+        temperature=0.7,
+    )
+
+    assert result == "Success after dropping temperature"
+    assert mock_client.messages.create.call_count == 2
+
+    # First call included temperature; second call did not.
+    first_call_kwargs = mock_client.messages.create.call_args_list[0].kwargs
+    second_call_kwargs = mock_client.messages.create.call_args_list[1].kwargs
+    assert "temperature" in first_call_kwargs
+    assert first_call_kwargs["temperature"] == 0.7
+    assert "temperature" not in second_call_kwargs
+
+
+def test_anthropic_content_blocks_without_text_attribute() -> None:
+    """Test extraction when some content blocks lack a text attribute.
+
+    Covers the false branch of ``hasattr(block, "text")`` so that only
+    blocks possessing a text attribute contribute to the result. A mix
+    of blocks is used: one without text and one with text.
+    """
+
+    class BlockWithoutText:
+        """Minimal content block that has no text attribute."""
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    text_block = MagicMock()
+    text_block.text = "Visible text"
+    mock_response.content = [BlockWithoutText(), text_block]
+    mock_client.messages.create.return_value = mock_response
+
+    provider = AnthropicProvider(client=mock_client)
+    result = provider.answer(prompt="Mixed content blocks")
+
+    assert result == "Visible text"
+    mock_client.messages.create.assert_called_once()
+
+
+def test_anthropic_all_content_blocks_without_text_raises_empty() -> None:
+    """Test that only non-text blocks produce an empty-response error.
+
+    When every block in response.content lacks a text attribute the
+    extracted result is empty and RuntimeError is raised immediately.
+    """
+
+    class BlockWithoutText:
+        """Minimal content block that has no text attribute."""
+
+    mock_client = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = [BlockWithoutText(), BlockWithoutText()]
+    mock_client.messages.create.return_value = mock_response
+
+    provider = AnthropicProvider(client=mock_client)
+
+    with pytest.raises(
+        RuntimeError,
+        match="empty response from the Anthropic API",
+    ):
+        provider.answer(prompt="Only non-text blocks")
+
+    mock_client.messages.create.assert_called_once()

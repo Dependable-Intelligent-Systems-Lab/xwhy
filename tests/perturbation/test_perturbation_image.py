@@ -160,3 +160,53 @@ def test_image_perturbation_set_seed(perturber: ImagePerturbation) -> None:
     perturber.set_seed(42)
     val2 = perturber._rng.random()
     assert val1 == val2
+
+
+def test_generate_zero_perturbations(perturber: ImagePerturbation) -> None:
+    """Test generating zero perturbation masks."""
+    masks = perturber.generate(
+        num_superpixels=10, num_perturbations=0, keep_probability=0.5
+    )
+    assert masks.shape == (0, 10)
+
+
+def test_generate_superpixels_slic() -> None:
+    """Test generating superpixels using SLIC."""
+    perturber = ImagePerturbation(
+        superpixel_type="slic", n_segments=50, compactness=0.5, sigma=2.0
+    )
+    tensor_img = torch.rand(3, 10, 10)
+    with patch("skimage.segmentation.slic") as mock_slic:
+        mock_slic.return_value = np.zeros((10, 10), dtype=int)
+        superpixels, num_sp = perturber.generate_superpixels(tensor_img)
+        assert superpixels.shape == (10, 10)
+        assert num_sp == 1
+        passed_array = mock_slic.call_args[0][0]
+        assert passed_array.shape == (10, 10, 3)
+        mock_slic.assert_called_with(
+            passed_array, n_segments=50, compactness=0.5, sigma=2.0, start_label=0
+        )
+
+
+def test_generate_superpixels_felzenszwalb() -> None:
+    """Test generating superpixels using Felzenszwalb."""
+    perturber = ImagePerturbation(
+        superpixel_type="felzenszwalb", scale=2.0, sigma=1.5, min_size=10
+    )
+    tensor_img = torch.rand(3, 10, 10)
+    with patch("skimage.segmentation.felzenszwalb") as mock_felz:
+        mock_felz.return_value = np.zeros((10, 10), dtype=int)
+        superpixels, num_sp = perturber.generate_superpixels(tensor_img)
+        assert superpixels.shape == (10, 10)
+        assert num_sp == 1
+        passed_array = mock_felz.call_args[0][0]
+        assert passed_array.shape == (10, 10, 3)
+        mock_felz.assert_called_with(passed_array, scale=2.0, sigma=1.5, min_size=10)
+
+
+def test_generate_superpixels_unsupported(perturber: ImagePerturbation) -> None:
+    """Test ValueError when superpixel type is unsupported."""
+    perturber.superpixel_type = "invalid_type"  # type: ignore
+    tensor_img = torch.rand(3, 10, 10)
+    with pytest.raises(ValueError, match="Unsupported superpixel_type 'invalid_type'"):
+        perturber.generate_superpixels(tensor_img)

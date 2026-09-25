@@ -54,19 +54,23 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
                           blocked by safety filters after all retries.
 
         """
-        max_retries: int = kwargs.get("max_retries", 7)
-        delay_override: float | None = kwargs.get("delay")
+        max_retries: int = kwargs.pop("max_retries", 7)
+        delay_override: float | None = kwargs.pop("delay", None)
+
+        config_kwargs = {
+            "max_output_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        config_kwargs.update(kwargs)
+        generate_content_config = types.GenerateContentConfig(**config_kwargs)  # type: ignore[arg-type]
 
         for retry_number in range(1, max_retries + 1):
             try:
-                response = self._client.models.generate_content(
+                chat = self._client.chats.create(
                     model=model,
-                    contents=types.Part.from_text(text=prompt),
-                    config=types.GenerateContentConfig(
-                        max_output_tokens=max_tokens,
-                        temperature=temperature,
-                    ),
+                    config=generate_content_config,
                 )
+                response = chat.send_message(prompt)
 
                 try:
                     result_text = str(response.text).strip()
@@ -152,7 +156,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
         self,
         prompt: str,
         output_dir: str,
-        contents: list[types.Content],
+        contents: list[types.Part],
         model_name: str,
         temperature: float,
         top_p: float,
@@ -185,31 +189,35 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
             A tuple containing a boolean success flag and the file path.
 
         """
-        generate_content_config = types.GenerateContentConfig(
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            max_output_tokens=max_output_tokens,
-            response_modalities=["image", "text"],
-            response_mime_type="text/plain",
-            seed=seed,
-        )
+        max_retries: int = kwargs.pop("max_retries", 7)
+        delay_override: float | None = kwargs.pop("delay", None)
+
+        config_kwargs = {
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k,
+            "max_output_tokens": max_output_tokens,
+            "response_modalities": ["image", "text"],
+            "response_mime_type": "text/plain",
+            "seed": seed,
+        }
+        config_kwargs.update(kwargs)
+        generate_content_config = types.GenerateContentConfig(**config_kwargs)  # type: ignore[arg-type]
 
         generated_img: Image.Image | None = None
         final_mime = default_mime_type
 
-        max_retries: int = kwargs.get("max_retries", 7)
-        delay_override: float | None = kwargs.get("delay")
-
         for retry_number in range(1, max_retries + 1):
             try:
+                chat = self._client.chats.create(
+                    model=model_name,
+                    config=generate_content_config,
+                )
                 if stream:
-                    response_iter = self._client.models.generate_content_stream(
-                        model=model_name,
-                        contents=contents,
-                        config=generate_content_config,
-                    )
+                    response_iter = chat.send_message_stream(contents)
                     for chunk in response_iter:
+                        if not chunk.parts:
+                            continue
                         for part in chunk.parts:
                             if part.inline_data is not None:
                                 img_data = BytesIO(part.inline_data.data)
@@ -217,17 +225,14 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
                                 final_mime = part.inline_data.mime_type
                                 break
                 else:
-                    response = self._client.models.generate_content(
-                        model=model_name,
-                        contents=contents,
-                        config=generate_content_config,
-                    )
-                    for part in response.parts:
-                        if part.inline_data is not None:
-                            img_data = BytesIO(part.inline_data.data)
-                            generated_img = Image.open(img_data)
-                            final_mime = part.inline_data.mime_type
-                            break
+                    response = chat.send_message(contents)
+                    if response.parts:
+                        for part in response.parts:
+                            if part.inline_data is not None:
+                                img_data = BytesIO(part.inline_data.data)
+                                generated_img = Image.open(img_data)
+                                final_mime = part.inline_data.mime_type
+                                break
             except Exception as e:
                 logger.exception(
                     "Error during API call attempt %d: %s", retry_number, e
@@ -334,7 +339,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         """
         text_part = types.Part.from_text(text=prompt)
-        contents = [types.Content(role="user", parts=[text_part])]
+        contents = [text_part]
 
         return self._execute_image_request(
             prompt=prompt,
@@ -401,7 +406,7 @@ class GeminiProvider(BaseImageGenerationAndEditing, BaseProvider):
 
         text_part = types.Part.from_text(text=prompt)
         image_part = types.Part.from_bytes(data=image_data, mime_type=mime_type)
-        contents = [types.Content(role="user", parts=[image_part, text_part])]
+        contents = [image_part, text_part]
 
         return self._execute_image_request(
             prompt=prompt,
