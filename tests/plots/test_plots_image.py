@@ -8,6 +8,7 @@ import pytest
 import torch
 from PIL import Image
 
+from xwhy.core.result import ImageClassificationXWhyResult
 from xwhy.plots.image import (
     _prepare_image_for_display,
     create_image_heat_mask,
@@ -265,4 +266,246 @@ def test_plot_image_heatmap_save(
     mock_title.assert_called_once_with("Saved Heatmap")
     mock_axis.assert_called_once_with("off")
     mock_savefig.assert_called_once_with("heatmap_output.png", bbox_inches="tight")
+    mock_close.assert_called_once()
+
+
+@pytest.fixture
+def dummy_result() -> ImageClassificationXWhyResult:
+    """Provide a dummy ImageClassificationXWhyResult."""
+    result = MagicMock(spec=ImageClassificationXWhyResult)
+    # 2x2 image, 2x2 segments
+    result.original_image = np.ones((2, 2, 3), dtype=np.float32)
+    result.superpixels = np.array([[0, 1], [2, 3]], dtype=int)
+    result.coefficients = [0.5, -0.3, 0.8, -0.1]
+    return result
+
+
+def test_get_image_and_mask_positive_negative_conflict(
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test ValueError when both positive and negative only flags are true."""
+    from xwhy.plots.image import get_image_and_mask
+
+    with pytest.raises(
+        ValueError,
+        match="positive_only and negative_only cannot be true at the same time",
+    ):
+        get_image_and_mask(dummy_result, positive_only=True, negative_only=True)
+
+
+def test_get_image_and_mask_resize(dummy_result: ImageClassificationXWhyResult) -> None:
+    """Test resizing logic in get_image_and_mask."""
+    from xwhy.plots.image import get_image_and_mask
+
+    dummy_result.original_image = np.ones((4, 4, 3), dtype=np.float32)
+    temp, mask = get_image_and_mask(dummy_result, positive_only=True, num_features=2)
+    assert temp.shape == (2, 2, 3)
+    assert mask.shape == (2, 2)
+
+
+def test_get_image_and_mask_positive_only(
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test positive_only feature extraction."""
+    from xwhy.plots.image import get_image_and_mask
+
+    _temp, mask = get_image_and_mask(
+        dummy_result, positive_only=True, num_features=2, min_weight=0.1
+    )
+    # positive coeffs: 0 (0.5), 2 (0.8)
+    # They should be masked as 1
+    assert mask[0, 0] == 1
+    assert mask[1, 0] == 1
+    assert mask[0, 1] == 0
+    assert mask[1, 1] == 0
+
+
+def test_get_image_and_mask_negative_only(
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test negative_only feature extraction."""
+    from xwhy.plots.image import get_image_and_mask
+
+    _temp, mask = get_image_and_mask(
+        dummy_result,
+        positive_only=False,
+        negative_only=True,
+        num_features=2,
+        min_weight=0.0,
+    )
+    # negative coeffs: 1 (-0.3), 3 (-0.1)
+    assert mask[0, 1] == 1
+    assert mask[1, 1] == 1
+    assert mask[0, 0] == 0
+    assert mask[1, 0] == 0
+
+
+def test_get_image_and_mask_both(dummy_result: ImageClassificationXWhyResult) -> None:
+    """Test mixed features extraction with boost_channels."""
+    from xwhy.plots.image import get_image_and_mask
+
+    temp, mask = get_image_and_mask(
+        dummy_result,
+        positive_only=False,
+        negative_only=False,
+        num_features=4,
+        min_weight=0.2,
+        boost_channels=True,
+    )
+    # positive: 0, 2 -> mask 1, boost channel 1 (green)
+    # negative: 1 -> mask 2, boost channel 0 (red)
+    # negative: 3 (-0.1) is skipped due to min_weight=0.2
+    assert mask[0, 0] == 1
+    assert mask[1, 0] == 1
+    assert mask[0, 1] == 2
+    assert mask[1, 1] == 0
+
+    # Check boost_channels
+    assert temp[0, 0, 1] == np.max(dummy_result.original_image)
+    assert temp[0, 1, 0] == np.max(dummy_result.original_image)
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.show")
+@patch("xwhy.plots.image.plt.axis")
+@patch("xwhy.plots.image.plt.title")
+@patch("xwhy.plots.image.plt.imshow")
+@patch("xwhy.plots.image.plt.figure")
+def test_image_boundaries_show(
+    mock_figure: MagicMock,
+    mock_imshow: MagicMock,
+    mock_title: MagicMock,
+    mock_axis: MagicMock,
+    mock_show: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test displaying image boundaries."""
+    from xwhy.plots.image import image_boundaries
+
+    image_boundaries(dummy_result, title="Boundaries")
+    mock_figure.assert_called_once()
+    mock_imshow.assert_called_once()
+    mock_title.assert_called_once_with("Boundaries")
+    mock_show.assert_called_once()
+    mock_close.assert_called_once()
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.savefig")
+@patch("xwhy.plots.image.plt.axis")
+@patch("xwhy.plots.image.plt.imshow")
+@patch("xwhy.plots.image.plt.figure")
+def test_image_boundaries_save(
+    mock_figure: MagicMock,
+    mock_imshow: MagicMock,
+    mock_axis: MagicMock,
+    mock_savefig: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test saving image boundaries."""
+    from xwhy.plots.image import image_boundaries
+
+    image_boundaries(dummy_result, save_path="bounds.png")
+    mock_savefig.assert_called_once_with("bounds.png", bbox_inches="tight")
+    mock_close.assert_called_once()
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.show")
+@patch("xwhy.plots.image.plt.axis")
+@patch("xwhy.plots.image.plt.title")
+@patch("xwhy.plots.image.plt.imshow")
+@patch("xwhy.plots.image.plt.figure")
+def test_image_regions_show(
+    mock_figure: MagicMock,
+    mock_imshow: MagicMock,
+    mock_title: MagicMock,
+    mock_axis: MagicMock,
+    mock_show: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test displaying image regions."""
+    from xwhy.plots.image import image_regions
+
+    image_regions(dummy_result, title="Regions")
+    mock_imshow.assert_called_once()
+    mock_title.assert_called_once_with("Regions")
+    mock_show.assert_called_once()
+    mock_close.assert_called_once()
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.savefig")
+@patch("xwhy.plots.image.plt.axis")
+@patch("xwhy.plots.image.plt.imshow")
+@patch("xwhy.plots.image.plt.figure")
+def test_image_regions_save(
+    mock_figure: MagicMock,
+    mock_imshow: MagicMock,
+    mock_axis: MagicMock,
+    mock_savefig: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test saving image regions."""
+    from xwhy.plots.image import image_regions
+
+    image_regions(dummy_result, save_path="regions.png")
+    mock_savefig.assert_called_once_with("regions.png", bbox_inches="tight")
+    mock_close.assert_called_once()
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.show")
+@patch("xwhy.plots.image.plt.tight_layout")
+@patch("xwhy.plots.image.plt.subplots")
+def test_image_regions_side_by_side_show(
+    mock_subplots: MagicMock,
+    mock_tight_layout: MagicMock,
+    mock_show: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test displaying image regions side by side."""
+    from xwhy.plots.image import image_regions_side_by_side
+
+    mock_fig = MagicMock()
+    mock_ax1 = MagicMock()
+    mock_ax2 = MagicMock()
+    mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
+
+    image_regions_side_by_side(dummy_result)
+
+    mock_subplots.assert_called_once_with(1, 2, figsize=(8, 4))
+    mock_ax1.imshow.assert_called_once()
+    mock_ax2.imshow.assert_called_once()
+    mock_show.assert_called_once()
+    mock_close.assert_called_once()
+
+
+@patch("xwhy.plots.image.plt.close")
+@patch("xwhy.plots.image.plt.savefig")
+@patch("xwhy.plots.image.plt.tight_layout")
+@patch("xwhy.plots.image.plt.subplots")
+def test_image_regions_side_by_side_save(
+    mock_subplots: MagicMock,
+    mock_tight_layout: MagicMock,
+    mock_savefig: MagicMock,
+    mock_close: MagicMock,
+    dummy_result: ImageClassificationXWhyResult,
+) -> None:
+    """Test saving image regions side by side."""
+    from xwhy.plots.image import image_regions_side_by_side
+
+    mock_fig = MagicMock()
+    mock_ax1 = MagicMock()
+    mock_ax2 = MagicMock()
+    mock_subplots.return_value = (mock_fig, (mock_ax1, mock_ax2))
+
+    image_regions_side_by_side(dummy_result, save_path="sbs.png")
+
+    mock_savefig.assert_called_once_with("sbs.png", bbox_inches="tight")
     mock_close.assert_called_once()
