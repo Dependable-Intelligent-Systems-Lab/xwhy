@@ -43,7 +43,13 @@ JFrog access token. It makes no changes to application code, `pyproject.toml`,
    decorations, licence policy, exclusions, and any severity rules there.
    Do not set exclusions merely to silence findings.
 5. Set up the OIDC provider and identity mappings described below, then create
-   the `frogbot` GitHub Environment with required reviewers. Set repository
+   the `frogbot` GitHub Environment with required reviewers. Check the
+   organisation's GitHub Actions event policy for `pull_request_target`. GitHub
+   currently evaluates its default policy for public repositories and says it
+   will enforce the policy on **2 November 2026** for affected repositories;
+   any necessary permission for this particular reviewed workflow must follow
+   the organisation's policy, rather than broadly removing event protection.
+   Set repository
    Actions variables `JF_URL` (the full HTTPS JFrog Platform URL) and
    `JFROG_OIDC_PROVIDER_NAME` (the exact configured provider name). These are
    configuration values, not credentials. Test claims and permissions without
@@ -102,9 +108,10 @@ a CI failure. The repository scanner also checks `github.ref` is `main`.
 
 In JFrog, create a GitHub OIDC integration with the provider name stored in
 `JFROG_OIDC_PROVIDER_NAME`, using issuer/provider URL
-`https://token.actions.githubusercontent.com`. Configure the action's explicit
-audience `https://github.com/Dependable-Intelligent-Systems-Lab` and validate
-the `aud` claim in JFrog's Identity Mapping; JFrog's integration Audience field
+`https://token.actions.githubusercontent.com`. Match this exact `iss` claim
+in the Identity Mapping. Configure the action's explicit audience
+`https://github.com/Dependable-Intelligent-Systems-Lab` and validate the
+`aud` claim in JFrog's Identity Mapping; JFrog's integration Audience field
 is distinct from a mapping rule for the JWT `aud` claim. Match the exact
 `repository` and `repository_owner` claims. Use separate, narrow mappings for:
 
