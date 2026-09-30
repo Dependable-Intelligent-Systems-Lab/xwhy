@@ -66,11 +66,3 @@ It would be appreciated a citation to our paper as follows if you use X-Why for 
 
 ## Contribution 
 If you are interested in contributing to this project, please check the [contribution guidelines](https://github.com/koo-ec/xwhy/blob/main/docs/contribute/contributing.md).
-
-## Contributors
-
-<a href="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=Dependable-Intelligent-Systems-Lab/xwhy" />
-</a>
-
-Made with [contrib.rocks](https://contrib.rocks).

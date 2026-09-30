@@ -1,0 +1,38 @@
+name: Frogbot Scan Repository
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * *'
+
+permissions: {}
+
+jobs:
+  scan-repository:
+    # Restrict manual dispatch to main; fork jobs skip before authentication/setup.
+    if: >-
+      github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy' &&
+      github.ref == 'refs/heads/main' &&
+      vars.JFROG_FROGBOT_V3_READY == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out main
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Scan main with Frogbot V3
+        uses: jfrog/frogbot@98d710f28baab51f18800cdbbada700f245e9933 # v3.7.0
+        with:
+          version: '3.7.0'
+          oidc-provider-name: ${{ vars.JFROG_OIDC_PROVIDER_NAME }}
+          oidc-audience: https://github.com/Dependable-Intelligent-Systems-Lab
+        env:
+          JF_URL: ${{ vars.JF_URL }}
+          JF_GIT_TOKEN: ${{ github.token }}
+          JF_GIT_BASE_BRANCH: main
+          # Leave the GitHub Dependency Graph unchanged; JFrog keeps its own SBOM.
+          JF_UPLOAD_SBOM_TO_VCS: 'false'

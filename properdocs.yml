@@ -158,6 +158,7 @@ nav:
       - Connect Custom Models: how-to/custom-models.md
       - Configure LLM Providers: how-to/providers.md
       - Reproducible Explanations: how-to/reproducibility.md
+      - JFrog Security Scanning: security/jfrog-security-scanning.md
   - Evaluation:
       - Overview: evaluation/index.md
       - ATT Fidelity: evaluation/attribution-fidelity.md
