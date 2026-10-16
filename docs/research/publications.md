@@ -17,6 +17,7 @@ This catalogue connects the SMILE research family to the systems each publicatio
 | 2025 | gSMILE | Large language models | arXiv preprint | [arXiv:2505.21657](https://arxiv.org/abs/2505.21657) |
 | 2025 | KG-SMILE | Knowledge-graph and GraphRAG systems | arXiv preprint | [arXiv:2509.03626](https://arxiv.org/abs/2509.03626) |
 | 2026 | ConceptSMILE | Concept-based explainable AI | arXiv preprint | [arXiv:2607.09649](https://arxiv.org/abs/2607.09649) |
+| 2026 | Retinal concept-based XAI review | Concept-based explainability in retinal imaging | Journal of Imaging Informatics in Medicine review article | [DOI](https://doi.org/10.1007/s10278-026-02391-3) |
 | 2026 | ConceptSMILE thesis | Retinal-image explainability and trustworthy visual concepts | MSc thesis | [University of Hull repository](https://hull-repository.worktribe.com/output/5763337) |
 | 2026/2027 | Financial-sentiment local perturbation study | LLM financial-sentiment reasoning | NLDB 2026 conference chapter; 2027 volume | [DOI](https://doi.org/10.1007/978-3-032-29532-3_19) |
 | 2025 | Generative-AI SMILE thesis | LLM and image-editing explainability | MSc thesis | [arXiv:2602.01206](https://arxiv.org/abs/2602.01206) |
@@ -198,6 +199,33 @@ KG-SMILE examines the contribution of retrieved entities, relations, graph paths
     ```
 
 ## Concept-based explainability
+
+### Concept-Based Explainable AI in Retinal Imaging: Core Concepts, Techniques, and Challenges
+
+**Mohadeseh Mollapour Papkyadeh, Koorosh Aslansefat, Bhupesh Kumar Mishra, Tejal Shah, Zhibao Mian, and Mehran Hosseinalizadeh.** “Concept-Based Explainable AI in Retinal Imaging: Core Concepts, Techniques, and Challenges.” *Journal of Imaging Informatics in Medicine*, 2026. Published online 13 October 2026.
+
+This review organises concept-based explainability methods for retinal imaging and examines their evaluation, reliability gaps, and clinical validation needs. It discusses adapting SMILE for independent concept-level auditing as a candidate research direction requiring empirical and clinician-informed validation.
+
+[DOI](https://doi.org/10.1007/s10278-026-02391-3) · [SpringerLink](https://link.springer.com/article/10.1007/s10278-026-02391-3) · [PDF](https://link.springer.com/content/pdf/10.1007/s10278-026-02391-3.pdf)
+
+??? note "BibTeX"
+
+    ```bibtex
+    @article{mollapourpapkyadeh2026retinalcxai,
+      author    = {Mollapour Papkyadeh, Mohadeseh and Aslansefat, Koorosh
+                   and Kumar Mishra, Bhupesh and Shah, Tejal
+                   and Mian, Zhibao and Hosseinalizadeh, Mehran},
+      title     = {Concept-Based Explainable {AI} in Retinal Imaging:
+                   Core Concepts, Techniques, and Challenges},
+      journal   = {Journal of Imaging Informatics in Medicine},
+      year      = {2026},
+      month     = oct,
+      publisher = {Springer Nature},
+      doi       = {10.1007/s10278-026-02391-3},
+      url       = {https://doi.org/10.1007/s10278-026-02391-3},
+      note      = {Published online 13 October 2026}
+    }
+    ```
 
 ### ConceptSMILE
 
