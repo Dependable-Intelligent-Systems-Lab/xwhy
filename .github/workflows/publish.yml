@@ -3,40 +3,44 @@ name: Publish to PyPI and GitHub Releases
 on:
   push:
     tags:
-      - 'v*.*.*'  # Triggers automatically when a semantic versioning tag is pushed (e.g., v0.1.0)
+      - 'v*.*.*'
 
 jobs:
+  build:
+    name: Build and attest distributions
+    if: github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy'
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: ./.github/workflows/generator-generic-ossf-slsa3-publish.yml
+    with:
+      run-checks: true
+
   pypi-publish:
-    name: Build, Publish, and Release
+    name: Publish and release verified build
+    needs: build
     if: github.repository == 'Dependable-Intelligent-Systems-Lab/xwhy'
     runs-on: ubuntu-latest
-
     environment:
       name: pypi
       url: https://pypi.org/project/xwhy/
-    
-    # Required permissions for OIDC PyPI authentication and creating GitHub releases
     permissions:
-      id-token: write  # Crucial for PyPI Trusted Publishing
-      contents: write  # Crucial for creating a GitHub Release
-
+      id-token: write
+      contents: write
+      actions: read
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v7
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v8.3.0
+      - name: Download package distributions
+        uses: actions/download-artifact@v4
         with:
-          enable-cache: true
+          name: python-distributions
+          path: dist
 
-      - name: Set up Python
-        run: uv python install 3.12 3.13
-
-      - name: Run Nox (Sanity Check before release)
-        run: uv run nox
-
-      - name: Build Package (sdist and wheel)
-        run: uv build
+      - name: Download signed provenance
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.provenance-name }}
+          path: provenance
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -45,4 +49,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          files: dist/*
+          files: |
+            dist/*
+            provenance/*.intoto.jsonl
