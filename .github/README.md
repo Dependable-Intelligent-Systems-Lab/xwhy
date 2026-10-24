@@ -9,6 +9,26 @@
 <p align="center">
  <img src="https://github.com/koo-ec/xwhy/blob/main/docs/graphics/XWhy_Logo_v1.png" alt="XWhy, SMILE, Explainability, Interpretability, XAI, machine learning explainability, responsible ai"> </p>
 
+<table align="center">
+  <tr>
+    <td align="center" width="33%">
+      <a href="https://www.youtube.com/watch?v=ot40-m7AAB8">
+        <img src="https://img.youtube.com/vi/ot40-m7AAB8/hqdefault.jpg" alt="Watch XWhy video 1 on YouTube" width="100%">
+      </a>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://www.youtube.com/watch?v=sBfGj61oMTI">
+        <img src="https://img.youtube.com/vi/sBfGj61oMTI/hqdefault.jpg" alt="Watch XWhy video 2 on YouTube" width="100%">
+      </a>
+    </td>
+    <td align="center" width="33%">
+      <a href="https://www.youtube.com/watch?v=Dy1qU_OJnsU">
+        <img src="https://img.youtube.com/vi/Dy1qU_OJnsU/hqdefault.jpg" alt="Watch XWhy video 3 on YouTube" width="100%">
+      </a>
+    </td>
+  </tr>
+</table>
+
 ## Abstract
 <p align="justify">Machine learning is currently undergoing an explosion in capability, popularity, and sophistication. However, one of the major barriers to widespread acceptance of machine learning (ML) is trustworthiness: most ML models operate as black boxes, their inner workings opaque and mysterious, and it can be difficult to trust their conclusions without understanding how those conclusions are reached. Explainability is therefore a key aspect of improving trustworthiness: the ability to better understand, interpret, and anticipate the behaviour of ML models. To this end, we propose a SMILE, a new method that builds on previous approaches by making use of statistical distance measures to improve explainability while remaining applicable to a wide range of input data domains</p>
 
