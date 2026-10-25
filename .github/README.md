@@ -61,9 +61,10 @@ result = explainer.explain(
 print(result.metrics)
 xwhy.plots.text_heatmap(result)
 result.plot()
-
 ```
-
+Here is a sample result that you can get from the above code. There are functions one can try. Check the Tutorial <a href="https://dependable-intelligent-systems-lab.github.io/xwhy/llm_explainer/">here</a>.
+<p align="center">
+ <img src="https://github.com/Dependable-Intelligent-Systems-Lab/xwhy/blob/main/docs/graphics/examples/case2-glove-heatmap.png" alt="XWhy, SMILE, LLM Explainability, LLM Interpretability, XAI, machine learning explainability, responsible ai"> </p>
 
 ## Example of using SMILE for Image Explainability
 <p align="center">
