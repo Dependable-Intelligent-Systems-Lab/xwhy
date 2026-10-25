@@ -39,26 +39,31 @@ The SMILE approach has been extended for <b>Point Cloud Explainability</b>. Plea
 ```
 pip install xwhy
 ```
-<!--
-## Simple Example
+
+## LLM Explainability Example
 ```
 import xwhy
-import xgboost
+from xwhy import LLMExplainer
 
-# train an XGBoost model
-X, y = xwhy.datasets.boston()
-model = xgboost.XGBRegressor().fit(X, y)
+explainer = LLMExplainer(
+    provider="openai",
+    model_name="gpt-5-nano",
+    embedding_type="word2vec",
+    distance_type="wmd",
+    use_best_surrogate=True,
+)
 
-# explain the model's predictions using xwhy
-# (same syntax works for LightGBM, CatBoost, scikit-learn, transformers, Spark, etc.)
-explainer = xwhy.Explainer(model)
-xwhy_values = explainer(X)
+result = explainer.explain(
+    instance="Machine learning is fascinating.",
+    fidelity_plot=True,
+)
 
-# visualize the first prediction's explanation
-xwhy.plots.waterfall(xwhy_values[0])
+print(result.metrics)
+xwhy.plots.text_heatmap(result)
+result.plot()
 
 ```
--->
+
 
 ## Example of using SMILE for Image Explainability
 <p align="center">
